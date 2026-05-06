@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-// ─── CONFIG ────────────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://mdwxmiywtghznpwulwko.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kd3htaXl3dGdoem5wd3Vsd2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5OTkyOTIsImV4cCI6MjA5MzU3NTI5Mn0.b6yq6bIu0ntAbrrb2CP1H_alIcCTLc9sbix7tuERVAw";
 const ADZUNA_ID = "845f6cff";
@@ -9,7 +8,6 @@ const ADZUNA_KEY = "1255514b43792f219448b455d585c3ea";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ─── STYLES ────────────────────────────────────────────────────────────────
 const C = {
   bg: "#07080f", card: "#0d1117", border: "#1a2030",
   orange: "#FF5C1A", orangeLight: "#FF8A5B",
@@ -48,7 +46,22 @@ const btn = (variant="primary", extra={}) => ({
   ...extra
 });
 
-// ─── AUTH PAGE ─────────────────────────────────────────────────────────────
+// ─── AI CALL via Vercel API route ───────────────────────────────────────────
+const callAI = async (prompt) => {
+  try {
+    const res = await fetch("/api/claude", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt })
+    });
+    const data = await res.json();
+    return data.result || "";
+  } catch (e) {
+    return "";
+  }
+};
+
+// ─── AUTH PAGE ──────────────────────────────────────────────────────────────
 function AuthPage({onLogin}){
   const [mode,setMode]=useState("login");
   const [form,setForm]=useState({name:"",email:"",password:""});
@@ -62,11 +75,11 @@ function AuthPage({onLogin}){
       if(mode==="register"){
         if(!form.name||!form.email||!form.password){setErr("All fields required");setLoading(false);return;}
         const{data,error}=await supabase.auth.signUp({
-          email:form.email, password:form.password,
+          email:form.email,password:form.password,
           options:{data:{full_name:form.name}}
         });
         if(error)throw error;
-        setMsg("✅ Account created! Please check your email to confirm, then sign in.");
+        setMsg("✅ Account created! Check your email to confirm, then sign in.");
         setMode("login");
       }else{
         const{data,error}=await supabase.auth.signInWithPassword({email:form.email,password:form.password});
@@ -83,18 +96,12 @@ function AuthPage({onLogin}){
       {[["10%","20%","#FF5C1A"],["80%","70%","#1DDB8B"]].map(([l,t,c],i)=>(
         <div key={i} style={{position:"absolute",left:l,top:t,width:400,height:400,borderRadius:"50%",background:`radial-gradient(circle,${c}12,transparent 70%)`,pointerEvents:"none"}}/>
       ))}
-
       <div className="fade" style={{width:"100%",maxWidth:420,background:C.card,border:`1px solid ${C.border}`,borderRadius:24,padding:40,position:"relative",zIndex:1}}>
         <div style={{textAlign:"center",marginBottom:32}}>
           <div className="float" style={{fontSize:44,marginBottom:8}}>⚡</div>
-          <div style={{fontFamily:"'Clash Display',sans-serif",fontWeight:700,fontSize:30,background:`linear-gradient(135deg,${C.orange},${C.orangeLight})`,backgroundSize:"200%",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradShift 3s ease infinite"}}>
-            TakePlace
-          </div>
-          <div style={{color:C.muted,fontSize:12,marginTop:4,fontFamily:"'Outfit',sans-serif"}}>
-            It's your time. TakePlace.
-          </div>
+          <div style={{fontFamily:"'Clash Display',sans-serif",fontWeight:700,fontSize:30,background:`linear-gradient(135deg,${C.orange},${C.orangeLight})`,backgroundSize:"200%",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradShift 3s ease infinite"}}>TakePlace</div>
+          <div style={{color:C.muted,fontSize:12,marginTop:4,fontFamily:"'Outfit',sans-serif"}}>It's your time. TakePlace.</div>
         </div>
-
         <div style={{display:"flex",background:"#0a0e18",borderRadius:12,padding:4,marginBottom:24}}>
           {["login","register"].map(m=>(
             <button key={m} onClick={()=>{setMode(m);setErr("");setMsg("");}} style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"'Outfit',sans-serif",fontWeight:600,fontSize:13,transition:"all 0.2s",background:mode===m?C.border:"transparent",color:mode===m?C.text:C.muted}}>
@@ -102,16 +109,13 @@ function AuthPage({onLogin}){
             </button>
           ))}
         </div>
-
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
           {mode==="register"&&<input style={inp} placeholder="Your full name" value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))}/>}
           <input style={inp} placeholder="Email address" type="email" value={form.email} onChange={e=>setForm(p=>({...p,email:e.target.value}))}/>
           <input style={inp} placeholder="Password" type="password" value={form.password} onChange={e=>setForm(p=>({...p,password:e.target.value}))}/>
         </div>
-
         {err&&<div style={{color:C.danger,fontSize:12,marginTop:10,fontFamily:"'Outfit',sans-serif"}}>⚠ {err}</div>}
         {msg&&<div style={{color:C.green,fontSize:12,marginTop:10,fontFamily:"'Outfit',sans-serif"}}>{msg}</div>}
-
         <button onClick={handle} disabled={loading} style={{...btn("primary",{width:"100%",marginTop:20,padding:"13px",fontSize:14})}}>
           {loading?<span className="spin">⟳</span>:mode==="login"?"Sign In →":"Create Account →"}
         </button>
@@ -120,7 +124,7 @@ function AuthPage({onLogin}){
   );
 }
 
-// ─── ONBOARD PAGE ──────────────────────────────────────────────────────────
+// ─── ONBOARD PAGE ───────────────────────────────────────────────────────────
 function OnboardPage({user,onDone}){
   const [step,setStep]=useState(1);
   const [resume,setResume]=useState("");
@@ -133,19 +137,11 @@ function OnboardPage({user,onDone}){
   const analyzeResume=async(text)=>{
     setAnalyzing(true);
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",max_tokens:1000,
-          messages:[{role:"user",content:`Analyze this resume. Return ONLY valid JSON (no markdown):
+      const prompt=`Analyze this resume. Return ONLY valid JSON (no markdown):
 {"projects":[{"name":"...","score":85,"reason":"...","keep":true}],"skills":["Java","Spring Boot"],"strengths":["..."],"weaknesses":["..."],"overallScore":72}
-Score each project 0-100 for recruiter impression. keep:true for top 2 only.
-Resume: ${text.slice(0,2000)}`}]
-        })
-      });
-      const data=await res.json();
-      const raw=data.content?.map(c=>c.text||"").join("")||"{}";
+Score each project 0-100. keep:true for top 2 only.
+Resume: ${text.slice(0,2000)}`;
+      const raw = await callAI(prompt);
       setAnalysis(JSON.parse(raw.replace(/```json|```/g,"").trim()));
     }catch(e){setAnalysis({projects:[],skills:[],strengths:[],weaknesses:[],overallScore:70});}
     setAnalyzing(false);
@@ -155,8 +151,8 @@ Resume: ${text.slice(0,2000)}`}]
     setSaving(true);
     try{
       await supabase.from("profiles").upsert({
-        id:user.id, full_name:name, email:user.email,
-        resume_text:resume, analysis:analysis, updated_at:new Date().toISOString()
+        id:user.id,full_name:name,email:user.email,
+        resume_text:resume,analysis:analysis,updated_at:new Date().toISOString()
       });
     }catch(e){}
     setSaving(false);
@@ -171,7 +167,7 @@ Resume: ${text.slice(0,2000)}`}]
     reader.readAsText(file);
   };
 
-  if(step===1) return(
+  if(step===1)return(
     <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
       <style>{css}</style>
       <div className="fade" style={{textAlign:"center",maxWidth:520}}>
@@ -195,9 +191,7 @@ Resume: ${text.slice(0,2000)}`}]
             <span style={{color:C.soft,fontSize:13,fontFamily:"'Outfit',sans-serif"}}>{f.text}</span>
           </div>
         ))}
-        <button onClick={()=>setStep(2)} style={{...btn("primary",{marginTop:24,padding:"13px 40px",fontSize:15})}}>
-          Let's Go →
-        </button>
+        <button onClick={()=>setStep(2)} style={{...btn("primary",{marginTop:24,padding:"13px 40px",fontSize:15})}}>Let's Go →</button>
       </div>
     </div>
   );
@@ -207,21 +201,17 @@ Resume: ${text.slice(0,2000)}`}]
       <style>{css}</style>
       <div className="fade" style={{width:"100%",maxWidth:580}}>
         <div style={{fontFamily:"'Clash Display',sans-serif",fontWeight:700,fontSize:24,color:C.text,marginBottom:6}}>Upload Your Resume</div>
-        <div style={{color:C.muted,fontSize:13,marginBottom:20,fontFamily:"'Outfit',sans-serif"}}>Paste your resume text below. AI will analyze and score every project.</div>
-
-        <textarea placeholder="Paste your full resume here — name, education, experience, projects, skills..." value={resume} onChange={e=>{setResume(e.target.value);if(e.target.value.length>200)analyzeResume(e.target.value);}}
+        <div style={{color:C.muted,fontSize:13,marginBottom:20,fontFamily:"'Outfit',sans-serif"}}>Paste your resume text. AI will analyze and score every project.</div>
+        <textarea placeholder="Paste your full resume here..." value={resume} onChange={e=>{setResume(e.target.value);if(e.target.value.length>200)analyzeResume(e.target.value);}}
           style={{...inp,minHeight:200,resize:"vertical",lineHeight:1.6,marginBottom:12}}/>
-
         <button onClick={()=>fileRef.current.click()} style={{...btn("ghost",{width:"100%",marginBottom:20})}}>📁 Or upload .txt file</button>
         <input ref={fileRef} type="file" accept=".txt" onChange={handleFile} style={{display:"none"}}/>
-
         {analyzing&&(
           <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20,marginBottom:16,textAlign:"center"}}>
             <span className="spin" style={{fontSize:28}}>⚡</span>
-            <div style={{color:C.soft,fontSize:13,fontFamily:"'Outfit',sans-serif",marginTop:8}}>AI analyzing your resume and scoring projects...</div>
+            <div style={{color:C.soft,fontSize:13,fontFamily:"'Outfit',sans-serif",marginTop:8}}>AI analyzing your resume...</div>
           </div>
         )}
-
         {analysis&&!analyzing&&(
           <div className="fade" style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:20}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
@@ -233,7 +223,7 @@ Resume: ${text.slice(0,2000)}`}]
             {analysis.projects?.map((p,i)=>(
               <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:"#0a0e18",borderRadius:8,marginBottom:8,border:`1px solid ${p.keep?"#14532d":C.border}`}}>
                 <div>
-                  <div style={{fontSize:13,color:C.text,fontWeight:600,fontFamily:"'Outfit',sans-serif"}}>{p.name}</div>
+                  <div style={{fontSize:13,color:C.text,fontWeight:600}}>{p.name}</div>
                   <div style={{fontSize:11,color:C.muted,marginTop:2}}>{p.reason}</div>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -244,7 +234,6 @@ Resume: ${text.slice(0,2000)}`}]
             ))}
           </div>
         )}
-
         <button onClick={proceed} disabled={!resume||analyzing||saving} style={{...btn("primary",{width:"100%",padding:"13px",fontSize:14,opacity:(!resume||analyzing)?0.5:1})}}>
           {saving?"Saving...":resume?"Enter TakePlace →":"Paste your resume first"}
         </button>
@@ -253,7 +242,7 @@ Resume: ${text.slice(0,2000)}`}]
   );
 }
 
-// ─── MAIN APP ──────────────────────────────────────────────────────────────
+// ─── MAIN APP ───────────────────────────────────────────────────────────────
 function MainApp({user,resume,analysis,onLogout}){
   const [tab,setTab]=useState(0);
   const [jobs,setJobs]=useState([]);
@@ -271,10 +260,7 @@ function MainApp({user,resume,analysis,onLogout}){
   const [fakeJob,setFakeJob]=useState({url:"",result:"",loading:false});
   const name=user?.user_metadata?.full_name||user?.email?.split("@")[0]||"there";
 
-  useEffect(()=>{
-    loadApps();
-    fetchJobs();
-  },[]);
+  useEffect(()=>{loadApps();fetchJobs();},[]);
 
   const loadApps=async()=>{
     const{data}=await supabase.from("applications").select("*").eq("user_id",user.id).order("created_at",{ascending:false});
@@ -289,78 +275,59 @@ function MainApp({user,resume,analysis,onLogout}){
       const data=await res.json();
       if(data.results&&data.results.length>0){
         setJobs(data.results.map(j=>({
-          id:j.id,
-          title:j.title,
-          company:j.company?.display_name||"Company",
+          id:j.id,title:j.title,company:j.company?.display_name||"Company",
           location:j.location?.display_name||loc,
           salary:j.salary_min?`₹${Math.round(j.salary_min/100000)}–${Math.round(j.salary_max/100000)} LPA`:"Salary not listed",
-          description:j.description?.slice(0,200)||"",
-          url:j.redirect_url,
+          description:j.description?.slice(0,200)||"",url:j.redirect_url,
           posted:new Date(j.created).toLocaleDateString("en-IN",{day:"numeric",month:"short"}),
           category:j.category?.label||"Technology",
         })));
-      }else{
-        setJobsError("No jobs found for this search. Try different keywords.");
-      }
-    }catch(e){
-      setJobsError("Could not load jobs. Check internet connection.");
-    }
+      }else{setJobsError("No jobs found. Try different keywords.");}
+    }catch(e){setJobsError("Could not load jobs.");}
     setJobsLoading(false);
   };
 
   const tailorResume=async(job)=>{
     setTailoring(job.id);setTailorLoading(true);
     const keepProjects=analysis?.projects?.filter(p=>p.keep).map(p=>p.name).join(", ")||"best projects";
-    try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",max_tokens:1000,
-          messages:[{role:"user",content:`Rewrite this resume for "${job.title}" at ${job.company}.
+    const prompt=`Rewrite this resume for "${job.title}" at ${job.company}.
 RULES:
 1. Jake's Resume format — clean, ATS optimized
-2. Only include these projects (AI selected strongest): ${keepProjects}
+2. Only include these projects: ${keepProjects}
 3. Add keywords from job: ${job.description}
-4. Every bullet starts with strong action verb + has metric
-5. Max 1 page content
+4. Every bullet: strong action verb + metric
+5. Max 1 page
 Format: SUMMARY → EXPERIENCE → PROJECTS → SKILLS → ACHIEVEMENTS
 Resume: ${resume?.slice(0,2000)}
-Return only the rewritten resume.`}]
-        })
-      });
-      const data=await res.json();
-      const text=data.content?.map(c=>c.text||"").join("")||"Error. Try again.";
-      setTailored(prev=>({...prev,[job.id]:text}));
-    }catch{setTailored(prev=>({...prev,[job.id]:"Network error. Try again."}));}
+Return only the rewritten resume.`;
+    const text = await callAI(prompt);
+    setTailored(prev=>({...prev,[job.id]:text||"Error. Try again."}));
     setTailorLoading(false);
   };
 
   const checkFakeJob=async()=>{
     if(!fakeJob.url)return;
     setFakeJob(p=>({...p,loading:true,result:""}));
-    try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",max_tokens:500,
-          messages:[{role:"user",content:`Analyze this job posting URL or description for fraud indicators. Give a Trust Score 0-100 and list red flags.
+    const prompt=`Analyze this job posting for fraud. Trust Score 0-100.
 Return ONLY JSON: {"trustScore":85,"verdict":"SAFE","redFlags":["..."],"greenFlags":["..."],"advice":"..."}
-Job: ${fakeJob.url}`}]
-        })
-      });
-      const data=await res.json();
-      const raw=data.content?.map(c=>c.text||"").join("")||"{}";
+verdict: SAFE, RISKY, or FAKE
+Job: ${fakeJob.url}`;
+    const raw = await callAI(prompt);
+    try{
       setFakeJob(p=>({...p,result:JSON.parse(raw.replace(/```json|```/g,"").trim()),loading:false}));
-    }catch{setFakeJob(p=>({...p,result:{trustScore:0,verdict:"ERROR",redFlags:["Could not analyze"],greenFlags:[],advice:"Try again"},loading:false}));}
+    }catch{
+      setFakeJob(p=>({...p,result:{trustScore:0,verdict:"ERROR",redFlags:["Could not analyze"],greenFlags:[],advice:"Try again"},loading:false}));
+    }
   };
+
+  // ── FIXED: View job and Mark Applied are now SEPARATE ──
+  const openJob=(job)=>window.open(job.url,"_blank");
 
   const markApply=async(job)=>{
     const newA={user_id:user.id,company:job.company,role:job.title,status:"Applied",job_url:job.url,feedback:"",created_at:new Date().toISOString()};
     const{data}=await supabase.from("applications").insert([newA]).select();
     if(data)setApps(prev=>[data[0],...prev]);
-    window.open(job.url,"_blank");
+    alert(`✅ "${job.title}" at ${job.company} added to your tracker!`);
   };
 
   const updateStatus=async(id,status)=>{
@@ -396,12 +363,9 @@ Job: ${fakeJob.url}`}]
   return(
     <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Outfit',sans-serif"}}>
       <style>{css}</style>
-
       <div style={{background:C.card,borderBottom:`1px solid ${C.border}`,padding:"14px 20px",position:"sticky",top:0,zIndex:100}}>
         <div style={{maxWidth:750,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{fontFamily:"'Clash Display',sans-serif",fontWeight:700,fontSize:20,background:`linear-gradient(135deg,${C.orange},${C.orangeLight})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>
-            ⚡ TakePlace
-          </div>
+          <div style={{fontFamily:"'Clash Display',sans-serif",fontWeight:700,fontSize:20,background:`linear-gradient(135deg,${C.orange},${C.orangeLight})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>⚡ TakePlace</div>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             <div style={{fontSize:12,color:C.muted}}>Hey {name.split(" ")[0]} 👋</div>
             <button onClick={onLogout} style={{...btn("ghost",{padding:"6px 12px",fontSize:11})}}>Logout</button>
@@ -412,9 +376,7 @@ Job: ${fakeJob.url}`}]
       <div style={{background:C.card,borderBottom:`1px solid ${C.border}`,position:"sticky",top:53,zIndex:99}}>
         <div style={{maxWidth:750,margin:"0 auto",display:"flex"}}>
           {TABS.map((t,i)=>(
-            <button key={i} onClick={()=>setTab(i)} style={{flex:1,padding:"12px 6px",border:"none",background:"transparent",cursor:"pointer",color:tab===i?C.orange:C.muted,fontFamily:"'Outfit',sans-serif",fontWeight:tab===i?700:400,fontSize:12,borderBottom:`2px solid ${tab===i?C.orange:"transparent"}`,transition:"all 0.2s"}}>
-              {t}
-            </button>
+            <button key={i} onClick={()=>setTab(i)} style={{flex:1,padding:"12px 6px",border:"none",background:"transparent",cursor:"pointer",color:tab===i?C.orange:C.muted,fontFamily:"'Outfit',sans-serif",fontWeight:tab===i?700:400,fontSize:12,borderBottom:`2px solid ${tab===i?C.orange:"transparent"}`,transition:"all 0.2s"}}>{t}</button>
           ))}
         </div>
       </div>
@@ -425,12 +387,10 @@ Job: ${fakeJob.url}`}]
           <div>
             <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:20}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-                <input style={inp} placeholder="Job title (java developer...)" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}/>
-                <input style={inp} placeholder="Location (hyderabad...)" value={location} onChange={e=>setLocation(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}/>
+                <input style={inp} placeholder="Job title..." value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}/>
+                <input style={inp} placeholder="Location..." value={location} onChange={e=>setLocation(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}/>
               </div>
-              <button onClick={()=>fetchJobs()} style={{...btn("primary",{width:"100%"})}}>
-                🔍 Search Real Jobs
-              </button>
+              <button onClick={()=>fetchJobs()} style={{...btn("primary",{width:"100%"})}}>🔍 Search Real Jobs</button>
             </div>
 
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
@@ -443,18 +403,8 @@ Job: ${fakeJob.url}`}]
               )}
             </div>
 
-            {jobsLoading&&(
-              <div style={{textAlign:"center",padding:"60px 20px"}}>
-                <span className="spin" style={{fontSize:36,color:C.orange}}>⚡</span>
-                <div style={{color:C.muted,fontSize:14,marginTop:12}}>Fetching real jobs from Adzuna...</div>
-              </div>
-            )}
-
-            {jobsError&&(
-              <div style={{background:"#450a0a",border:"1px solid #7f1d1d",borderRadius:12,padding:20,color:C.danger,textAlign:"center"}}>
-                {jobsError}
-              </div>
-            )}
+            {jobsLoading&&<div style={{textAlign:"center",padding:"60px 20px"}}><span className="spin" style={{fontSize:36,color:C.orange}}>⚡</span><div style={{color:C.muted,fontSize:14,marginTop:12}}>Fetching real jobs...</div></div>}
+            {jobsError&&<div style={{background:"#450a0a",border:"1px solid #7f1d1d",borderRadius:12,padding:20,color:C.danger,textAlign:"center"}}>{jobsError}</div>}
 
             {!jobsLoading&&jobs.map((job,i)=>(
               <div key={job.id} className="fade card-hover" style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 18px",marginBottom:12,borderLeft:`3px solid ${C.orange}`,animationDelay:`${i*0.04}s`}}>
@@ -468,13 +418,7 @@ Job: ${fakeJob.url}`}]
                     <div style={{color:C.muted,fontSize:10,marginTop:2}}>{job.posted}</div>
                   </div>
                 </div>
-
-                {job.description&&(
-                  <div style={{color:C.muted,fontSize:12,lineHeight:1.6,marginBottom:10,background:"#0a0e18",borderRadius:8,padding:"8px 10px"}}>
-                    {job.description}...
-                  </div>
-                )}
-
+                {job.description&&<div style={{color:C.muted,fontSize:12,lineHeight:1.6,marginBottom:10,background:"#0a0e18",borderRadius:8,padding:"8px 10px"}}>{job.description}...</div>}
                 <div style={{display:"flex",gap:8,marginBottom:12}}>
                   <span style={{background:"#0c1a3a",color:"#60a5fa",fontSize:10,padding:"3px 8px",borderRadius:6}}>{job.category}</span>
                 </div>
@@ -488,16 +432,19 @@ Job: ${fakeJob.url}`}]
                     <pre style={{whiteSpace:"pre-wrap",fontSize:11,color:C.soft,lineHeight:1.7,fontFamily:"'DM Mono',monospace",maxHeight:300,overflowY:"auto"}}>{tailored[job.id]}</pre>
                   </div>
                 )}
-
                 {tailorLoading&&tailoring===job.id&&!tailored[job.id]&&(
                   <div style={{textAlign:"center",padding:14,color:C.muted,fontSize:12,marginBottom:12}}>
-                    <span className="spin">⚡</span> AI rewriting resume for this role...
+                    <span className="spin">⚡</span> AI rewriting resume...
                   </div>
                 )}
 
-                <div style={{display:"flex",gap:8}}>
-                  <button onClick={()=>markApply(job)} style={{...btn("primary",{flex:1,fontSize:12})}}>
-                    Apply Now → (Opens real job)
+                {/* 3 SEPARATE BUTTONS */}
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <button onClick={()=>openJob(job)} style={{...btn("primary",{flex:1,fontSize:12})}}>
+                    🔗 View Job
+                  </button>
+                  <button onClick={()=>markApply(job)} style={{...btn("ghost",{fontSize:12})}}>
+                    ✅ Mark Applied
                   </button>
                   <button onClick={()=>{setTailoring(job.id);if(!tailored[job.id])tailorResume(job);}} style={{...btn("ghost",{fontSize:12})}}>
                     🧠 Tailor Resume
@@ -518,11 +465,8 @@ Job: ${fakeJob.url}`}]
                 </div>
               ))}
             </div>
-
             {!addingApp?(
-              <button onClick={()=>setAddingApp(true)} style={{width:"100%",padding:"11px",borderRadius:10,border:`1px dashed ${C.border}`,background:"transparent",color:C.muted,fontSize:13,cursor:"pointer",marginBottom:14}}>
-                + Add Application Manually
-              </button>
+              <button onClick={()=>setAddingApp(true)} style={{width:"100%",padding:"11px",borderRadius:10,border:`1px dashed ${C.border}`,background:"transparent",color:C.muted,fontSize:13,cursor:"pointer",marginBottom:14}}>+ Add Application Manually</button>
             ):(
               <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:16,marginBottom:14}}>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
@@ -538,12 +482,11 @@ Job: ${fakeJob.url}`}]
                 </div>
               </div>
             )}
-
             {apps.length===0?(
               <div style={{textAlign:"center",padding:"60px 20px",color:C.muted}}>
                 <div style={{fontSize:40,marginBottom:12}}>📭</div>
                 <div style={{fontFamily:"'Clash Display',sans-serif",fontSize:18}}>No applications yet</div>
-                <div style={{fontSize:13,marginTop:6}}>Apply to jobs — they'll track here automatically</div>
+                <div style={{fontSize:13,marginTop:6}}>Click "✅ Mark Applied" on any job to track it here</div>
               </div>
             ):apps.map(app=>(
               <div key={app.id} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:"14px 16px",marginBottom:10}}>
@@ -558,10 +501,10 @@ Job: ${fakeJob.url}`}]
                   </select>
                 </div>
                 {app.feedback&&<div style={{background:"#0a0e18",borderRadius:8,padding:"8px 10px",fontSize:12,color:C.soft,marginBottom:8}}>💬 {app.feedback}</div>}
-                {app.job_url&&<a href={app.job_url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#60a5fa",display:"block",marginBottom:8}}>🔗 View original job posting</a>}
+                {app.job_url&&<a href={app.job_url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#60a5fa",display:"block",marginBottom:8}}>🔗 View original posting</a>}
                 {feedback.id===app.id?(
                   <div style={{display:"flex",gap:8}}>
-                    <input placeholder="Add notes or feedback..." value={feedback.text} onChange={e=>setFeedback(p=>({...p,text:e.target.value}))} style={{...inp,flex:1}}/>
+                    <input placeholder="Add notes..." value={feedback.text} onChange={e=>setFeedback(p=>({...p,text:e.target.value}))} style={{...inp,flex:1}}/>
                     <button onClick={saveFeedback} style={{...btn("primary",{padding:"8px 14px",fontSize:12})}}>Save</button>
                   </div>
                 ):(
@@ -578,34 +521,27 @@ Job: ${fakeJob.url}`}]
           <div>
             <div style={{fontFamily:"'Clash Display',sans-serif",fontWeight:700,fontSize:22,color:C.text,marginBottom:4}}>🛡️ Fake Job Detector</div>
             <div style={{color:C.muted,fontSize:13,marginBottom:20}}>Paste any job URL or description. AI checks if it's real or a scam.</div>
-
             <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:16}}>
-              <textarea placeholder="Paste job URL or full job description here..." value={fakeJob.url} onChange={e=>setFakeJob(p=>({...p,url:e.target.value}))}
+              <textarea placeholder="Paste job URL or full description here..." value={fakeJob.url} onChange={e=>setFakeJob(p=>({...p,url:e.target.value}))}
                 style={{...inp,minHeight:120,resize:"vertical",marginBottom:12}}/>
               <button onClick={checkFakeJob} disabled={!fakeJob.url||fakeJob.loading} style={{...btn("primary",{width:"100%"})}}>
                 {fakeJob.loading?<><span className="spin">⚡</span> Analyzing...</>:"🛡️ Check This Job"}
               </button>
             </div>
-
             {fakeJob.result&&!fakeJob.loading&&(
               <div className="fade" style={{background:C.card,border:`2px solid ${fakeJob.result.trustScore>=70?"#14532d":fakeJob.result.trustScore>=40?"#451a03":"#450a0a"}`,borderRadius:14,padding:24}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
                   <div>
                     <div style={{fontFamily:"'Clash Display',sans-serif",fontWeight:700,fontSize:20,color:C.text}}>Trust Analysis</div>
-                    <div style={{color:C.muted,fontSize:13,marginTop:2}}>AI verdict on this job posting</div>
                   </div>
                   <div style={{textAlign:"center"}}>
-                    <div style={{fontFamily:"'Clash Display',sans-serif",fontSize:48,fontWeight:700,color:fakeJob.result.trustScore>=70?C.green:fakeJob.result.trustScore>=40?C.warn:C.danger}}>
-                      {fakeJob.result.trustScore}
-                    </div>
+                    <div style={{fontFamily:"'Clash Display',sans-serif",fontSize:48,fontWeight:700,color:fakeJob.result.trustScore>=70?C.green:fakeJob.result.trustScore>=40?C.warn:C.danger}}>{fakeJob.result.trustScore}</div>
                     <div style={{fontSize:10,color:C.muted}}>Trust Score</div>
                   </div>
                 </div>
-
                 <div style={{display:"inline-block",padding:"8px 20px",borderRadius:20,background:fakeJob.result.verdict==="SAFE"?"#052e16":fakeJob.result.verdict==="RISKY"?"#451a03":"#450a0a",color:fakeJob.result.verdict==="SAFE"?C.green:fakeJob.result.verdict==="RISKY"?C.warn:C.danger,fontWeight:800,fontSize:14,marginBottom:16}}>
                   {fakeJob.result.verdict==="SAFE"?"✅ LIKELY SAFE":fakeJob.result.verdict==="RISKY"?"⚠️ PROCEED WITH CAUTION":"🚨 LIKELY FAKE"}
                 </div>
-
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
                   <div style={{background:"#0a0e18",borderRadius:10,padding:14}}>
                     <div style={{color:C.danger,fontSize:11,fontFamily:"'DM Mono',monospace",marginBottom:8}}>RED FLAGS</div>
@@ -616,9 +552,7 @@ Job: ${fakeJob.url}`}]
                     {fakeJob.result.greenFlags?.map((f,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:5}}>✅ {f}</div>)}
                   </div>
                 </div>
-                <div style={{background:"#0a0e18",borderRadius:10,padding:14,color:C.soft,fontSize:13,lineHeight:1.7}}>
-                  💡 {fakeJob.result.advice}
-                </div>
+                <div style={{background:"#0a0e18",borderRadius:10,padding:14,color:C.soft,fontSize:13,lineHeight:1.7}}>💡 {fakeJob.result.advice}</div>
               </div>
             )}
           </div>
@@ -628,7 +562,6 @@ Job: ${fakeJob.url}`}]
           <div>
             <div style={{fontFamily:"'Clash Display',sans-serif",fontWeight:700,fontSize:22,color:C.text,marginBottom:4}}>Your Resume Intelligence</div>
             <div style={{color:C.muted,fontSize:13,marginBottom:20}}>AI analysis of your uploaded resume</div>
-
             {analysis?.projects?.length>0&&(
               <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:16}}>
                 <div style={{fontFamily:"'Clash Display',sans-serif",fontWeight:700,color:C.text,marginBottom:14,fontSize:16}}>Project Rankings</div>
@@ -649,7 +582,6 @@ Job: ${fakeJob.url}`}]
                 ))}
               </div>
             )}
-
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
               <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:16}}>
                 <div style={{color:C.green,fontSize:11,fontFamily:"'DM Mono',monospace",marginBottom:8}}>STRENGTHS</div>
@@ -660,7 +592,6 @@ Job: ${fakeJob.url}`}]
                 {analysis?.weaknesses?.map((s,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:5}}>→ {s}</div>)}
               </div>
             </div>
-
             {analysis?.skills?.length>0&&(
               <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:16}}>
                 <div style={{color:"#60a5fa",fontSize:11,fontFamily:"'DM Mono',monospace",marginBottom:10}}>DETECTED SKILLS</div>
