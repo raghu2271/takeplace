@@ -41,11 +41,21 @@ async function callAI(prompt, retries = 2) {
 
 function safeJSON(raw, fallback = {}) {
   try {
-    const clean = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+    const clean = raw
+      .replace(/```json\s*/gi, "")
+      .replace(/```\s*/gi, "")
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, " ")
+      .trim();
     return JSON.parse(clean);
   } catch {
-    const match = raw.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-    if (match) { try { return JSON.parse(match[0]); } catch {} }
+    try {
+      const match = raw.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+      if (match) return JSON.parse(match[0]);
+    } catch {}
+    try {
+      const match = raw.match(/\[[\s\S]*\]/);
+      if (match) return JSON.parse(match[0]);
+    } catch {}
     return fallback;
   }
 }
