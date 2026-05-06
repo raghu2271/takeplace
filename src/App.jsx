@@ -6,26 +6,29 @@ const SUPABASE_URL = "https://mdwxmiywtghznpwulwko.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kd3htaXl3dGdoem5wd3Vsd2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5OTkyOTIsImV4cCI6MjA5MzU3NTI5Mn0.b6yq6bIu0ntAbrrb2CP1H_alIcCTLc9sbix7tuERVAw";
 const ADZUNA_ID = "845f6cff";
 const ADZUNA_KEY = "1255514b43792f219448b455d585c3ea";
-const GEMINI_KEY = "AIzaSyC08oK5xT5OjO25rLv43Lu-yNaxCiG-aI4";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+const GROQ_KEY = "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";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ─── GEMINI API CALL ───────────────────────────────────────────────────────
+// ─── GROQ API CALL ─────────────────────────────────────────────────────────
 async function callAI(prompt, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await fetch(GEMINI_URL, {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${GROQ_KEY}`
+        },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
+          model: "llama3-8b-8192",
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 2048
         })
       });
       if (!res.ok) {
         const err = await res.text();
-        throw new Error(`Gemini error ${res.status}: ${err}`);
+        throw new Error(`Groq error ${res.status}: ${err}`);
       }
       const data = await res.json();
       return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
