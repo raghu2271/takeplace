@@ -6,7 +6,7 @@ const SUPABASE_URL = "https://mdwxmiywtghznpwulwko.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kd3htaXl3dGdoem5wd3Vsd2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5OTkyOTIsImV4cCI6MjA5MzU3NTI5Mn0.b6yq6bIu0ntAbrrb2CP1H_alIcCTLc9sbix7tuERVAw";
 const ADZUNA_ID = "845f6cff";
 const ADZUNA_KEY = "1255514b43792f219448b455d585c3ea";
-const GROQ_KEY = "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";
+const GROQ_KEY = "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";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
