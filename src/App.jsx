@@ -21,7 +21,7 @@ async function callAI(prompt, retries = 2) {
           "Authorization": `Bearer ${GROQ_KEY}`
         },
         body: JSON.stringify({
-          llama-3.1-8b-instant
+         model: "llama-3.1-8b-instant",
           messages: [
             { role: "system", content: "You are a helpful assistant. When asked for JSON, return ONLY raw JSON with no markdown, no backticks, no explanation. Start directly with { or [." },
             { role: "user", content: prompt }
