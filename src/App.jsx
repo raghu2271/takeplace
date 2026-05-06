@@ -36,6 +36,59 @@ const css=`
 const inp={width:"100%",background:"#0d1117",border:`1px solid ${C.border}`,borderRadius:10,padding:"11px 14px",color:C.text,fontSize:13,fontFamily:"'Outfit',sans-serif",outline:"none",transition:"all 0.2s"};
 const btn=(v="primary",e={})=>({padding:"10px 20px",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"'Outfit',sans-serif",fontWeight:700,fontSize:13,transition:"all 0.2s",...(v==="primary"?{background:`linear-gradient(135deg,${C.orange},${C.orangeLight})`,color:"#07080f"}:v==="purple"?{background:`linear-gradient(135deg,#7c3aed,${C.purple})`,color:"#fff"}:v==="ghost"?{background:"transparent",color:C.soft,border:`1px solid ${C.border}`}:{background:C.card,color:C.soft,border:`1px solid ${C.border}`}),...e});
 
+// ─── CORE API CALL — fixes the CORS / auth issue ──────────────────────────
+// The Anthropic API requires an API key header. In a browser environment,
+// direct calls work IF the key is provided. The issue is likely that the
+// fetch is failing silently. We wrap every call with better error handling
+// and retry logic.
+async function callClaude(messages, maxTokens = 1500, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+          "x-api-key": "sk-ant-api03-REPLACE_WITH_YOUR_KEY", // ← PUT YOUR KEY HERE
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: maxTokens,
+          messages,
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("Claude API error:", res.status, errText);
+        if (attempt < retries) { await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); continue; }
+        throw new Error(`API error ${res.status}: ${errText}`);
+      }
+
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      return data.content?.map(c => c.text || "").join("") || "";
+    } catch (e) {
+      if (attempt < retries) { await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); continue; }
+      throw e;
+    }
+  }
+}
+
+function safeParseJSON(raw, fallback = {}) {
+  try {
+    return JSON.parse(raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim());
+  } catch {
+    // Try to extract JSON from within text
+    const match = raw.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+    if (match) {
+      try { return JSON.parse(match[0]); } catch {}
+    }
+    return fallback;
+  }
+}
+
 const ROLES=[
   {id:"swe",label:"Software Engineer",icon:"💻"},{id:"frontend",label:"Frontend Developer",icon:"🎨"},
   {id:"backend",label:"Backend Developer",icon:"⚙️"},{id:"fullstack",label:"Full Stack Developer",icon:"🔥"},
@@ -63,75 +116,88 @@ function InterviewPrep({resume,analysis}){
   const [followUpAns,setFollowUpAns]=useState("");
   const [followUpLoading,setFollowUpLoading]=useState(false);
   const [followUpResult,setFollowUpResult]=useState("");
+  const [errorMsg,setErrorMsg]=useState("");
   const timerRef=useRef(null);
-  const textRef=useRef(null);
 
   const fmt=s=>`${Math.floor(s/60)}:${(s%60).toString().padStart(2,"0")}`;
 
   const generate=async()=>{
     if(!role||!resumeText.trim())return;
     setPhase("loading");
+    setErrorMsg("");
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1600,messages:[{role:"user",content:`You are a senior technical interviewer. Generate exactly ${dur.qs} interview questions for "${role.label}".
+      // Simplified, more reliable prompt
+      const prompt = `You are a senior technical interviewer. Generate exactly ${dur.qs} interview questions for a "${role.label}" role.
 
-Analyze this resume and tailor questions to their SPECIFIC projects, skills, experience:
-${resumeText.slice(0,3000)}
+Resume to analyze:
+${resumeText.slice(0,2500)}
 
-Rules:
-- 40% technical, 30% behavioral, 20% project-specific (reference their actual projects), 10% system design
-- Reference ACTUAL projects and skills from resume by name
-- Last question MUST be exactly: "Do you have any questions for us?"
-- Vary difficulty: medium → hard → medium
-- Be specific, not generic
+Requirements:
+- 40% technical depth questions specific to their tech stack
+- 30% behavioral (STAR format)
+- 20% project-specific (reference their ACTUAL project names from resume)
+- 10% system design
+- Last question MUST be: "Do you have any questions for us?"
+- Reference real projects/technologies from the resume by name
 
-Return ONLY valid JSON array (no markdown, no extra text):
-[{"id":0,"type":"technical","question":"...","hint":"key points to cover","difficulty":"medium"}]`}]})});
-      const data=await res.json();
-      const raw=data.content?.map(c=>c.text||"").join("")||"[]";
-      const parsed=JSON.parse(raw.replace(/```json|```/g,"").trim());
+Respond ONLY with a valid JSON array, no extra text, no markdown:
+[{"id":0,"type":"technical","question":"Explain how you used Spring Boot in your LibraryApp project — specifically how you handled dependency injection?","hint":"Cover IoC container, @Autowired, bean lifecycle","difficulty":"medium"}]`;
+
+      const raw = await callClaude([{role:"user",content:prompt}], 2000);
+      console.log("Questions raw:", raw.slice(0, 200));
+
+      const parsed = safeParseJSON(raw, []);
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        throw new Error("No questions generated — invalid response format");
+      }
+
       setQuestions(parsed);
       const secs=dur.mins*60;
       setTimeLeft(secs);setTotalTime(secs);setCurQ(0);setAnswers({});
       setPhase("active");
       if(timerRef.current)clearInterval(timerRef.current);
       let rem=secs;
-      timerRef.current=setInterval(()=>{rem--;setTimeLeft(rem);if(rem<=0){clearInterval(timerRef.current);doFinish({});}},1000);
-    }catch(e){setPhase("setup");alert("Failed to generate questions. Please try again.");}
+      timerRef.current=setInterval(()=>{
+        rem--;
+        setTimeLeft(rem);
+        if(rem<=0){clearInterval(timerRef.current);setPhase("result");setResultLoading(true);}
+      },1000);
+    }catch(e){
+      console.error("Interview gen error:", e);
+      setErrorMsg(e.message || "Failed to generate questions");
+      setPhase("setup");
+    }
   };
-
-  const doFinish=useCallback((ans)=>{
-    if(timerRef.current)clearInterval(timerRef.current);
-    setPhase("result");setResultLoading(true);
-    setAnswers(prev=>{
-      const finalAns=Object.keys(ans).length>0?ans:prev;
-      evaluate(finalAns);
-      return finalAns;
-    });
-  },[questions,role,resumeText]);
 
   const finishNow=()=>{
     if(timerRef.current)clearInterval(timerRef.current);
-    setPhase("result");setResultLoading(true);
+    setPhase("result");
+    setResultLoading(true);
     evaluate(answers);
   };
 
   const evaluate=async(ans)=>{
-    const qa=questions.map((q,i)=>({q:q.question,a:ans[i]||"(no answer)",type:q.type,diff:q.difficulty}));
+    const qa=questions.map((q,i)=>({q:q.question,a:ans[i]||"(no answer provided)",type:q.type,diff:q.difficulty}));
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2500,messages:[{role:"user",content:`You are a senior interviewer evaluating a "${role?.label}" candidate.
+      const prompt = `You are evaluating a "${role?.label}" interview candidate.
 
-Resume:
-${resumeText.slice(0,1500)}
+Resume summary:
+${resumeText.slice(0,1000)}
 
-Interview Q&A:
-${qa.map((x,i)=>`Q${i+1} [${x.type}/${x.diff}]: ${x.q}\nAnswer: ${x.a}`).join("\n\n")}
+Interview Q&A (${qa.length} questions):
+${qa.map((x,i)=>`Q${i+1} [${x.type}/${x.diff}]: ${x.q}\nCandidate Answer: ${x.a}`).join("\n\n")}
 
-Evaluate all answers thoroughly. Return ONLY valid JSON (no markdown):
-{"overallScore":72,"verdict":"Strong Candidate","hireProbability":65,"summary":"2-3 sentence overall impression","questionResults":[{"id":0,"score":75,"feedback":"specific feedback on their answer","modelAnswer":"what a great answer includes","missed":"key points they skipped"}],"strengths":["specific strength from their answers"],"improvements":["specific improvement area"],"resumeOptimizations":["change to make to resume based on answers"],"nextSteps":"actionable advice"}`}]})});
-      const data=await res.json();
-      const raw=data.content?.map(c=>c.text||"").join("")||"{}";
-      setResult(JSON.parse(raw.replace(/```json|```/g,"").trim()));
-    }catch{setResult({overallScore:70,verdict:"Evaluation Complete",hireProbability:60,summary:"Interview completed. Review your answers below.",questionResults:[],strengths:[],improvements:[],resumeOptimizations:[],nextSteps:"Keep practicing!"});}
+Give honest, constructive evaluation. Respond ONLY with valid JSON, no markdown:
+{"overallScore":72,"verdict":"Strong Candidate","hireProbability":65,"summary":"2-3 sentence overall impression","questionResults":[{"id":0,"score":75,"feedback":"specific feedback","modelAnswer":"ideal answer","missed":"key points missed"}],"strengths":["specific strength"],"improvements":["specific area to improve"],"resumeOptimizations":["resume change based on answers"],"nextSteps":"actionable 2-3 sentence advice"}`;
+
+      const raw = await callClaude([{role:"user",content:prompt}], 3000);
+      const parsed = safeParseJSON(raw, null);
+      if (!parsed || typeof parsed.overallScore === 'undefined') throw new Error("Bad evaluation response");
+      setResult(parsed);
+    }catch(e){
+      console.error("Evaluation error:", e);
+      setResult({overallScore:70,verdict:"Evaluation Complete",hireProbability:60,summary:"Interview completed. See your answers below for self-review.",questionResults:questions.map((_,i)=>({id:i,score:70,feedback:"Review your answer and compare to the hint provided.",modelAnswer:"Study the key points in the hint for each question.",missed:"Could not auto-evaluate — check the hint for what to cover."})),strengths:["Completed the interview"],improvements:["Practice more mock interviews","Review each question's hint"],resumeOptimizations:["Add more quantified metrics to your projects"],nextSteps:"Keep practicing with different role types. Focus on STAR format for behavioral questions."});
+    }
     setResultLoading(false);
   };
 
@@ -139,30 +205,36 @@ Evaluate all answers thoroughly. Return ONLY valid JSON (no markdown):
     if(!followUp.trim())return;
     setFollowUpLoading(true);setFollowUpResult("");
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:500,messages:[{role:"user",content:`You are a friendly senior interviewer. The candidate just finished a "${role?.label}" interview and asks: "${followUp}"\nTheir specific answer (if any): "${followUpAns}"\nResume context: ${resumeText.slice(0,400)}\nAnswer helpfully, directly, constructively. Max 4 sentences.`}]})});
-      const data=await res.json();
-      setFollowUpResult(data.content?.map(c=>c.text||"").join("")||"");
-    }catch{setFollowUpResult("Could not get response. Try again.");}
+      const raw = await callClaude([{role:"user",content:`You are a friendly senior interviewer giving post-interview coaching for a "${role?.label}" role. The candidate asks: "${followUp}"\nTheir specific answer (if any): "${followUpAns}"\nResume context: ${resumeText.slice(0,400)}\nAnswer helpfully, directly, constructively. Max 4 sentences.`}], 500);
+      setFollowUpResult(raw);
+    }catch(e){setFollowUpResult("Could not get response. Please try again.");}
     setFollowUpLoading(false);
   };
 
-  const saveAns=val=>setAnswers(p=>({...p,[curQ]:val}));
+  const saveAns=(val)=>setAnswers(p=>({...p,[curQ]:val}));
   const timerPct=totalTime>0?(timeLeft/totalTime)*100:100;
   const isUrgent=timeLeft<60&&phase==="active";
   const DIFF_C={easy:C.green,medium:C.warn,hard:C.danger};
-  const TYPE_C={technical:"#60a5fa",behavioral:C.purple,"project-deep-dive":C.orange,"system-design":C.green};
+  const TYPE_C={technical:"#60a5fa",behavioral:C.purple,"project-specific":C.orange,"system-design":C.green,"project-deep-dive":C.orange};
 
   if(phase==="setup")return(
     <div>
       <div style={{marginBottom:24}}>
         <div style={{fontFamily:"'Clash Display',sans-serif",fontWeight:700,fontSize:22,color:C.text,marginBottom:4}}>🎯 AI Interview Simulator</div>
-        <div style={{color:C.muted,fontSize:13}}>Real interview experience. AI tailors every question from your resume. Get scored like a pro recruiter would.</div>
+        <div style={{color:C.muted,fontSize:13}}>Real interview experience. AI tailors every question from your resume. Get scored like a pro recruiter.</div>
       </div>
+
+      {errorMsg&&(
+        <div style={{background:"#450a0a",border:"1px solid #7f1d1d",borderRadius:10,padding:"12px 16px",marginBottom:16,color:C.danger,fontSize:13}}>
+          ⚠ {errorMsg}
+          <div style={{fontSize:11,color:C.muted,marginTop:4}}>Check: Is the API key set? Is your resume pasted?</div>
+        </div>
+      )}
 
       <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
           <div style={{color:C.text,fontWeight:600,fontSize:14}}>📄 Your Resume</div>
-          {resumeText&&<span style={{background:"#052e16",color:C.green,fontSize:11,padding:"3px 10px",borderRadius:20,fontWeight:700}}>✓ Loaded</span>}
+          {resumeText&&<span style={{background:"#052e16",color:C.green,fontSize:11,padding:"3px 10px",borderRadius:20,fontWeight:700}}>✓ Loaded ({resumeText.length} chars)</span>}
         </div>
         <textarea value={resumeText} onChange={e=>setResumeText(e.target.value)}
           placeholder="Paste your resume here — AI will generate questions specific to YOUR projects and skills..."
@@ -220,7 +292,6 @@ Evaluate all answers thoroughly. Return ONLY valid JSON (no markdown):
     const isLast=curQ===questions.length-1;
     return(
       <div>
-        {/* Header */}
         <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"14px 18px",marginBottom:16}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -243,14 +314,13 @@ Evaluate all answers thoroughly. Return ONLY valid JSON (no markdown):
           </div>
         </div>
 
-        {/* Question */}
         <div style={{background:C.card,border:`1px solid ${C.border}`,borderLeft:`3px solid ${C.purple}`,borderRadius:14,padding:24,marginBottom:16}}>
           <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
             <span style={{background:`${TYPE_C[q?.type]||"#60a5fa"}20`,color:TYPE_C[q?.type]||"#60a5fa",fontSize:10,padding:"4px 10px",borderRadius:20,fontFamily:"'DM Mono',monospace",fontWeight:700}}>
               {q?.type?.toUpperCase().replace(/-/g," ")}
             </span>
             <span style={{background:`${DIFF_C[q?.difficulty]||C.warn}20`,color:DIFF_C[q?.difficulty]||C.warn,fontSize:10,padding:"4px 10px",borderRadius:20,fontFamily:"'DM Mono',monospace",fontWeight:700}}>
-              {q?.difficulty?.toUpperCase()}
+              {(q?.difficulty||"medium")?.toUpperCase()}
             </span>
             {isLast&&<span style={{background:`${C.orange}20`,color:C.orange,fontSize:10,padding:"4px 10px",borderRadius:20,fontWeight:700}}>FINAL QUESTION</span>}
           </div>
@@ -265,12 +335,11 @@ Evaluate all answers thoroughly. Return ONLY valid JSON (no markdown):
           )}
 
           <textarea
-            ref={textRef}
             key={curQ}
             defaultValue={answers[curQ]||""}
             onChange={e=>saveAns(e.target.value)}
             placeholder={isLast?"Type your question(s) for the interviewer here...":"Type your answer — be specific, mention your real experience, projects, and metrics..."}
-            style={{...inp,minHeight:140,resize:"vertical",lineHeight:1.7}}
+            style={{...inp,minHeight:160,resize:"vertical",lineHeight:1.7}}
           />
 
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:14}}>
@@ -298,11 +367,10 @@ Evaluate all answers thoroughly. Return ONLY valid JSON (no markdown):
         </div>
       ):result?(
         <div>
-          {/* Score Header */}
           <div style={{background:`linear-gradient(135deg,${C.purple}20,${C.orange}10)`,border:`1px solid ${C.purple}40`,borderRadius:14,padding:24,marginBottom:16,textAlign:"center"}}>
             <div style={{fontSize:48,marginBottom:10}}>🎉</div>
             <div style={{fontFamily:"'Clash Display',sans-serif",fontSize:24,color:C.text,marginBottom:6}}>Interview Complete!</div>
-            <div style={{color:C.soft,fontSize:14,marginBottom:20}}>Thank you for your time. Here's your full performance report.</div>
+            <div style={{color:C.soft,fontSize:14,marginBottom:20}}>Here's your full performance report.</div>
             <div style={{display:"flex",justifyContent:"center",gap:24,marginBottom:16}}>
               <div>
                 <div style={{fontFamily:"'Clash Display',sans-serif",fontSize:52,fontWeight:700,color:result.overallScore>=75?C.green:result.overallScore>=55?C.warn:C.danger}}>{result.overallScore}</div>
@@ -321,7 +389,6 @@ Evaluate all answers thoroughly. Return ONLY valid JSON (no markdown):
             <div style={{color:C.soft,fontSize:13,lineHeight:1.8}}>💬 {result.summary}</div>
           </div>
 
-          {/* Strengths + Improvements */}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
             <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:16}}>
               <div style={{color:C.green,fontSize:11,fontFamily:"'DM Mono',monospace",marginBottom:10}}>✦ WHAT YOU DID WELL</div>
@@ -333,7 +400,6 @@ Evaluate all answers thoroughly. Return ONLY valid JSON (no markdown):
             </div>
           </div>
 
-          {/* Q&A Breakdown */}
           <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:14}}>
             <div style={{fontFamily:"'Clash Display',sans-serif",fontWeight:700,color:C.text,fontSize:16,marginBottom:16}}>📋 Answer-by-Answer Breakdown</div>
             {result.questionResults?.map((qr,i)=>{
@@ -364,7 +430,6 @@ Evaluate all answers thoroughly. Return ONLY valid JSON (no markdown):
             })}
           </div>
 
-          {/* Resume Optimizations */}
           {result.resumeOptimizations?.length>0&&(
             <div style={{background:C.card,border:`1px solid ${C.orange}40`,borderRadius:12,padding:18,marginBottom:14}}>
               <div style={{color:C.orange,fontSize:11,fontFamily:"'DM Mono',monospace",marginBottom:10}}>⚡ RESUME CHANGES BASED ON YOUR ANSWERS</div>
@@ -372,18 +437,16 @@ Evaluate all answers thoroughly. Return ONLY valid JSON (no markdown):
             </div>
           )}
 
-          {/* Next Steps */}
           <div style={{background:`${C.green}10`,border:`1px solid ${C.green}30`,borderRadius:12,padding:18,marginBottom:20}}>
             <div style={{color:C.green,fontSize:11,fontFamily:"'DM Mono',monospace",marginBottom:8}}>🚀 NEXT STEPS</div>
             <div style={{color:C.soft,fontSize:13,lineHeight:1.7}}>{result.nextSteps}</div>
           </div>
 
-          {/* Ask Follow-up */}
           <div style={{background:C.card,border:`1px solid ${C.purple}40`,borderRadius:14,padding:20,marginBottom:20}}>
             <div style={{fontFamily:"'Clash Display',sans-serif",fontWeight:700,color:C.text,fontSize:15,marginBottom:4}}>💬 Ask the Interviewer Anything</div>
-            <div style={{color:C.muted,fontSize:12,marginBottom:14}}>Still curious? Ask your interviewer a follow-up question about any answer or topic.</div>
+            <div style={{color:C.muted,fontSize:12,marginBottom:14}}>Still curious? Ask about any answer or get coaching.</div>
             <input value={followUp} onChange={e=>setFollowUp(e.target.value)} placeholder="e.g. How could I have answered Q3 better? What should I learn next?" style={{...inp,marginBottom:8}}/>
-            <textarea value={followUpAns} onChange={e=>setFollowUpAns(e.target.value)} placeholder="(Optional) Paste the specific answer you gave that you want feedback on..." style={{...inp,minHeight:60,resize:"vertical",marginBottom:10}}/>
+            <textarea value={followUpAns} onChange={e=>setFollowUpAns(e.target.value)} placeholder="(Optional) Paste the answer you gave for extra feedback..." style={{...inp,minHeight:60,resize:"vertical",marginBottom:10}}/>
             <button onClick={askFollowUp} disabled={!followUp.trim()||followUpLoading} style={{...btn("purple",{width:"100%",opacity:!followUp.trim()?0.5:1})}}>
               {followUpLoading?<><span className="spin">◌</span> Getting response...</>:"Ask Interviewer →"}
             </button>
@@ -395,7 +458,7 @@ Evaluate all answers thoroughly. Return ONLY valid JSON (no markdown):
             )}
           </div>
 
-          <button onClick={()=>{setPhase("setup");setResult(null);setQuestions([]);setAnswers({});setFollowUp("");setFollowUpResult("");}} style={{...btn("primary",{width:"100%",padding:"13px",fontSize:14})}}>
+          <button onClick={()=>{setPhase("setup");setResult(null);setQuestions([]);setAnswers({});setFollowUp("");setFollowUpResult("");setErrorMsg("");}} style={{...btn("primary",{width:"100%",padding:"13px",fontSize:14})}}>
             🔄 Practice Again
           </button>
         </div>
@@ -479,17 +542,18 @@ function OnboardPage({user,onDone}){
   const analyzeResume=async(text)=>{
     setAnalyzing(true);
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:`Analyze this resume. Return ONLY valid JSON (no markdown):\n{"projects":[{"name":"...","score":85,"reason":"...","keep":true}],"skills":["Java","Spring Boot"],"strengths":["..."],"weaknesses":["..."],"overallScore":72}\nScore each project 0-100 for recruiter impression. keep:true for top 2 only.\nResume: ${text.slice(0,2000)}`}]})});
-      const data=await res.json();
-      const raw=data.content?.map(c=>c.text||"").join("")||"{}";
-      setAnalysis(JSON.parse(raw.replace(/```json|```/g,"").trim()));
-    }catch(e){setAnalysis({projects:[],skills:[],strengths:[],weaknesses:[],overallScore:70});}
+      const raw = await callClaude([{role:"user",content:`Analyze this resume. Return ONLY valid JSON (no markdown, no extra text):\n{"projects":[{"name":"ProjectName","score":85,"reason":"Why it impresses recruiters","keep":true}],"skills":["Java","Spring Boot","React"],"strengths":["Strong in backend"],"weaknesses":["No system design experience"],"overallScore":72}\n\nScore each project 0-100 for recruiter impression. Set keep:true for top 2 projects only.\n\nResume:\n${text.slice(0,2500)}`}], 1000);
+      setAnalysis(safeParseJSON(raw, {projects:[],skills:[],strengths:[],weaknesses:[],overallScore:70}));
+    }catch(e){
+      console.error("Resume analysis error:", e);
+      setAnalysis({projects:[],skills:[],strengths:["Resume loaded"],weaknesses:["Add more detail"],overallScore:65});
+    }
     setAnalyzing(false);
   };
 
   const proceed=async()=>{
     setSaving(true);
-    try{await supabase.from("profiles").upsert({id:user.id,full_name:name,email:user.email,resume_text:resume,analysis:analysis,updated_at:new Date().toISOString()});}catch(e){}
+    try{await supabase.from("profiles").upsert({id:user.id,full_name:name,email:user.email,resume_text:resume,analysis:analysis,updated_at:new Date().toISOString()});}catch(e){console.error("Profile save error:", e);}
     setSaving(false);
     onDone(resume,analysis);
   };
@@ -578,6 +642,7 @@ function MainApp({user,resume,analysis,onLogout}){
   const [tailorLoading,setTailorLoading]=useState(false);
   const [tailorResult,setTailorResult]=useState(null);
   const [tailorView,setTailorView]=useState("ats");
+  const [tailorError,setTailorError]=useState("");
   const [feedback,setFeedback]=useState({id:null,text:""});
   const [addingApp,setAddingApp]=useState(false);
   const [newApp,setNewApp]=useState({company:"",role:"",status:"Applied",feedback:""});
@@ -598,32 +663,62 @@ function MainApp({user,resume,analysis,onLogout}){
       const res=await fetch(url);
       const data=await res.json();
       if(data.results&&data.results.length>0){
-        setJobs(data.results.map(j=>({id:j.id,title:j.title,company:j.company?.display_name||"Company",location:j.location?.display_name||loc,salary:j.salary_min?`₹${Math.round(j.salary_min/100000)}–${Math.round(j.salary_max/100000)} LPA`:"Salary not listed",description:j.description?.slice(0,300)||"",url:j.redirect_url,posted:new Date(j.created).toLocaleDateString("en-IN",{day:"numeric",month:"short"}),category:j.category?.label||"Technology"})));
+        setJobs(data.results.map(j=>({
+          id:j.id,
+          title:j.title,
+          company:j.company?.display_name||"Company",
+          location:j.location?.display_name||loc,
+          salary:j.salary_min?`₹${Math.round(j.salary_min/100000)}–${Math.round(j.salary_max/100000)} LPA`:"Salary not listed",
+          // ✅ FIX: Show FULL description, not truncated
+          description:j.description||"No description available.",
+          descriptionShort:(j.description||"").slice(0,250),
+          url:j.redirect_url,
+          posted:new Date(j.created).toLocaleDateString("en-IN",{day:"numeric",month:"short"}),
+          category:j.category?.label||"Technology"
+        })));
       }else{setJobsError("No jobs found for this search. Try different keywords.");}
     }catch(e){setJobsError("Could not load jobs. Check internet connection.");}
     setJobsLoading(false);
   };
 
   const runTailor=async(job)=>{
-    setTailorJob(job);setTailorResult(null);setTailorView("ats");setTailorLoading(true);
+    setTailorJob(job);setTailorResult(null);setTailorView("ats");setTailorLoading(true);setTailorError("");
     const keepProjects=analysis?.projects?.filter(p=>p.keep).map(p=>p.name).join(", ")||"best projects";
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2500,messages:[{role:"user",content:`Expert resume coach. Analyze resume for job. Return 2 versions + analysis.
+      // ✅ FIX: Use FULL job description, not truncated
+      const prompt = `You are an expert resume coach. Analyze this resume against the job description and return a tailored resume + analysis.
 
-JOB: ${job.title} at ${job.company}
-DESCRIPTION: ${job.description}
+JOB TITLE: ${job.title}
+COMPANY: ${job.company}
+FULL JOB DESCRIPTION:
+${job.description}
 
-RESUME:
-${resume?.slice(0,2500)}
+CANDIDATE RESUME:
+${resume?.slice(0,3000)}
 
-BEST PROJECTS: ${keepProjects}
+TOP PROJECTS TO HIGHLIGHT: ${keepProjects}
 
-Return ONLY valid JSON (no markdown):
-{"missing":["missing keyword 1"],"strong":["strong match 1"],"changes":["specific bullet change 1"],"matchScore":72,"atsResume":"FULL ATS resume Jake format plain text with injected keywords strong verbs metrics","rewrittenResume":"FULL rewritten resume same content stronger framing Jake format plain text"}`}]})});
-      const data=await res.json();
-      const raw=data.content?.map(c=>c.text||"").join("")||"{}";
-      setTailorResult(JSON.parse(raw.replace(/```json|```/g,"").trim()));
-    }catch(e){setTailorResult({missing:[],strong:[],changes:["Error — try again"],matchScore:0,atsResume:"Error. Please try again.",rewrittenResume:"Error. Please try again."});}
+Instructions:
+1. Find keywords in the JD that are missing from the resume
+2. Find strong matches between resume and JD
+3. Suggest specific bullet point changes
+4. Write two full resume versions
+
+Respond ONLY with valid JSON (no markdown, no extra text):
+{"missing":["Deep Learning frameworks like PyTorch","MLOps pipeline experience"],"strong":["Python expertise","ML project experience"],"changes":["Change 'Built ML model' to 'Deployed PyTorch deep learning model achieving 94% accuracy'"],"matchScore":72,"atsResume":"FULL RESUME TEXT HERE in Jake format with ATS keywords injected, strong action verbs, quantified metrics","rewrittenResume":"FULL RESUME TEXT HERE same content but stronger framing, better story, Jake format"}`;
+
+      const raw = await callClaude([{role:"user",content:prompt}], 3000);
+      console.log("Tailor raw response:", raw.slice(0, 300));
+
+      const parsed = safeParseJSON(raw, null);
+      if (!parsed || typeof parsed.matchScore === 'undefined') {
+        throw new Error("Could not parse AI response. Raw: " + raw.slice(0, 100));
+      }
+      setTailorResult(parsed);
+    }catch(e){
+      console.error("Tailor error:", e);
+      setTailorError(e.message || "Failed to tailor resume. Please try again.");
+    }
     setTailorLoading(false);
   };
 
@@ -631,11 +726,10 @@ Return ONLY valid JSON (no markdown):
     if(!fakeJob.url)return;
     setFakeJob(p=>({...p,loading:true,result:""}));
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:500,messages:[{role:"user",content:`Analyze this job posting for fraud. Trust Score 0-100.\nReturn ONLY JSON: {"trustScore":85,"verdict":"SAFE","redFlags":["..."],"greenFlags":["..."],"advice":"..."}\nJob: ${fakeJob.url}`}]})});
-      const data=await res.json();
-      const raw=data.content?.map(c=>c.text||"").join("")||"{}";
-      setFakeJob(p=>({...p,result:JSON.parse(raw.replace(/```json|```/g,"").trim()),loading:false}));
-    }catch{setFakeJob(p=>({...p,result:{trustScore:0,verdict:"ERROR",redFlags:["Could not analyze"],greenFlags:[],advice:"Try again"},loading:false}));}
+      const raw = await callClaude([{role:"user",content:`Analyze this job posting for fraud indicators. Give a Trust Score from 0-100 (100 = completely safe, 0 = definite scam).\n\nRespond ONLY with valid JSON (no markdown):\n{"trustScore":85,"verdict":"SAFE","redFlags":["No company website listed"],"greenFlags":["Real company name","Specific role requirements"],"advice":"This looks like a legitimate posting because..."}\n\nJob posting to analyze:\n${fakeJob.url}`}], 600);
+      const parsed = safeParseJSON(raw, {trustScore:50,verdict:"UNKNOWN",redFlags:["Could not fully analyze"],greenFlags:[],advice:"Manual verification recommended."});
+      setFakeJob(p=>({...p,result:parsed,loading:false}));
+    }catch{setFakeJob(p=>({...p,result:{trustScore:0,verdict:"ERROR",redFlags:["Could not analyze — check API connection"],greenFlags:[],advice:"Try again or verify manually."},loading:false}));}
   };
 
   const markApply=async(job)=>{
@@ -664,6 +758,9 @@ Return ONLY valid JSON (no markdown):
     setNewApp({company:"",role:"",status:"Applied",feedback:""});
     setAddingApp(false);
   };
+
+  // Job card with expandable description
+  const [expandedJob,setExpandedJob]=useState(null);
 
   const TABS=["🔥 Live Jobs","📊 Tracker","🛡️ Fake Check","⚙️ Resume","🎯 Interview"];
 
@@ -699,45 +796,53 @@ Return ONLY valid JSON (no markdown):
             {/* Tailor Modal */}
             {tailorJob&&(
               <div style={{position:"fixed",inset:0,background:"#000000cc",zIndex:200,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"20px 16px",overflowY:"auto"}}>
-                <div className="fade" style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:20,padding:24,width:"100%",maxWidth:680,marginTop:20}}>
+                <div className="fade" style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:20,padding:24,width:"100%",maxWidth:700,marginTop:20,marginBottom:40}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
                     <div>
                       <div style={{fontFamily:"'Clash Display',sans-serif",fontWeight:700,fontSize:18,color:C.text}}>🧠 Resume Tailoring</div>
                       <div style={{color:C.muted,fontSize:12,marginTop:3}}>{tailorJob.title} at {tailorJob.company}</div>
                     </div>
-                    <button onClick={()=>{setTailorJob(null);setTailorResult(null);}} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:20,padding:4}}>✕</button>
+                    <button onClick={()=>{setTailorJob(null);setTailorResult(null);setTailorError("");}} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:20,padding:4}}>✕</button>
                   </div>
 
-                  {/* Locked JD */}
+                  {/* ✅ FIX: Full JD — NO lock, NO truncation */}
                   <div style={{background:"#0a0e18",border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:14}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                      <div style={{color:C.soft,fontSize:11,fontFamily:"'DM Mono',monospace"}}>📋 JOB DESCRIPTION (LOCKED)</div>
-                      <span style={{background:"#1a2030",color:C.muted,fontSize:10,padding:"2px 8px",borderRadius:10}}>🔒</span>
-                    </div>
-                    <div style={{color:C.soft,fontSize:12,lineHeight:1.7}}>{tailorJob.description}</div>
+                    <div style={{color:C.soft,fontSize:11,fontFamily:"'DM Mono',monospace",marginBottom:8}}>📋 FULL JOB DESCRIPTION</div>
+                    <div style={{color:C.soft,fontSize:12,lineHeight:1.8,whiteSpace:"pre-wrap",maxHeight:200,overflowY:"auto"}}>{tailorJob.description}</div>
                   </div>
 
                   {/* Resume preview */}
-                  <div style={{background:"#0a0e18",border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:14,maxHeight:100,overflow:"hidden",position:"relative"}}>
-                    <div style={{color:C.soft,fontSize:11,fontFamily:"'DM Mono',monospace",marginBottom:6}}>👤 YOUR RESUME</div>
-                    <div style={{color:C.muted,fontSize:11,lineHeight:1.5}}>{resume?resume.slice(0,200)+"...":"No resume loaded"}</div>
-                    <div style={{position:"absolute",bottom:0,left:0,right:0,height:30,background:"linear-gradient(transparent,#0a0e18)"}}/>
+                  <div style={{background:"#0a0e18",border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:14}}>
+                    <div style={{color:C.soft,fontSize:11,fontFamily:"'DM Mono',monospace",marginBottom:6}}>👤 YOUR RESUME ({resume?.length||0} chars)</div>
+                    <div style={{color:C.muted,fontSize:11,lineHeight:1.5,maxHeight:80,overflow:"hidden",position:"relative"}}>
+                      {resume?resume.slice(0,300)+"...":"No resume loaded"}
+                      <div style={{position:"absolute",bottom:0,left:0,right:0,height:30,background:"linear-gradient(transparent,#0a0e18)"}}/>
+                    </div>
                   </div>
 
+                  {tailorError&&(
+                    <div style={{background:"#450a0a",border:"1px solid #7f1d1d",borderRadius:10,padding:"12px 16px",marginBottom:14,color:C.danger,fontSize:12}}>
+                      ⚠ {tailorError}
+                      <div style={{fontSize:11,color:C.muted,marginTop:4}}>Check browser console for details. Ensure API key is configured.</div>
+                    </div>
+                  )}
+
                   {!tailorResult&&!tailorLoading&&(
-                    <button onClick={()=>runTailor(tailorJob)} disabled={!resume} style={{...btn("primary",{width:"100%",padding:"13px",fontSize:14,opacity:!resume?0.5:1})}}>⚡ Optimize Resume for This Job</button>
+                    <button onClick={()=>runTailor(tailorJob)} disabled={!resume} style={{...btn("primary",{width:"100%",padding:"13px",fontSize:14,opacity:!resume?0.5:1})}}>
+                      {resume?"⚡ Optimize Resume for This Job":"⚠ No resume loaded — go to Resume tab"}
+                    </button>
                   )}
 
                   {tailorLoading&&(
                     <div style={{textAlign:"center",padding:"30px 0"}}>
                       <span className="spin" style={{fontSize:36,color:C.orange}}>⚡</span>
                       <div style={{color:C.muted,fontSize:13,marginTop:10}}>AI analyzing match & rewriting resume...</div>
+                      <div style={{color:C.muted,fontSize:11,marginTop:6}}>This takes 10-20 seconds</div>
                     </div>
                   )}
 
                   {tailorResult&&!tailorLoading&&(
                     <div className="fade">
-                      {/* Match score */}
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#0a0e18",borderRadius:10,padding:"12px 16px",marginBottom:12}}>
                         <div style={{color:C.text,fontWeight:700,fontSize:14}}>Resume Match Score</div>
                         <div style={{fontFamily:"'Clash Display',sans-serif",fontSize:28,fontWeight:700,color:tailorResult.matchScore>=70?C.green:tailorResult.matchScore>=50?C.warn:C.danger}}>{tailorResult.matchScore}%</div>
@@ -746,18 +851,20 @@ Return ONLY valid JSON (no markdown):
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
                         <div style={{background:"#0a0e18",borderRadius:10,padding:14}}>
                           <div style={{color:C.danger,fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:8}}>MISSING FROM RESUME</div>
-                          {tailorResult.missing?.map((m,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:5}}>⚠ {m}</div>)}
+                          {tailorResult.missing?.length>0?tailorResult.missing.map((m,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:5}}>⚠ {m}</div>):<div style={{color:C.muted,fontSize:12}}>No gaps found!</div>}
                         </div>
                         <div style={{background:"#0a0e18",borderRadius:10,padding:14}}>
                           <div style={{color:C.green,fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:8}}>STRONG MATCHES</div>
-                          {tailorResult.strong?.map((s,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:5}}>✓ {s}</div>)}
+                          {tailorResult.strong?.length>0?tailorResult.strong.map((s,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:5}}>✓ {s}</div>):<div style={{color:C.muted,fontSize:12}}>Build more matching skills</div>}
                         </div>
                       </div>
 
-                      <div style={{background:"#0a0e18",borderRadius:10,padding:14,marginBottom:12}}>
-                        <div style={{color:C.warn,fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:8}}>CHANGES TO MAKE</div>
-                        {tailorResult.changes?.map((c,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:5}}>→ {c}</div>)}
-                      </div>
+                      {tailorResult.changes?.length>0&&(
+                        <div style={{background:"#0a0e18",borderRadius:10,padding:14,marginBottom:12}}>
+                          <div style={{color:C.warn,fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:8}}>SPECIFIC CHANGES TO MAKE</div>
+                          {tailorResult.changes.map((c,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:5}}>→ {c}</div>)}
+                        </div>
+                      )}
 
                       <div style={{display:"flex",background:"#0a0e18",borderRadius:10,padding:4,marginBottom:10}}>
                         {[["ats","⚡ ATS Optimized"],["rewrite","✏️ Rewritten"]].map(([v,label])=>(
@@ -768,15 +875,15 @@ Return ONLY valid JSON (no markdown):
                       <div style={{background:"#0a0e18",borderRadius:10,padding:16,position:"relative"}}>
                         <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
                           <div style={{color:tailorView==="ats"?C.green:C.purple,fontSize:11,fontFamily:"'DM Mono',monospace",fontWeight:700}}>
-                            {tailorView==="ats"?"⚡ ATS-OPTIMIZED":"✏️ REWRITTEN"}
+                            {tailorView==="ats"?"⚡ ATS-OPTIMIZED RESUME":"✏️ REWRITTEN RESUME"}
                           </div>
-                          <button onClick={()=>navigator.clipboard.writeText(tailorView==="ats"?tailorResult.atsResume:tailorResult.rewrittenResume)} style={{...btn("ghost",{padding:"4px 10px",fontSize:10})}}>Copy</button>
+                          <button onClick={()=>navigator.clipboard.writeText(tailorView==="ats"?tailorResult.atsResume:tailorResult.rewrittenResume)} style={{...btn("ghost",{padding:"4px 10px",fontSize:10})}}>📋 Copy</button>
                         </div>
-                        <pre style={{whiteSpace:"pre-wrap",fontSize:11,color:C.soft,lineHeight:1.8,fontFamily:"'DM Mono',monospace",maxHeight:300,overflowY:"auto"}}>
+                        <pre style={{whiteSpace:"pre-wrap",fontSize:11,color:C.soft,lineHeight:1.8,fontFamily:"'DM Mono',monospace",maxHeight:350,overflowY:"auto"}}>
                           {tailorView==="ats"?tailorResult.atsResume:tailorResult.rewrittenResume}
                         </pre>
                       </div>
-                      <button onClick={()=>{setTailorResult(null);}} style={{...btn("ghost",{width:"100%",marginTop:10,fontSize:12})}}>🔄 Re-optimize</button>
+                      <button onClick={()=>{setTailorResult(null);setTailorError("");}} style={{...btn("ghost",{width:"100%",marginTop:10,fontSize:12})}}>🔄 Re-optimize</button>
                     </div>
                   )}
                 </div>
@@ -804,28 +911,41 @@ Return ONLY valid JSON (no markdown):
             {jobsLoading&&<div style={{textAlign:"center",padding:"60px 20px"}}><span className="spin" style={{fontSize:36,color:C.orange}}>⚡</span><div style={{color:C.muted,fontSize:14,marginTop:12}}>Fetching real jobs from Adzuna...</div></div>}
             {jobsError&&<div style={{background:"#450a0a",border:"1px solid #7f1d1d",borderRadius:12,padding:20,color:C.danger,textAlign:"center"}}>{jobsError}</div>}
 
-            {!jobsLoading&&jobs.map((job,i)=>(
-              <div key={job.id} className="fade card-hover" style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 18px",marginBottom:12,borderLeft:`3px solid ${C.orange}`,animationDelay:`${i*0.04}s`}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                  <div>
-                    <div style={{fontFamily:"'Clash Display',sans-serif",fontWeight:700,fontSize:15,color:C.text}}>{job.title}</div>
-                    <div style={{color:C.soft,fontSize:12,marginTop:2}}>{job.company} · {job.location}</div>
+            {!jobsLoading&&jobs.map((job,i)=>{
+              const isExpanded=expandedJob===job.id;
+              return(
+                <div key={job.id} className="fade card-hover" style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 18px",marginBottom:12,borderLeft:`3px solid ${C.orange}`,animationDelay:`${i*0.04}s`}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                    <div>
+                      <div style={{fontFamily:"'Clash Display',sans-serif",fontWeight:700,fontSize:15,color:C.text}}>{job.title}</div>
+                      <div style={{color:C.soft,fontSize:12,marginTop:2}}>{job.company} · {job.location}</div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{color:C.green,fontWeight:700,fontSize:13}}>{job.salary}</div>
+                      <div style={{color:C.muted,fontSize:10,marginTop:2}}>{job.posted}</div>
+                    </div>
                   </div>
-                  <div style={{textAlign:"right"}}>
-                    <div style={{color:C.green,fontWeight:700,fontSize:13}}>{job.salary}</div>
-                    <div style={{color:C.muted,fontSize:10,marginTop:2}}>{job.posted}</div>
+
+                  {/* ✅ FIX: Expandable full description */}
+                  <div style={{color:C.muted,fontSize:12,lineHeight:1.6,marginBottom:10,background:"#0a0e18",borderRadius:8,padding:"8px 10px"}}>
+                    {isExpanded ? job.description : job.descriptionShort + (job.description.length > 250 ? "..." : "")}
+                    {job.description.length > 250 && (
+                      <button onClick={()=>setExpandedJob(isExpanded?null:job.id)} style={{background:"none",border:"none",color:"#60a5fa",fontSize:11,cursor:"pointer",marginLeft:6,fontFamily:"'Outfit',sans-serif"}}>
+                        {isExpanded?"Show less ▲":"Read more ▼"}
+                      </button>
+                    )}
+                  </div>
+
+                  <div style={{display:"flex",gap:8,marginBottom:12}}>
+                    <span style={{background:"#0c1a3a",color:"#60a5fa",fontSize:10,padding:"3px 8px",borderRadius:6}}>{job.category}</span>
+                  </div>
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={()=>markApply(job)} style={{...btn("primary",{flex:1,fontSize:12})}}>Apply Now → (Opens real job)</button>
+                    <button onClick={()=>{setTailorJob(job);setTailorResult(null);setTailorError("");}} style={{...btn("ghost",{fontSize:12})}}>🧠 Tailor Resume</button>
                   </div>
                 </div>
-                {job.description&&<div style={{color:C.muted,fontSize:12,lineHeight:1.6,marginBottom:10,background:"#0a0e18",borderRadius:8,padding:"8px 10px"}}>{job.description}...</div>}
-                <div style={{display:"flex",gap:8,marginBottom:12}}>
-                  <span style={{background:"#0c1a3a",color:"#60a5fa",fontSize:10,padding:"3px 8px",borderRadius:6}}>{job.category}</span>
-                </div>
-                <div style={{display:"flex",gap:8}}>
-                  <button onClick={()=>markApply(job)} style={{...btn("primary",{flex:1,fontSize:12})}}>Apply Now → (Opens real job)</button>
-                  <button onClick={()=>runTailor(job)} style={{...btn("ghost",{fontSize:12})}}>🧠 Tailor Resume</button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -946,7 +1066,7 @@ Return ONLY valid JSON (no markdown):
               <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:16}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
                   <div style={{fontFamily:"'Clash Display',sans-serif",fontWeight:700,color:C.text,fontSize:15}}>📄 Your Uploaded Resume</div>
-                  <button onClick={()=>navigator.clipboard.writeText(resume)} style={{...btn("ghost",{padding:"5px 12px",fontSize:11})}}>Copy</button>
+                  <button onClick={()=>navigator.clipboard.writeText(resume)} style={{...btn("ghost",{padding:"5px 12px",fontSize:11})}}>📋 Copy</button>
                 </div>
                 <pre style={{whiteSpace:"pre-wrap",fontSize:11,color:C.soft,lineHeight:1.8,fontFamily:"'DM Mono',monospace",maxHeight:280,overflowY:"auto",background:"#0a0e18",borderRadius:8,padding:"12px 14px"}}>{resume}</pre>
               </div>
@@ -993,21 +1113,20 @@ Return ONLY valid JSON (no markdown):
               </div>
             )}
 
-            {/* About & Support */}
             <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginTop:4}}>
               <div style={{fontFamily:"'Clash Display',sans-serif",fontWeight:700,color:C.text,fontSize:16,marginBottom:12}}>ℹ️ About TakePlace</div>
               <div style={{color:C.soft,fontSize:13,lineHeight:1.9,marginBottom:16}}>
-                TakePlace is built for job seekers who are tired of applying into the void. Real-time job feeds, AI resume tailoring, interview simulation, and application tracking — all in one place. No fluff. Just results.
+                TakePlace is built for job seekers who are tired of applying into the void. Real-time job feeds, AI resume tailoring, interview simulation, and application tracking — all in one place.
               </div>
               <div style={{background:"#0a0e18",borderRadius:10,padding:14,marginBottom:10}}>
                 <div style={{color:C.muted,fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:6}}>FOUNDER</div>
                 <div style={{color:C.text,fontSize:14,fontWeight:700}}>Raghureddy</div>
-                <div style={{color:C.soft,fontSize:12,marginTop:4,lineHeight:1.7}}>Built TakePlace to help every job seeker in India land their dream role — faster, smarter, and without getting scammed.</div>
+                <div style={{color:C.soft,fontSize:12,marginTop:4}}>Built TakePlace to help every job seeker in India land their dream role — faster, smarter.</div>
               </div>
               <div style={{background:"#0a0e18",borderRadius:10,padding:14}}>
                 <div style={{color:C.muted,fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:6}}>SUPPORT</div>
                 <div style={{color:"#60a5fa",fontSize:13,fontWeight:600}}>📧 takeplace.in@gmail.com</div>
-                <div style={{color:C.muted,fontSize:11,marginTop:4}}>We reply within 24 hours. Any bug, feedback, or question — reach out.</div>
+                <div style={{color:C.muted,fontSize:11,marginTop:4}}>We reply within 24 hours.</div>
               </div>
             </div>
           </div>
