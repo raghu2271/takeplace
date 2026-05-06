@@ -6,7 +6,7 @@ const SUPABASE_URL = "https://mdwxmiywtghznpwulwko.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kd3htaXl3dGdoem5wd3Vsd2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5OTkyOTIsImV4cCI6MjA5MzU3NTI5Mn0.b6yq6bIu0ntAbrrb2CP1H_alIcCTLc9sbix7tuERVAw";
 const ADZUNA_ID = "845f6cff";
 const ADZUNA_KEY = "1255514b43792f219448b455d585c3ea";
-const GROQ_KEY = "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";
+const GROQ_KEY = "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";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -21,9 +21,13 @@ async function callAI(prompt, retries = 2) {
           "Authorization": `Bearer ${GROQ_KEY}`
         },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: [{ role: "user", content: prompt }],
-          max_tokens: 2048
+          model: "gemma2-9b-it",
+          messages: [
+            { role: "system", content: "You are a helpful assistant. When asked for JSON, return ONLY raw JSON with no markdown, no backticks, no explanation. Start directly with { or [." },
+            { role: "user", content: prompt }
+          ],
+          max_tokens: 2048,
+          temperature: 0.3
         })
       });
       if (!res.ok) {
@@ -31,7 +35,7 @@ async function callAI(prompt, retries = 2) {
         throw new Error(`Groq error ${res.status}: ${err}`);
       }
       const data = await res.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      return data.choices?.[0]?.message?.content || "";
     } catch (e) {
       if (attempt < retries) { await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); continue; }
       throw e;
@@ -40,21 +44,21 @@ async function callAI(prompt, retries = 2) {
 }
 
 function safeJSON(raw, fallback = {}) {
+  if (!raw) return fallback;
   try {
     const clean = raw
       .replace(/```json\s*/gi, "")
       .replace(/```\s*/gi, "")
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, " ")
       .trim();
     return JSON.parse(clean);
   } catch {
     try {
-      const match = raw.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-      if (match) return JSON.parse(match[0]);
+      const obj = raw.match(/\{[\s\S]*\}/);
+      if (obj) return JSON.parse(obj[0]);
     } catch {}
     try {
-      const match = raw.match(/\[[\s\S]*\]/);
-      if (match) return JSON.parse(match[0]);
+      const arr = raw.match(/\[[\s\S]*\]/);
+      if (arr) return JSON.parse(arr[0]);
     } catch {}
     return fallback;
   }
@@ -108,7 +112,14 @@ const Btn = ({children,onClick,variant="primary",style={},disabled=false}) => {
 
 const Spin = ({size=20,color=C.orange}) => <span className="spin" style={{fontSize:size,color,display:"inline-block"}}>⚡</span>;
 
-// ─── ROLES & DURATIONS ─────────────────────────────────────────────────────
+const STATUS_C = {
+  "Applied":["#1e3a5f","#60a5fa"],
+  "Shortlisted":["#14532d","#4ade80"],
+  "Rejected":["#450a0a","#f87171"],
+  "No Response":["#1c1917","#a8a29e"],
+  "Interview":["#3b0764","#c084fc"],
+};
+
 const ROLES = [
   {id:"swe",label:"Software Engineer",icon:"💻"},
   {id:"backend",label:"Backend Developer",icon:"⚙️"},
@@ -123,18 +134,10 @@ const ROLES = [
 ];
 
 const DURATIONS = [
-  {mins:10,label:"Quick",qs:6,icon:"⚡"},
-  {mins:20,label:"Standard",qs:12,icon:"🎯"},
-  {mins:30,label:"Deep Dive",qs:18,icon:"🔥"},
+  {mins:10,label:"Quick",qs:5,icon:"⚡"},
+  {mins:20,label:"Standard",qs:10,icon:"🎯"},
+  {mins:30,label:"Deep Dive",qs:15,icon:"🔥"},
 ];
-
-const STATUS_C = {
-  "Applied":["#1e3a5f","#60a5fa"],
-  "Shortlisted":["#14532d","#4ade80"],
-  "Rejected":["#450a0a","#f87171"],
-  "No Response":["#1c1917","#a8a29e"],
-  "Interview":["#3b0764","#c084fc"],
-};
 
 // ─── INTERVIEW SIMULATOR ───────────────────────────────────────────────────
 function InterviewPrep({resume, analysis}) {
@@ -149,9 +152,6 @@ function InterviewPrep({resume, analysis}) {
   const [result, setResult] = useState(null);
   const [resultLoading, setResultLoading] = useState(false);
   const [err, setErr] = useState("");
-  const [followUp, setFollowUp] = useState("");
-  const [followUpResult, setFollowUpResult] = useState("");
-  const [followUpLoading, setFollowUpLoading] = useState(false);
   const timerRef = useRef(null);
   const fmt = s => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,"0")}`;
 
@@ -159,20 +159,14 @@ function InterviewPrep({resume, analysis}) {
     if (!role || !resume?.trim()) return;
     setPhase("loading"); setErr("");
     try {
-      const raw = await callAI(`You are a senior technical interviewer. Generate exactly ${dur.qs} interview questions for "${role.label}" role.
+      const raw = await callAI(`Generate exactly ${dur.qs} interview questions for a "${role.label}" role based on this resume.
 
-Resume:
-${resume.slice(0,2500)}
+Resume: ${resume.slice(0,1500)}
 
-Rules:
-- 40% technical questions referencing their ACTUAL tech stack and projects by name
-- 30% behavioral (STAR format)
-- 20% project-specific (use real project names from resume)
-- 10% system design
-- Last question MUST be: "Do you have any questions for us?"
+Return a JSON array only. No markdown. No explanation. Example:
+[{"id":0,"type":"technical","question":"Explain your experience with Spring Boot","hint":"Cover IoC, annotations, REST APIs","difficulty":"medium"}]
 
-Return ONLY a valid JSON array, no markdown, no extra text:
-[{"id":0,"type":"technical","question":"Explain how Spring Boot dependency injection worked in your URL Shortener project?","hint":"Cover IoC container, @Autowired, bean lifecycle","difficulty":"medium"}]`);
+Generate ${dur.qs} questions now:`);
 
       const parsed = safeJSON(raw, []);
       if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Could not generate questions. Please try again.");
@@ -197,61 +191,47 @@ Return ONLY a valid JSON array, no markdown, no extra text:
 
   const evaluate = async (ans) => {
     setPhase("result"); setResultLoading(true);
-    const qa = questions.map((q,i) => `Q${i+1} [${q.type}/${q.difficulty}]: ${q.question}\nAnswer: ${ans[i]||"(no answer)"}`).join("\n\n");
+    const qa = questions.map((q,i) => `Q${i+1}: ${q.question}\nAnswer: ${ans[i]||"(no answer)"}`).join("\n\n");
     try {
-      const raw = await callAI(`Evaluate this "${role?.label}" interview. Be honest and constructive.
+      const raw = await callAI(`Evaluate this interview for "${role?.label}" role.
 
-Resume: ${resume?.slice(0,800)}
-Interview Q&A:
+Q&A:
 ${qa}
 
-Return ONLY valid JSON, no markdown:
-{"overallScore":72,"verdict":"Strong Candidate","hireProbability":65,"summary":"2-3 sentence overall impression","questionResults":[{"id":0,"score":75,"feedback":"specific feedback on answer","modelAnswer":"what ideal answer looks like","missed":"key points missed"}],"strengths":["specific strength from answers"],"improvements":["specific area to improve"],"nextSteps":"actionable 2-3 sentence advice"}`);
+Return JSON only. No markdown. No explanation:
+{"overallScore":72,"verdict":"Good Candidate","hireProbability":65,"summary":"Brief overall impression","strengths":["strength 1"],"improvements":["improvement 1"],"nextSteps":"Actionable advice","questionResults":[{"id":0,"score":75,"feedback":"feedback here","modelAnswer":"ideal answer here","missed":"missed points"}]}`);
+
       const parsed = safeJSON(raw, null);
-      if (!parsed?.overallScore) throw new Error("Bad response");
+      if (!parsed?.overallScore) throw new Error("Could not evaluate. Please try again.");
       setResult(parsed);
     } catch(e) {
-      setResult({overallScore:70,verdict:"Interview Complete",hireProbability:60,summary:"Interview completed successfully. Review each question below for detailed feedback.",questionResults:questions.map((_,i)=>({id:i,score:70,feedback:"Review your answer against the hint provided.",modelAnswer:"Study the hint for key points to cover.",missed:"Practice more for this question type."})),strengths:["Completed the full interview"],improvements:["Practice STAR format for behavioral questions","Add more metrics to technical answers"],nextSteps:"Keep practicing daily. Focus on explaining your projects with clear impact metrics."});
+      setResult({
+        overallScore:70, verdict:"Interview Complete", hireProbability:60,
+        summary:"Interview completed. Review each answer below.",
+        strengths:["Completed the interview"], improvements:["Practice more STAR format answers"],
+        nextSteps:"Keep practicing daily with different question types.",
+        questionResults: questions.map((_,i)=>({id:i,score:70,feedback:"Good attempt.",modelAnswer:"Review the hint for key points.",missed:"Add more specific examples."}))
+      });
     }
     setResultLoading(false);
-  };
-
-  const askFollowUp = async () => {
-    if (!followUp.trim()) return;
-    setFollowUpLoading(true); setFollowUpResult("");
-    try {
-      const res = await callAI(`You are a friendly senior interviewer giving post-interview coaching for "${role?.label}". 
-Candidate asks: "${followUp}"
-Resume context: ${resume?.slice(0,400)}
-Answer helpfully and directly in max 4 sentences.`);
-      setFollowUpResult(res);
-    } catch(e) { setFollowUpResult("Could not get response. Please try again."); }
-    setFollowUpLoading(false);
   };
 
   const saveAns = (val) => setAnswers(p => ({...p,[curQ]:val}));
   const timerPct = totalTime > 0 ? (timeLeft/totalTime)*100 : 100;
   const isUrgent = timeLeft < 60 && phase === "active";
   const DIFF_C = {easy:C.green,medium:C.warn,hard:C.danger};
-  const TYPE_C = {technical:"#60a5fa",behavioral:C.purple,"project-specific":C.orange,"system-design":C.green};
 
   if (phase === "setup") return (
     <div>
       <div style={{marginBottom:20}}>
         <div style={{fontWeight:800,fontSize:22,color:C.text,marginBottom:4}}>🎯 AI Interview Simulator</div>
-        <div style={{color:C.muted,fontSize:13}}>Questions tailored from YOUR resume. Get scored like a real recruiter. Powered by Gemini AI — 100% free.</div>
+        <div style={{color:C.muted,fontSize:13}}>Questions tailored from YOUR resume. Get scored instantly. Free via Groq AI.</div>
       </div>
-
       {err && <div style={{background:"#450a0a",border:"1px solid #7f1d1d",borderRadius:10,padding:"12px 16px",marginBottom:16,color:C.danger,fontSize:13}}>⚠ {err}</div>}
-
-      {!resume && (
-        <div style={{background:"#451a03",border:"1px solid #78350f",borderRadius:10,padding:"12px 16px",marginBottom:16,color:C.warn,fontSize:13}}>
-          ⚠ No resume loaded. Go to Resume tab and upload your resume first.
-        </div>
-      )}
+      {!resume && <div style={{background:"#451a03",border:"1px solid #78350f",borderRadius:10,padding:"12px 16px",marginBottom:16,color:C.warn,fontSize:13}}>⚠ No resume found. Go to Resume tab first.</div>}
 
       <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:16}}>
-        <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:12}}>🎭 Select Target Role</div>
+        <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:12}}>🎭 Select Role</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           {ROLES.map(r=>(
             <button key={r.id} onClick={()=>setRole(r)}
@@ -286,7 +266,7 @@ Answer helpfully and directly in max 4 sentences.`);
     <div style={{textAlign:"center",padding:"80px 20px"}}>
       <div style={{fontSize:64,marginBottom:20,animation:"float 2s ease-in-out infinite"}}>🤖</div>
       <div style={{fontWeight:800,fontSize:22,color:C.text,marginBottom:8}}>Preparing Your Interview</div>
-      <div style={{color:C.muted,fontSize:14,marginBottom:24}}>Gemini AI is reading your resume and crafting questions for <span style={{color:C.purple}}>{role?.label}</span></div>
+      <div style={{color:C.muted,fontSize:14,marginBottom:24}}>AI reading your resume and crafting questions for <span style={{color:C.purple}}>{role?.label}</span></div>
       <Spin size={40}/>
     </div>
   );
@@ -321,52 +301,42 @@ Answer helpfully and directly in max 4 sentences.`);
 
         <div style={{background:C.card,border:`1px solid ${C.border}`,borderLeft:`3px solid ${C.purple}`,borderRadius:14,padding:24,marginBottom:16}}>
           <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
-            <span style={{background:`${TYPE_C[q?.type]||"#60a5fa"}20`,color:TYPE_C[q?.type]||"#60a5fa",fontSize:10,padding:"4px 10px",borderRadius:20,fontWeight:700}}>
-              {q?.type?.toUpperCase().replace(/-/g," ")}
-            </span>
-            <span style={{background:`${DIFF_C[q?.difficulty]||C.warn}20`,color:DIFF_C[q?.difficulty]||C.warn,fontSize:10,padding:"4px 10px",borderRadius:20,fontWeight:700}}>
-              {(q?.difficulty||"medium").toUpperCase()}
-            </span>
-            {isLast&&<span style={{background:`${C.orange}20`,color:C.orange,fontSize:10,padding:"4px 10px",borderRadius:20,fontWeight:700}}>FINAL QUESTION</span>}
+            <span style={{background:"#1e3a5f",color:"#60a5fa",fontSize:10,padding:"4px 10px",borderRadius:20,fontWeight:700}}>{(q?.type||"technical").toUpperCase()}</span>
+            <span style={{background:`${DIFF_C[q?.difficulty]||C.warn}20`,color:DIFF_C[q?.difficulty]||C.warn,fontSize:10,padding:"4px 10px",borderRadius:20,fontWeight:700}}>{(q?.difficulty||"medium").toUpperCase()}</span>
+            {isLast&&<span style={{background:`${C.orange}20`,color:C.orange,fontSize:10,padding:"4px 10px",borderRadius:20,fontWeight:700}}>FINAL</span>}
           </div>
-
           <div style={{fontWeight:700,fontSize:18,color:C.text,lineHeight:1.5,marginBottom:16}}>{q?.question}</div>
-
-          {q?.hint && (
+          {q?.hint&&(
             <div style={{background:"#0a0e18",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",marginBottom:16}}>
-              <div style={{color:C.muted,fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:4}}>💡 HINT — KEY POINTS TO COVER</div>
+              <div style={{color:C.muted,fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:4}}>💡 HINT</div>
               <div style={{color:C.soft,fontSize:12,lineHeight:1.6}}>{q?.hint}</div>
             </div>
           )}
-
           <textarea key={curQ} defaultValue={answers[curQ]||""} onChange={e=>saveAns(e.target.value)}
-            placeholder={isLast?"Type your question(s) for the interviewer...":"Type your answer — be specific, mention real projects and metrics..."}
+            placeholder="Type your answer — be specific, mention real projects and metrics..."
             style={{...inp,minHeight:160,resize:"vertical",lineHeight:1.7}}/>
-
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:14}}>
-            <Btn onClick={()=>setCurQ(c=>c-1)} disabled={curQ===0} variant="ghost" style={{opacity:curQ===0?0.3:1,padding:"9px 16px",fontSize:12}}>← Prev</Btn>
+            <Btn onClick={()=>setCurQ(c=>c-1)} disabled={curQ===0} variant="ghost" style={{padding:"9px 16px",fontSize:12}}>← Prev</Btn>
             <div style={{color:C.muted,fontSize:11}}>{Object.keys(answers).length}/{questions.length} answered</div>
             <Btn onClick={()=>{if(isLast)finishNow();else setCurQ(c=>c+1);}} variant={isLast?"primary":"purple"} style={{padding:"9px 20px",fontSize:12}}>
-              {isLast?"Submit Interview 🎯":"Next →"}
+              {isLast?"Submit 🎯":"Next →"}
             </Btn>
           </div>
         </div>
-
-        <Btn onClick={finishNow} variant="ghost" style={{width:"100%",fontSize:12,color:C.danger,borderColor:"#450a0a"}}>End Interview Early</Btn>
+        <Btn onClick={finishNow} variant="ghost" style={{width:"100%",fontSize:12,color:C.danger,borderColor:"#450a0a"}}>End Early</Btn>
       </div>
     );
   }
 
   if (phase === "result") return (
     <div className="fade">
-      {resultLoading ? (
+      {resultLoading?(
         <div style={{textAlign:"center",padding:"80px 20px"}}>
-          <div style={{fontSize:64,marginBottom:20,animation:"float 2s ease-in-out infinite"}}>📊</div>
+          <div style={{fontSize:64,marginBottom:20}}>📊</div>
           <div style={{fontWeight:800,fontSize:22,color:C.text,marginBottom:8}}>Evaluating Your Interview</div>
-          <div style={{color:C.muted,fontSize:14,marginBottom:20}}>Gemini AI is scoring every answer...</div>
           <Spin size={40}/>
         </div>
-      ) : result ? (
+      ):result?(
         <div>
           <div style={{background:`linear-gradient(135deg,${C.purple}20,${C.orange}10)`,border:`1px solid ${C.purple}40`,borderRadius:14,padding:24,marginBottom:16,textAlign:"center"}}>
             <div style={{fontSize:48,marginBottom:10}}>🎉</div>
@@ -392,11 +362,11 @@ Answer helpfully and directly in max 4 sentences.`);
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
             <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:16}}>
               <div style={{color:C.green,fontSize:11,fontFamily:"'DM Mono',monospace",marginBottom:10}}>✦ STRENGTHS</div>
-              {result.strengths?.map((s,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:6,display:"flex",gap:6}}><span style={{color:C.green}}>✓</span>{s}</div>)}
+              {result.strengths?.map((s,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:6}}>✓ {s}</div>)}
             </div>
             <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:16}}>
               <div style={{color:C.danger,fontSize:11,fontFamily:"'DM Mono',monospace",marginBottom:10}}>⚡ IMPROVE</div>
-              {result.improvements?.map((s,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:6,display:"flex",gap:6}}><span style={{color:C.warn}}>→</span>{s}</div>)}
+              {result.improvements?.map((s,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:6}}>→ {s}</div>)}
             </div>
           </div>
 
@@ -405,15 +375,13 @@ Answer helpfully and directly in max 4 sentences.`);
             {result.questionResults?.map((qr,i)=>{
               const q = questions[qr.id]||questions[i];
               const score = qr.score||70;
-              return (
+              return(
                 <div key={i} style={{marginBottom:14,background:"#0a0e18",borderRadius:10,padding:14,border:`1px solid ${score>=75?"#14532d":score>=55?"#451a03":"#450a0a"}`}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
                     <div style={{color:C.text,fontSize:12,fontWeight:600,flex:1,marginRight:10}}>Q{i+1}: {q?.question}</div>
                     <div style={{fontWeight:800,fontSize:20,color:score>=75?C.green:score>=55?C.warn:C.danger,flexShrink:0}}>{score}</div>
                   </div>
-                  {answers[i]&&<div style={{background:"#07080f",borderRadius:6,padding:"8px 10px",marginBottom:8,color:C.soft,fontSize:12,lineHeight:1.6}}><span style={{color:C.muted,fontSize:10}}>YOUR ANSWER: </span>{answers[i]}</div>}
                   <div style={{color:C.soft,fontSize:12,lineHeight:1.6,marginBottom:4}}><span style={{color:C.warn,fontWeight:700}}>Feedback: </span>{qr.feedback}</div>
-                  {qr.missed&&<div style={{color:C.muted,fontSize:11,marginBottom:8}}><span style={{color:C.danger}}>Missed: </span>{qr.missed}</div>}
                   <details>
                     <summary style={{color:C.purple,fontSize:11,cursor:"pointer",fontWeight:700}}>▸ SEE IDEAL ANSWER</summary>
                     <div style={{color:C.soft,fontSize:12,lineHeight:1.7,marginTop:8,background:`${C.purple}10`,border:`1px solid ${C.purple}30`,borderRadius:6,padding:"10px 12px"}}>{qr.modelAnswer}</div>
@@ -428,29 +396,13 @@ Answer helpfully and directly in max 4 sentences.`);
             <div style={{color:C.soft,fontSize:13,lineHeight:1.7}}>{result.nextSteps}</div>
           </div>
 
-          <div style={{background:C.card,border:`1px solid ${C.purple}40`,borderRadius:14,padding:20,marginBottom:20}}>
-            <div style={{fontWeight:700,color:C.text,fontSize:15,marginBottom:4}}>💬 Ask the Interviewer</div>
-            <div style={{color:C.muted,fontSize:12,marginBottom:12}}>Ask about any answer or get more coaching.</div>
-            <input value={followUp} onChange={e=>setFollowUp(e.target.value)} placeholder="How could I have answered Q3 better? What should I study?" style={{...inp,marginBottom:10}}/>
-            <Btn onClick={askFollowUp} disabled={!followUp.trim()||followUpLoading} variant="purple" style={{width:"100%"}}>
-              {followUpLoading?<><Spin size={14}/> Getting response...</>:"Ask Interviewer →"}
-            </Btn>
-            {followUpResult&&(
-              <div className="fade" style={{marginTop:14,background:`${C.purple}10`,border:`1px solid ${C.purple}30`,borderRadius:10,padding:16}}>
-                <div style={{color:C.purple,fontSize:11,fontFamily:"'DM Mono',monospace",marginBottom:6}}>INTERVIEWER SAYS</div>
-                <div style={{color:C.soft,fontSize:13,lineHeight:1.8}}>{followUpResult}</div>
-              </div>
-            )}
-          </div>
-
-          <Btn onClick={()=>{setPhase("setup");setResult(null);setQuestions([]);setAnswers({});setFollowUp("");setFollowUpResult("");}} style={{width:"100%",padding:"13px",fontSize:14}}>
+          <Btn onClick={()=>{setPhase("setup");setResult(null);setQuestions([]);setAnswers({});}} style={{width:"100%",padding:"13px",fontSize:14}}>
             🔄 Practice Again
           </Btn>
         </div>
-      ) : null}
+      ):null}
     </div>
   );
-
   return null;
 }
 
@@ -492,7 +444,6 @@ function AuthPage({onLogin}) {
           <div style={{fontWeight:800,fontSize:30,background:`linear-gradient(135deg,${C.orange},${C.orangeLight})`,backgroundSize:"200%",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradShift 3s ease infinite"}}>TakePlace</div>
           <div style={{color:C.muted,fontSize:12,marginTop:4}}>It's your time. TakePlace.</div>
         </div>
-
         <div style={{display:"flex",background:"#0a0e18",borderRadius:12,padding:4,marginBottom:24}}>
           {["login","register"].map(m=>(
             <button key={m} onClick={()=>{setMode(m);setErr("");setMsg("");}}
@@ -501,16 +452,13 @@ function AuthPage({onLogin}) {
             </button>
           ))}
         </div>
-
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
           {mode==="register"&&<input style={inp} placeholder="Full name" value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))}/>}
           <input style={inp} placeholder="Email" type="email" value={form.email} onChange={e=>setForm(p=>({...p,email:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&handle()}/>
           <input style={inp} placeholder="Password" type="password" value={form.password} onChange={e=>setForm(p=>({...p,password:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&handle()}/>
         </div>
-
         {err&&<div style={{color:C.danger,fontSize:12,marginTop:10}}>⚠ {err}</div>}
         {msg&&<div style={{color:C.green,fontSize:12,marginTop:10}}>{msg}</div>}
-
         <Btn onClick={handle} disabled={loading} style={{width:"100%",marginTop:20,padding:"13px",fontSize:14}}>
           {loading?<Spin size={16}/>:mode==="login"?"Sign In →":"Create Account →"}
         </Btn>
@@ -532,11 +480,12 @@ function OnboardPage({user, onDone}) {
   const analyzeResume = async (text) => {
     setAnalyzing(true);
     try {
-      const raw = await callAI(`Analyze this resume. Return ONLY valid JSON, no markdown:
-{"projects":[{"name":"ProjectName","score":85,"reason":"Why recruiters like this","keep":true}],"skills":["Java","Spring Boot"],"strengths":["Strong backend skills"],"weaknesses":["No system design examples"],"overallScore":72}
-Score each project 0-100. Set keep:true for top 2 only.
-Resume:
-${text.slice(0,2500)}`);
+      const raw = await callAI(`Analyze this resume and return JSON only. No markdown. No explanation.
+
+Resume: ${text.slice(0,1500)}
+
+Return this exact JSON structure:
+{"projects":[{"name":"ProjectName","score":85,"reason":"Why recruiters like this","keep":true}],"skills":["Java","Spring Boot"],"strengths":["Strong backend skills"],"weaknesses":["No system design examples"],"overallScore":72}`);
       setAnalysis(safeJSON(raw, {projects:[],skills:[],strengths:[],weaknesses:[],overallScore:70}));
     } catch(e) {
       setAnalysis({projects:[],skills:[],strengths:["Resume loaded"],weaknesses:["Add more metrics"],overallScore:65});
@@ -558,7 +507,7 @@ ${text.slice(0,2500)}`);
       <style>{css}</style>
       <div className="fade" style={{textAlign:"center",maxWidth:520}}>
         <div style={{fontSize:72,marginBottom:16}}>👋</div>
-        <div style={{fontWeight:800,fontSize:36,color:C.text,marginBottom:8}}>
+        <div style={{fontWeight:800,fontSize:32,color:C.text,marginBottom:8}}>
           Hey, <span style={{background:`linear-gradient(135deg,${C.orange},${C.orangeLight})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>{name.split(" ")[0]}!</span>
         </div>
         <div style={{color:C.soft,fontSize:15,lineHeight:1.8,marginBottom:36}}>
@@ -568,7 +517,7 @@ ${text.slice(0,2500)}`);
         {[
           {icon:"🔥",text:"Real live jobs from Adzuna — Indian companies updated daily"},
           {icon:"⚡",text:"AI rewrites your resume role-by-role in Jake's format"},
-          {icon:"🎯",text:"AI Interview Simulator — practice with questions from your resume"},
+          {icon:"🎯",text:"AI Interview Simulator — practice with YOUR resume questions"},
           {icon:"📊",text:"Track every application saved to real database"},
           {icon:"🛡️",text:"Fake job detector — never get scammed again"},
         ].map((f,i)=>(
@@ -587,25 +536,21 @@ ${text.slice(0,2500)}`);
       <style>{css}</style>
       <div className="fade" style={{width:"100%",maxWidth:580}}>
         <div style={{fontWeight:800,fontSize:24,color:C.text,marginBottom:6}}>Upload Your Resume</div>
-        <div style={{color:C.muted,fontSize:13,marginBottom:20}}>Paste your resume — Gemini AI will analyze and score every project instantly. Free.</div>
-
+        <div style={{color:C.muted,fontSize:13,marginBottom:20}}>Paste your resume — AI will analyze and score every project instantly.</div>
         <textarea value={resume} onChange={e=>{setResume(e.target.value);if(e.target.value.length>200)analyzeResume(e.target.value);}}
-          placeholder="Paste your full resume here — name, education, experience, projects, skills..."
+          placeholder="Paste your full resume here..."
           style={{...inp,minHeight:200,resize:"vertical",lineHeight:1.6,marginBottom:12}}/>
-
         <Btn variant="ghost" onClick={()=>fileRef.current.click()} style={{width:"100%",marginBottom:20}}>📁 Upload .txt file</Btn>
         <input ref={fileRef} type="file" accept=".txt" onChange={e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{setResume(ev.target.result);analyzeResume(ev.target.result);};r.readAsText(f);}} style={{display:"none"}}/>
-
         {analyzing&&(
           <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20,marginBottom:16,textAlign:"center"}}>
-            <Spin size={28}/><div style={{color:C.soft,fontSize:13,marginTop:8}}>Gemini AI analyzing your resume...</div>
+            <Spin size={28}/><div style={{color:C.soft,fontSize:13,marginTop:8}}>AI analyzing your resume...</div>
           </div>
         )}
-
         {analysis&&!analyzing&&(
           <div className="fade" style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:20}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-              <div style={{fontWeight:700,color:C.text,fontSize:16}}>✅ AI Analysis Complete</div>
+              <div style={{fontWeight:700,color:C.text,fontSize:16}}>✅ Analysis Complete</div>
               <div style={{background:analysis.overallScore>=75?"#052e16":"#450a0a",color:analysis.overallScore>=75?C.green:C.danger,borderRadius:20,padding:"4px 12px",fontSize:12,fontWeight:700}}>Score: {analysis.overallScore}/100</div>
             </div>
             {analysis.projects?.map((p,i)=>(
@@ -622,7 +567,6 @@ ${text.slice(0,2500)}`);
             ))}
           </div>
         )}
-
         <Btn onClick={proceed} disabled={!resume||analyzing||saving} style={{width:"100%",padding:"13px",fontSize:14}}>
           {saving?<Spin size={16}/>:resume?"Enter TakePlace →":"Paste your resume first"}
         </Btn>
@@ -643,7 +587,6 @@ function MainApp({user, resume, analysis, onLogout}) {
   const [tailorJob, setTailorJob] = useState(null);
   const [tailorLoading, setTailorLoading] = useState(false);
   const [tailorResult, setTailorResult] = useState(null);
-  const [tailorView, setTailorView] = useState("ats");
   const [tailorErr, setTailorErr] = useState("");
   const [feedback, setFeedback] = useState({id:null,text:""});
   const [addingApp, setAddingApp] = useState(false);
@@ -678,33 +621,28 @@ function MainApp({user, resume, analysis, onLogout}) {
           category:j.category?.label||"Technology",
         })));
       } else { setJobsError("No jobs found. Try 'java developer' or 'python engineer'."); }
-    } catch(e) { setJobsError("Could not load jobs. Check internet connection."); }
+    } catch(e) { setJobsError("Could not load jobs. Check internet."); }
     setJobsLoading(false);
   };
 
   const runTailor = async (job) => {
-    setTailorResult(null); setTailorView("ats"); setTailorLoading(true); setTailorErr("");
+    setTailorResult(null); setTailorLoading(true); setTailorErr("");
     const keepProjects = analysis?.projects?.filter(p=>p.keep).map(p=>p.name).join(", ")||"strongest projects";
     try {
-      const raw = await callAI(`You are an expert resume coach. Tailor this resume for the job below.
+      const raw = await callAI(`Tailor this resume for the job below. Return JSON only. No markdown. No explanation.
 
-JOB TITLE: ${job.title}
-COMPANY: ${job.company}
-JOB DESCRIPTION:
-${job.description}
+JOB: ${job.title} at ${job.company}
+JOB DESCRIPTION: ${job.description?.slice(0,500)}
+RESUME: ${resume?.slice(0,1500)}
+BEST PROJECTS: ${keepProjects}
 
-CANDIDATE RESUME:
-${resume?.slice(0,3000)}
-
-BEST PROJECTS TO HIGHLIGHT: ${keepProjects}
-
-Return ONLY valid JSON, no markdown:
-{"missing":["keyword missing from resume"],"strong":["strong match between resume and JD"],"changes":["Change bullet X to Y for better impact"],"matchScore":72,"atsResume":"FULL rewritten resume in Jake format with ATS keywords, strong action verbs, metrics","rewrittenResume":"FULL resume same content but stronger story and framing"}`);
+Return this exact JSON:
+{"missing":["missing keyword 1"],"strong":["strong match 1"],"changes":["change suggestion 1"],"matchScore":72,"atsResume":"Full rewritten ATS resume here","rewrittenResume":"Full rewritten resume with stronger story here"}`);
 
       const parsed = safeJSON(raw, null);
       if (!parsed?.matchScore) throw new Error("Could not parse response. Please try again.");
       setTailorResult(parsed);
-    } catch(e) { setTailorErr(e.message||"Failed to tailor. Please try again."); }
+    } catch(e) { setTailorErr(e.message||"Failed. Please try again."); }
     setTailorLoading(false);
   };
 
@@ -712,22 +650,29 @@ Return ONLY valid JSON, no markdown:
     if (!fakeJob.text) return;
     setFakeJob(p=>({...p,loading:true,result:null}));
     try {
-      const raw = await callAI(`Analyze this job posting for fraud. Trust Score 0-100 (100=completely safe, 0=definite scam).
-Return ONLY valid JSON, no markdown:
-{"trustScore":85,"verdict":"SAFE","redFlags":["red flag 1"],"greenFlags":["green flag 1"],"advice":"Your recommendation here"}
-verdict must be: SAFE, RISKY, or FAKE
-Job posting:
-${fakeJob.text}`);
-      const parsed = safeJSON(raw, {trustScore:50,verdict:"UNKNOWN",redFlags:["Could not analyze fully"],greenFlags:[],advice:"Verify manually before applying."});
+      const raw = await callAI(`Analyze this job posting for fraud. Return JSON only. No markdown. No explanation.
+
+Job: ${fakeJob.text}
+
+Return this exact JSON:
+{"trustScore":85,"verdict":"SAFE","redFlags":["red flag here"],"greenFlags":["green flag here"],"advice":"Your recommendation"}
+
+verdict must be exactly: SAFE, RISKY, or FAKE`);
+      const parsed = safeJSON(raw, {trustScore:50,verdict:"UNKNOWN",redFlags:["Could not analyze"],greenFlags:[],advice:"Verify manually."});
       setFakeJob(p=>({...p,result:parsed,loading:false}));
-    } catch { setFakeJob(p=>({...p,result:{trustScore:0,verdict:"ERROR",redFlags:["Analysis failed"],greenFlags:[],advice:"Try again."},loading:false})); }
+    } catch {
+      setFakeJob(p=>({...p,result:{trustScore:0,verdict:"ERROR",redFlags:["Analysis failed"],greenFlags:[],advice:"Try again."},loading:false}));
+    }
   };
+
+  // ── FIXED: Separate view and mark applied ──
+  const openJob = (job) => window.open(job.url,"_blank");
 
   const markApply = async (job) => {
     const newA = {user_id:user.id,company:job.company,role:job.title,status:"Applied",job_url:job.url,feedback:"",created_at:new Date().toISOString()};
     const {data} = await supabase.from("applications").insert([newA]).select();
     if (data) setApps(prev=>[data[0],...prev]);
-    window.open(job.url,"_blank");
+    alert(`✅ "${job.title}" at ${job.company} added to tracker!`);
   };
 
   const updateStatus = async (id, status) => {
@@ -756,13 +701,11 @@ ${fakeJob.text}`);
     rate:apps.length?Math.round(apps.filter(a=>["Shortlisted","Interview"].includes(a.status)).length/apps.length*100):0,
   };
 
-  const TABS = ["🔥 Live Jobs","📊 Tracker","🛡️ Fake Check","⚙️ Resume","🎯 Interview"];
+  const TABS = ["🔥 Jobs","📊 Tracker","🛡️ Fake Check","⚙️ Resume","🎯 Interview"];
 
   return (
     <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Outfit',sans-serif"}}>
       <style>{css}</style>
-
-      {/* Header */}
       <div style={{background:C.card,borderBottom:`1px solid ${C.border}`,padding:"14px 20px",position:"sticky",top:0,zIndex:100}}>
         <div style={{maxWidth:780,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div style={{fontWeight:800,fontSize:20,background:`linear-gradient(135deg,${C.orange},${C.orangeLight})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>⚡ TakePlace</div>
@@ -773,7 +716,6 @@ ${fakeJob.text}`);
         </div>
       </div>
 
-      {/* Tabs */}
       <div style={{background:C.card,borderBottom:`1px solid ${C.border}`,position:"sticky",top:53,zIndex:99}}>
         <div style={{maxWidth:780,margin:"0 auto",display:"flex",overflowX:"auto"}}>
           {TABS.map((t,i)=>(
@@ -787,7 +729,6 @@ ${fakeJob.text}`);
 
       <div style={{maxWidth:780,margin:"0 auto",padding:"20px 16px 60px"}}>
 
-        {/* ── TAB 0: LIVE JOBS ── */}
         {tab===0&&(
           <div>
             {/* Tailor Modal */}
@@ -802,30 +743,17 @@ ${fakeJob.text}`);
                     <button onClick={()=>{setTailorJob(null);setTailorResult(null);setTailorErr("");}} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:20,padding:4}}>✕</button>
                   </div>
 
-                  <div style={{background:"#0a0e18",border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:14}}>
-                    <div style={{color:C.soft,fontSize:11,fontFamily:"'DM Mono',monospace",marginBottom:8}}>📋 FULL JOB DESCRIPTION</div>
-                    <div style={{color:C.soft,fontSize:12,lineHeight:1.8,whiteSpace:"pre-wrap",maxHeight:200,overflowY:"auto"}}>{tailorJob.description}</div>
-                  </div>
-
-                  <div style={{background:"#0a0e18",border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:14}}>
-                    <div style={{color:C.soft,fontSize:11,fontFamily:"'DM Mono',monospace",marginBottom:6}}>👤 YOUR RESUME ({resume?.length||0} chars)</div>
-                    <div style={{color:C.muted,fontSize:11,lineHeight:1.5}}>{resume?.slice(0,200)||"No resume loaded"}...</div>
-                  </div>
-
-                  {tailorErr&&(
-                    <div style={{background:"#450a0a",border:"1px solid #7f1d1d",borderRadius:10,padding:"12px 16px",marginBottom:14,color:C.danger,fontSize:12}}>⚠ {tailorErr}</div>
-                  )}
+                  {tailorErr&&<div style={{background:"#450a0a",border:"1px solid #7f1d1d",borderRadius:10,padding:"12px 16px",marginBottom:14,color:C.danger,fontSize:12}}>⚠ {tailorErr}</div>}
 
                   {!tailorResult&&!tailorLoading&&(
-                    <Btn onClick={()=>runTailor(tailorJob)} disabled={!resume} style={{width:"100%",padding:"13px",fontSize:14,opacity:!resume?0.5:1}}>
-                      {resume?"⚡ Optimize Resume for This Job":"⚠ No resume — go to Resume tab first"}
+                    <Btn onClick={()=>runTailor(tailorJob)} disabled={!resume} style={{width:"100%",padding:"13px",fontSize:14}}>
+                      {resume?"⚡ Tailor Resume for This Job":"⚠ No resume — go to Resume tab first"}
                     </Btn>
                   )}
 
                   {tailorLoading&&(
                     <div style={{textAlign:"center",padding:"30px 0"}}>
-                      <Spin size={36}/><div style={{color:C.muted,fontSize:13,marginTop:10}}>Gemini AI optimizing your resume...</div>
-                      <div style={{color:C.muted,fontSize:11,marginTop:6}}>Takes 10-20 seconds</div>
+                      <Spin size={36}/><div style={{color:C.muted,fontSize:13,marginTop:10}}>AI optimizing your resume...</div>
                     </div>
                   )}
 
@@ -835,53 +763,32 @@ ${fakeJob.text}`);
                         <div style={{fontWeight:700,color:C.text,fontSize:14}}>Match Score</div>
                         <div style={{fontWeight:800,fontSize:28,color:tailorResult.matchScore>=70?C.green:tailorResult.matchScore>=50?C.warn:C.danger}}>{tailorResult.matchScore}%</div>
                       </div>
-
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
                         <div style={{background:"#0a0e18",borderRadius:10,padding:14}}>
-                          <div style={{color:C.danger,fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:8}}>MISSING KEYWORDS</div>
-                          {tailorResult.missing?.length>0?tailorResult.missing.map((m,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:5}}>⚠ {m}</div>):<div style={{color:C.muted,fontSize:12}}>No gaps found!</div>}
+                          <div style={{color:C.danger,fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:8}}>MISSING</div>
+                          {tailorResult.missing?.map((m,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:5}}>⚠ {m}</div>)}
                         </div>
                         <div style={{background:"#0a0e18",borderRadius:10,padding:14}}>
-                          <div style={{color:C.green,fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:8}}>STRONG MATCHES</div>
-                          {tailorResult.strong?.length>0?tailorResult.strong.map((s,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:5}}>✓ {s}</div>):<div style={{color:C.muted,fontSize:12}}>Build more skills</div>}
+                          <div style={{color:C.green,fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:8}}>MATCHES</div>
+                          {tailorResult.strong?.map((s,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:5}}>✓ {s}</div>)}
                         </div>
                       </div>
-
-                      {tailorResult.changes?.length>0&&(
-                        <div style={{background:"#0a0e18",borderRadius:10,padding:14,marginBottom:12}}>
-                          <div style={{color:C.warn,fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:8}}>SUGGESTED CHANGES</div>
-                          {tailorResult.changes.map((c,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:5}}>→ {c}</div>)}
-                        </div>
-                      )}
-
-                      <div style={{display:"flex",background:"#0a0e18",borderRadius:10,padding:4,marginBottom:10}}>
-                        {[["ats","⚡ ATS Version"],["rewrite","✏️ Rewritten"]].map(([v,label])=>(
-                          <button key={v} onClick={()=>setTailorView(v)}
-                            style={{flex:1,padding:"9px",borderRadius:8,border:"none",cursor:"pointer",fontFamily:"'Outfit',sans-serif",fontWeight:tailorView===v?700:400,fontSize:12,transition:"all 0.2s",background:tailorView===v?C.border:"transparent",color:tailorView===v?C.text:C.muted}}>
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div style={{background:"#0a0e18",borderRadius:10,padding:16}}>
+                      <div style={{background:"#0a0e18",borderRadius:10,padding:16,marginBottom:10}}>
                         <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                          <div style={{color:tailorView==="ats"?C.green:C.purple,fontSize:11,fontFamily:"'DM Mono',monospace",fontWeight:700}}>
-                            {tailorView==="ats"?"⚡ ATS-OPTIMIZED RESUME":"✏️ REWRITTEN RESUME"}
-                          </div>
-                          <Btn variant="ghost" onClick={()=>navigator.clipboard.writeText(tailorView==="ats"?tailorResult.atsResume:tailorResult.rewrittenResume)} style={{padding:"4px 10px",fontSize:10}}>📋 Copy</Btn>
+                          <div style={{color:C.green,fontSize:11,fontFamily:"'DM Mono',monospace",fontWeight:700}}>⚡ TAILORED RESUME</div>
+                          <Btn variant="ghost" onClick={()=>navigator.clipboard.writeText(tailorResult.atsResume||tailorResult.rewrittenResume||"")} style={{padding:"4px 10px",fontSize:10}}>📋 Copy</Btn>
                         </div>
                         <pre style={{whiteSpace:"pre-wrap",fontSize:11,color:C.soft,lineHeight:1.8,fontFamily:"'DM Mono',monospace",maxHeight:350,overflowY:"auto"}}>
-                          {tailorView==="ats"?tailorResult.atsResume:tailorResult.rewrittenResume}
+                          {tailorResult.atsResume||tailorResult.rewrittenResume}
                         </pre>
                       </div>
-                      <Btn variant="ghost" onClick={()=>{setTailorResult(null);setTailorErr("");}} style={{width:"100%",marginTop:10,fontSize:12}}>🔄 Re-optimize</Btn>
+                      <Btn variant="ghost" onClick={()=>{setTailorResult(null);setTailorErr("");}} style={{width:"100%",fontSize:12}}>🔄 Re-tailor</Btn>
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Search */}
             <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:20}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
                 <input style={inp} placeholder="Role (java developer...)" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}/>
@@ -900,13 +807,13 @@ ${fakeJob.text}`);
               )}
             </div>
 
-            {jobsLoading&&<div style={{textAlign:"center",padding:"60px 20px"}}><Spin size={40}/><div style={{color:C.muted,fontSize:14,marginTop:12}}>Fetching real jobs from Adzuna...</div></div>}
+            {jobsLoading&&<div style={{textAlign:"center",padding:"60px 20px"}}><Spin size={40}/><div style={{color:C.muted,fontSize:14,marginTop:12}}>Fetching real jobs...</div></div>}
             {jobsError&&<div style={{background:"#450a0a",border:"1px solid #7f1d1d",borderRadius:12,padding:20,color:C.danger,textAlign:"center",fontSize:13}}>{jobsError}</div>}
 
             {!jobsLoading&&jobs.map((job,i)=>{
               const isExpanded = expandedJob === job.id;
-              return (
-                <div key={job.id} className="fade hover" style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 18px",marginBottom:12,borderLeft:`3px solid ${C.orange}`,animationDelay:`${i*0.04}s`,cursor:"default"}}>
+              return(
+                <div key={job.id} className="fade hover" style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 18px",marginBottom:12,borderLeft:`3px solid ${C.orange}`,animationDelay:`${i*0.04}s`}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
                     <div>
                       <div style={{fontWeight:700,fontSize:15,color:C.text}}>{job.title}</div>
@@ -917,21 +824,19 @@ ${fakeJob.text}`);
                       <div style={{color:C.muted,fontSize:10,marginTop:2}}>{job.posted}</div>
                     </div>
                   </div>
-
                   <div style={{color:C.muted,fontSize:12,lineHeight:1.6,marginBottom:10,background:"#0a0e18",borderRadius:8,padding:"8px 10px"}}>
-                    {isExpanded ? job.description : job.descriptionShort + (job.description.length>220?"...":"")}
+                    {isExpanded?job.description:job.descriptionShort+(job.description.length>220?"...":"")}
                     {job.description.length>220&&(
                       <button onClick={()=>setExpandedJob(isExpanded?null:job.id)} style={{background:"none",border:"none",color:"#60a5fa",fontSize:11,cursor:"pointer",marginLeft:6}}>
                         {isExpanded?"Show less ▲":"Read more ▼"}
                       </button>
                     )}
                   </div>
-
                   <span style={{background:"#0c1a3a",color:"#60a5fa",fontSize:10,padding:"3px 8px",borderRadius:6,display:"inline-block",marginBottom:12}}>{job.category}</span>
-
-                  <div style={{display:"flex",gap:8}}>
-                    <Btn onClick={()=>markApply(job)} style={{flex:1,fontSize:12}}>Apply Now → Real Job</Btn>
-                    <Btn variant="ghost" onClick={()=>{setTailorJob(job);setTailorResult(null);setTailorErr("");}} style={{fontSize:12}}>🧠 Tailor Resume</Btn>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <Btn onClick={()=>openJob(job)} style={{flex:1,fontSize:12}}>🔗 View Job</Btn>
+                    <Btn variant="ghost" onClick={()=>markApply(job)} style={{fontSize:12}}>✅ Mark Applied</Btn>
+                    <Btn variant="ghost" onClick={()=>{setTailorJob(job);setTailorResult(null);setTailorErr("");}} style={{fontSize:12}}>🧠 Tailor</Btn>
                   </div>
                 </div>
               );
@@ -939,7 +844,6 @@ ${fakeJob.text}`);
           </div>
         )}
 
-        {/* ── TAB 1: TRACKER ── */}
         {tab===1&&(
           <div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}>
@@ -950,11 +854,8 @@ ${fakeJob.text}`);
                 </div>
               ))}
             </div>
-
             {!addingApp?(
-              <button onClick={()=>setAddingApp(true)} style={{width:"100%",padding:"11px",borderRadius:10,border:`1px dashed ${C.border}`,background:"transparent",color:C.muted,fontSize:13,cursor:"pointer",marginBottom:14}}>
-                + Add Application Manually
-              </button>
+              <button onClick={()=>setAddingApp(true)} style={{width:"100%",padding:"11px",borderRadius:10,border:`1px dashed ${C.border}`,background:"transparent",color:C.muted,fontSize:13,cursor:"pointer",marginBottom:14}}>+ Add Application Manually</button>
             ):(
               <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:16,marginBottom:14}}>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
@@ -970,12 +871,11 @@ ${fakeJob.text}`);
                 </div>
               </div>
             )}
-
             {apps.length===0?(
               <div style={{textAlign:"center",padding:"60px 20px",color:C.muted}}>
                 <div style={{fontSize:40,marginBottom:12}}>📭</div>
                 <div style={{fontWeight:700,fontSize:18,color:C.soft}}>No applications yet</div>
-                <div style={{fontSize:13,marginTop:6}}>Apply to jobs — they auto-track here and save to database</div>
+                <div style={{fontSize:13,marginTop:6}}>Click "✅ Mark Applied" on any job to track it here</div>
               </div>
             ):apps.map(app=>(
               <div key={app.id} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:"14px 16px",marginBottom:10}}>
@@ -1006,16 +906,15 @@ ${fakeJob.text}`);
           </div>
         )}
 
-        {/* ── TAB 2: FAKE CHECK ── */}
         {tab===2&&(
           <div>
             <div style={{fontWeight:800,fontSize:22,color:C.text,marginBottom:4}}>🛡️ Fake Job Detector</div>
-            <div style={{color:C.muted,fontSize:13,marginBottom:20}}>Paste any job URL or description. Gemini AI checks if it's real or a scam. Free.</div>
+            <div style={{color:C.muted,fontSize:13,marginBottom:20}}>Paste any job URL or description. AI checks if it's real or a scam.</div>
             <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:16}}>
-              <textarea placeholder="Paste job URL or full job description here..." value={fakeJob.text} onChange={e=>setFakeJob(p=>({...p,text:e.target.value}))}
+              <textarea placeholder="Paste job URL or full description here..." value={fakeJob.text} onChange={e=>setFakeJob(p=>({...p,text:e.target.value}))}
                 style={{...inp,minHeight:130,resize:"vertical",marginBottom:12}}/>
               <Btn onClick={checkFakeJob} disabled={!fakeJob.text||fakeJob.loading} style={{width:"100%"}}>
-                {fakeJob.loading?<><Spin size={14}/> Analyzing...</>:"🛡️ Check This Job Now"}
+                {fakeJob.loading?<><Spin size={14}/> Analyzing...</>:"🛡️ Check This Job"}
               </Btn>
             </div>
             {fakeJob.result&&!fakeJob.loading&&(
@@ -1046,12 +945,10 @@ ${fakeJob.text}`);
           </div>
         )}
 
-        {/* ── TAB 3: RESUME ── */}
         {tab===3&&(
           <div>
             <div style={{fontWeight:800,fontSize:22,color:C.text,marginBottom:4}}>Your Resume Intelligence</div>
-            <div style={{color:C.muted,fontSize:13,marginBottom:20}}>AI analysis powered by Gemini — completely free</div>
-
+            <div style={{color:C.muted,fontSize:13,marginBottom:20}}>AI analysis of your resume</div>
             {resume&&(
               <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:16}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
@@ -1061,7 +958,6 @@ ${fakeJob.text}`);
                 <pre style={{whiteSpace:"pre-wrap",fontSize:11,color:C.soft,lineHeight:1.8,fontFamily:"'DM Mono',monospace",maxHeight:280,overflowY:"auto",background:"#0a0e18",borderRadius:8,padding:"12px 14px"}}>{resume}</pre>
               </div>
             )}
-
             {analysis?.projects?.length>0&&(
               <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:16}}>
                 <div style={{fontWeight:700,color:C.text,marginBottom:14,fontSize:16}}>Project Rankings</div>
@@ -1071,7 +967,7 @@ ${fakeJob.text}`);
                       <span style={{fontSize:13,color:C.text,fontWeight:600}}>{p.name}</span>
                       <div style={{display:"flex",gap:8,alignItems:"center"}}>
                         <span style={{fontSize:14,fontWeight:800,color:p.score>=80?C.green:p.score>=60?C.warn:C.danger}}>{p.score}/100</span>
-                        <span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:p.keep?"#052e16":"#1c1917",color:p.keep?C.green:C.muted}}>{p.keep?"✓ AI Keeps":"Removed"}</span>
+                        <span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:p.keep?"#052e16":"#1c1917",color:p.keep?C.green:C.muted}}>{p.keep?"✓ Keep":"Remove"}</span>
                       </div>
                     </div>
                     <div style={{background:"#0a0e18",borderRadius:4,height:6,overflow:"hidden"}}>
@@ -1082,7 +978,6 @@ ${fakeJob.text}`);
                 ))}
               </div>
             )}
-
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
               <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:16}}>
                 <div style={{color:C.green,fontSize:11,fontFamily:"'DM Mono',monospace",marginBottom:8}}>STRENGTHS</div>
@@ -1093,29 +988,17 @@ ${fakeJob.text}`);
                 {analysis?.weaknesses?.map((s,i)=><div key={i} style={{color:C.soft,fontSize:12,marginBottom:5}}>→ {s}</div>)}
               </div>
             </div>
-
             {analysis?.skills?.length>0&&(
-              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:16,marginBottom:16}}>
+              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:16}}>
                 <div style={{color:"#60a5fa",fontSize:11,fontFamily:"'DM Mono',monospace",marginBottom:10}}>DETECTED SKILLS</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
                   {analysis.skills.map((s,i)=><span key={i} style={{background:"#0a0e18",color:C.soft,fontSize:11,padding:"4px 10px",borderRadius:8,fontFamily:"'DM Mono',monospace"}}>{s}</span>)}
                 </div>
               </div>
             )}
-
-            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20}}>
-              <div style={{fontWeight:700,color:C.text,fontSize:16,marginBottom:12}}>ℹ️ About TakePlace</div>
-              <div style={{color:C.soft,fontSize:13,lineHeight:1.9,marginBottom:16}}>Built for job seekers tired of applying into the void. Real jobs, AI resume tailoring, interview simulation, fake job detection — all free.</div>
-              <div style={{background:"#0a0e18",borderRadius:10,padding:14}}>
-                <div style={{color:C.muted,fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:6}}>FOUNDER</div>
-                <div style={{color:C.text,fontSize:14,fontWeight:700}}>Raghureddy Dadigela</div>
-                <div style={{color:C.soft,fontSize:12,marginTop:4}}>Built TakePlace after applying 100+ jobs with no response. Now helping every Indian fresher land their dream role.</div>
-              </div>
-            </div>
           </div>
         )}
 
-        {/* ── TAB 4: INTERVIEW ── */}
         {tab===4&&<InterviewPrep resume={resume} analysis={analysis}/>}
 
       </div>
