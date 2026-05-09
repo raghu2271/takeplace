@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-// ─── CONFIG ────────────────────────────────────────────────────────────────
+// --- CONFIG ----------------------------------------------------------------
 const SUPABASE_URL = "https://mdwxmiywtghznpwulwko.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kd3htaXl3dGdoem5wd3Vsd2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5OTkyOTIsImV4cCI6MjA5MzU3NTI5Mn0.b6yq6bIu0ntAbrrb2CP1H_alIcCTLc9sbix7tuERVAw";
 const ADZUNA_ID = "845f6cff";
@@ -9,7 +9,7 @@ const ADZUNA_KEY = "1255514b43792f219448b455d585c3ea";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ─── GEMINI API (Free — 1500 req/day) ─────────────────────────────────────
+// --- GEMINI API (Free - 1500 req/day) -------------------------------------
 const GEMINI_KEY = "AIzaSyC-54kHb6x7YwVdFJ0M1o-TwaL15NKwldw";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
 
@@ -20,9 +20,7 @@ async function callAI(prompt, maxTokens = 1500, retries = 2) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: "Return ONLY raw JSON. No markdown, no backticks, no explanation. Start with { or [.
-
-" + prompt }] }],
+          contents: [{ parts: [{ text: "Return ONLY raw JSON. No markdown, no backticks, no explanation. Start with { or [.\n\n" + prompt }] }],
           generationConfig: { maxOutputTokens: maxTokens, temperature: 0.3 }
         })
       });
@@ -75,7 +73,7 @@ function safeJSON(raw, fallback = {}) {
   }
 }
 
-// ─── DESIGN TOKENS ─────────────────────────────────────────────────────────
+// --- DESIGN TOKENS ---------------------------------------------------------
 const C = {
   bg: "#07080f", card: "#0d1117", border: "#1a2030",
   orange: "#FF5C1A", orangeLight: "#FF8A5B",
@@ -127,14 +125,14 @@ const Spin = ({ size = 20, color = C.orange }) => (
   <span className="spin" style={{ fontSize: size, color, display: "inline-block" }}>⚡</span>
 );
 
-// ─── SCORE BAR ─────────────────────────────────────────────────────────────
+// --- SCORE BAR -------------------------------------------------------------
 const ScoreBar = ({ score, color }) => (
   <div style={{ background: "#0a0e18", borderRadius: 4, height: 6, overflow: "hidden", marginTop: 4 }}>
     <div style={{ height: "100%", width: `${score}%`, background: color, borderRadius: 4, transition: "width 1s ease" }} />
   </div>
 );
 
-// ─── RESUME ANALYZER TAB ───────────────────────────────────────────────────
+// --- RESUME ANALYZER TAB ---------------------------------------------------
 function ResumeAnalyzer() {
   const [jd, setJd] = useState("");
   const [resume, setResume] = useState("");
@@ -148,33 +146,44 @@ function ResumeAnalyzer() {
     if (!jd.trim() || !resume.trim()) { setErr("Please fill in both the Job Description and your Resume."); return; }
     setLoading(true); setErr(""); setResult(null);
 
-    // Hard-trim inputs so prompts stay concise and fast
     const jdTrim = jd.trim().slice(0, 600);
     const resTrim = resume.trim().slice(0, 700);
 
     try {
-      // ── Call 1: Analysis JSON (no resume rewrite here to save tokens) ──
-      const prompt1 = "ATS analyst. Compare resume to JD. JSON only, no markdown.\n\nJD: " + jdTrim + "\n\nRESUME: " + resTrim + '\n\nReturn: {"matchScore":68,"atsScore":72,"verdict":"Good Match","summary":"2 sentences","strongMatches":[{"skill":"Spring Boot","reason":"in both","strength":85}],"missingKeywords":[{"keyword":"Docker","importance":"High","tip":"add to skills"}],"weakAreas":[{"area":"Metrics","detail":"no numbers"}],"projectFit":[{"name":"Project","relevance":80,"reason":"relevant","keep":true,"suggestion":"highlight X"}],"suggestedSkillsToAdd":["Kubernetes"]}';
+      // Call 1: Analysis JSON
+      const p1 = `ATS analyst. Compare resume to JD. JSON only, no markdown.
 
-      const raw1 = await callAI(prompt1, 1200);
+JD: ${jdTrim}
+
+RESUME: ${resTrim}
+
+Return exactly this JSON structure:
+{"matchScore":68,"atsScore":72,"verdict":"Good Match","summary":"2 sentences","strongMatches":[{"skill":"Spring Boot","reason":"in both","strength":85}],"missingKeywords":[{"keyword":"Docker","importance":"High","tip":"add to skills"}],"weakAreas":[{"area":"Metrics","detail":"no numbers"}],"projectFit":[{"name":"Project","relevance":80,"reason":"relevant","keep":true,"suggestion":"highlight X"}],"suggestedSkillsToAdd":["Kubernetes"]}`;
+
+      const raw1 = await callAI(p1, 1200);
       const analysis = safeJSON(raw1, null);
-      if (!analysis?.matchScore) throw new Error("Analysis failed — please try again.");
+      if (!analysis?.matchScore) throw new Error("Analysis failed - please try again.");
 
-      // Show analysis immediately so user sees progress
-      setResult({ ...analysis, optimizedResume: "⏳ Generating optimized resume..." });
+      setResult({ ...analysis, optimizedResume: "Generating optimized resume..." });
       setActiveSection("analysis");
 
-      // ── Call 2: Resume rewrite as plain text ──
-      const prompt2 = "Rewrite this resume for the job. Jake format: ALL CAPS section names (EDUCATION, EXPERIENCE, PROJECTS, SKILLS). Bullet points. Action verbs. Mirror JD keywords. Remove irrelevant projects.\n\nJD keywords: " + jdTrim.slice(0, 300) + "\n\nRESUME: " + resTrim + "\n\nReturn plain text resume only. No JSON. No markdown.";
+      // Call 2: Resume rewrite as plain text
+      const p2 = `Rewrite this resume for the job below. Use Jake format. ALL CAPS section names: EDUCATION, EXPERIENCE, PROJECTS, SKILLS. Use bullet points starting with action verbs. Mirror keywords from the JD. Remove irrelevant projects. Add metrics where possible.
 
-      const raw2 = await callAIText(prompt2, 1500);
-      setResult(prev => ({ ...prev, optimizedResume: raw2.trim() || "Could not generate — please try again." }));
+JD keywords: ${jdTrim.slice(0, 300)}
+
+RESUME: ${resTrim}
+
+Return plain text resume only. No JSON. No markdown symbols.`;
+
+      const raw2 = await callAIText(p2, 1500);
+      setResult(prev => ({ ...prev, optimizedResume: raw2.trim() || "Could not generate - please try again." }));
 
     } catch (e) {
       setErr(e.message || "Something went wrong. Please try again.");
     }
     setLoading(false);
-  };
+  };;
 
   const scoreColor = (s) => s >= 75 ? C.green : s >= 50 ? C.warn : C.danger;
   const importanceBg = (imp) => imp === "High" ? ["#450a0a", C.danger] : imp === "Medium" ? ["#451a03", C.warn] : ["#052e16", C.green];
@@ -201,7 +210,7 @@ function ResumeAnalyzer() {
               <div style={{ width: 28, height: 28, borderRadius: 8, background: `${C.orange}20`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>📋</div>
               <div>
                 <div style={{ fontWeight: 700, color: C.text, fontSize: 14 }}>Job Description</div>
-                <div style={{ color: C.muted, fontSize: 11 }}>Paste the full JD — the more detail, the better the analysis</div>
+                <div style={{ color: C.muted, fontSize: 11 }}>Paste the full JD - the more detail, the better the analysis</div>
               </div>
             </div>
             <textarea
@@ -251,7 +260,7 @@ function ResumeAnalyzer() {
             {resume && (
               <div style={{ marginTop: 8 }}>
                 <span style={{ fontSize: 10, color: resume.length > 300 ? C.green : C.warn }}>
-                  {resume.length > 300 ? "✓ Resume looks complete" : "⚠ Resume seems short — add more details"}
+                  {resume.length > 300 ? "✓ Resume looks complete" : "⚠ Resume seems short - add more details"}
                 </span>
               </div>
             )}
@@ -423,7 +432,7 @@ function ResumeAnalyzer() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                   <div>
                     <div style={{ fontWeight: 700, color: C.text, fontSize: 15 }}>✨ Optimized Resume</div>
-                    <div style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>Tailored to this JD — ATS-optimized, Jake format, strong bullet points</div>
+                    <div style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>Tailored to this JD - ATS-optimized, Jake format, strong bullet points</div>
                   </div>
                   <Btn variant="green" onClick={() => navigator.clipboard.writeText(result.optimizedResume || "")} style={{ padding: "7px 14px", fontSize: 12 }}>
                     📋 Copy
@@ -453,7 +462,7 @@ function ResumeAnalyzer() {
   );
 }
 
-// ─── AUTH PAGE ─────────────────────────────────────────────────────────────
+// --- AUTH PAGE -------------------------------------------------------------
 function AuthPage({ onLogin }) {
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState({ name: "", email: "", password: "" });
@@ -489,7 +498,7 @@ function AuthPage({ onLogin }) {
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div className="float" style={{ fontSize: 48, marginBottom: 8 }}>⚡</div>
           <div style={{ fontWeight: 800, fontSize: 30, background: `linear-gradient(135deg,${C.orange},${C.orangeLight})`, backgroundSize: "200%", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", animation: "gradShift 3s ease infinite" }}>TakePlace</div>
-          <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>It's your time. TakePlace.</div>
+          <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>It&apos;s your time. TakePlace.</div>
         </div>
         <div style={{ display: "flex", background: "#0a0e18", borderRadius: 12, padding: 4, marginBottom: 24 }}>
           {["login", "register"].map(m => (
@@ -514,7 +523,7 @@ function AuthPage({ onLogin }) {
   );
 }
 
-// ─── ONBOARD PAGE ──────────────────────────────────────────────────────────
+// --- ONBOARD PAGE ----------------------------------------------------------
 function OnboardPage({ user, onDone }) {
   const [step, setStep] = useState(1);
   const name = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "there";
@@ -532,7 +541,7 @@ function OnboardPage({ user, onDone }) {
           <strong style={{ color: C.text }}>Real jobs. AI resume. Zero guesswork.</strong>
         </div>
         {[
-          { icon: "🔥", text: "Real live jobs from Adzuna — Indian companies updated daily" },
+          { icon: "🔥", text: "Real live jobs from Adzuna - Indian companies updated daily" },
           { icon: "⚡", text: "Paste any JD + your resume → AI finds every gap instantly" },
           { icon: "🎯", text: "See which projects to keep and what keywords you're missing" },
           { icon: "✨", text: "Get a fully rewritten, ATS-optimized resume in seconds" },
@@ -542,7 +551,7 @@ function OnboardPage({ user, onDone }) {
             <span style={{ color: C.soft, fontSize: 13 }}>{f.text}</span>
           </div>
         ))}
-        <Btn onClick={() => onDone()} style={{ marginTop: 24, padding: "13px 40px", fontSize: 15 }}>Let's Go →</Btn>
+        <Btn onClick={() => onDone()} style={{ marginTop: 24, padding: "13px 40px", fontSize: 15 }}>Let&apos;s Go →</Btn>
       </div>
     </div>
   );
@@ -550,7 +559,7 @@ function OnboardPage({ user, onDone }) {
   return null;
 }
 
-// ─── MAIN APP ──────────────────────────────────────────────────────────────
+// --- MAIN APP --------------------------------------------------------------
 function MainApp({ user, onLogout }) {
   const [tab, setTab] = useState(0);
   const [jobs, setJobs] = useState([]);
@@ -655,7 +664,7 @@ function MainApp({ user, onLogout }) {
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                     <div>
                       <div style={{ fontWeight: 700, fontSize: 15, color: C.text }}>{job.title}</div>
-                      <div style={{ color: C.soft, fontSize: 12, marginTop: 2 }}>{job.company} · {job.location}</div>
+                      <div style={{ color: C.soft, fontSize: 12, marginTop: 2 }}>{job.company} - {job.location}</div>
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <div style={{ color: C.green, fontWeight: 700, fontSize: 13 }}>{job.salary}</div>
@@ -691,7 +700,7 @@ function MainApp({ user, onLogout }) {
   );
 }
 
-// ─── ROOT ──────────────────────────────────────────────────────────────────
+// --- ROOT ------------------------------------------------------------------
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
