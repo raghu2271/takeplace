@@ -9,35 +9,29 @@ const ADZUNA_KEY = "1255514b43792f219448b455d585c3ea";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ─── ANTHROPIC API ─────────────────────────────────────────────────────────
-// Get your key from: https://console.anthropic.com/
-// Free tier: $5 credit on signup — plenty for testing
-const ANTHROPIC_KEY = import.meta.env.VITE_ANTHROPIC_KEY || "";
+// ─── GEMINI API (Free — 1500 req/day) ─────────────────────────────────────
+const GEMINI_KEY = "AIzaSyC-54kHb6x7YwVdFJ0M1o-TwaL15NKwldw";
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
 
 async function callAI(prompt, maxTokens = 1500, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch(GEMINI_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-          ...(ANTHROPIC_KEY ? { "x-api-key": ANTHROPIC_KEY } : {}),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: maxTokens,
-          system: "Return ONLY raw JSON. No markdown, no backticks, no explanation. Start with { or [.",
-          messages: [{ role: "user", content: prompt }]
+          contents: [{ parts: [{ text: "Return ONLY raw JSON. No markdown, no backticks, no explanation. Start with { or [.
+
+" + prompt }] }],
+          generationConfig: { maxOutputTokens: maxTokens, temperature: 0.3 }
         })
       });
       if (!res.ok) {
         const errBody = await res.text().catch(() => "");
-        throw new Error(`Claude API ${res.status}: ${errBody.slice(0, 200)}`);
+        throw new Error(`Gemini ${res.status}: ${errBody.slice(0, 200)}`);
       }
       const data = await res.json();
-      return data.content?.[0]?.text || "";
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     } catch (e) {
       if (attempt < retries) { await new Promise(r => setTimeout(r, 1200 * (attempt + 1))); continue; }
       throw e;
@@ -45,30 +39,23 @@ async function callAI(prompt, maxTokens = 1500, retries = 2) {
   }
 }
 
-// callAI for plain text (resume rewrite — no JSON system prompt)
 async function callAIText(prompt, maxTokens = 1500, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch(GEMINI_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-          ...(ANTHROPIC_KEY ? { "x-api-key": ANTHROPIC_KEY } : {}),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: maxTokens,
-          messages: [{ role: "user", content: prompt }]
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: maxTokens, temperature: 0.3 }
         })
       });
       if (!res.ok) {
         const errBody = await res.text().catch(() => "");
-        throw new Error(`Claude API ${res.status}: ${errBody.slice(0, 200)}`);
+        throw new Error(`Gemini ${res.status}: ${errBody.slice(0, 200)}`);
       }
       const data = await res.json();
-      return data.content?.[0]?.text || "";
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     } catch (e) {
       if (attempt < retries) { await new Promise(r => setTimeout(r, 1200 * (attempt + 1))); continue; }
       throw e;
