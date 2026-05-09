@@ -1,3 +1,5 @@
+
+
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -9,29 +11,21 @@ const ADZUNA_KEY = "1255514b43792f219448b455d585c3ea";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// --- AI API (Google Gemini - free tier, 1500 req/day) --------------------
-const GEMINI_KEY = "AIzaSyC4m5nHSUmCXN8r7yoDGL0BiOSG5HovMqg";
-
-async function callClaude(prompt, maxTokens = 1500, retries = 2) {
+// --- AI API (calls /api/ai serverless function → HuggingFace free) --------
+async function callAI(prompt, maxTokens = 1500, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: maxTokens, temperature: 0.3 },
-          }),
-        }
-      );
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, maxTokens, mode: "json" }),
+      });
       if (!res.ok) {
         const errBody = await res.text().catch(() => "");
         throw new Error("AI error " + res.status + ": " + errBody.slice(0, 120));
       }
       const data = await res.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      return data.text || "";
     } catch (e) {
       if (attempt < retries) { await new Promise(r => setTimeout(r, 1200 * (attempt + 1))); continue; }
       throw e;
@@ -39,15 +33,25 @@ async function callClaude(prompt, maxTokens = 1500, retries = 2) {
   }
 }
 
-// JSON mode - instructs Claude to return only JSON
-async function callAI(prompt, maxTokens = 1500, retries = 2) {
-  const jsonPrompt = `Return ONLY raw JSON. No markdown, no backticks, no explanation. Start your response with { or [.\n\n${prompt}`;
-  return callClaude(jsonPrompt, maxTokens, retries);
-}
-
-// Text mode - plain text response
 async function callAIText(prompt, maxTokens = 1500, retries = 2) {
-  return callClaude(prompt, maxTokens, retries);
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, maxTokens, mode: "text" }),
+      });
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => "");
+        throw new Error("AI error " + res.status + ": " + errBody.slice(0, 120));
+      }
+      const data = await res.json();
+      return data.text || "";
+    } catch (e) {
+      if (attempt < retries) { await new Promise(r => setTimeout(r, 1200 * (attempt + 1))); continue; }
+      throw e;
+    }
+  }
 }
 
 function safeJSON(raw, fallback = {}) {
@@ -139,7 +143,6 @@ function ResumeAnalyzer() {
     const resTrim = resume.trim().slice(0, 700);
 
     try {
-      // Call 1: Analysis JSON
       const p1 = `ATS analyst. Compare resume to JD. JSON only, no markdown.
 
 JD: ${jdTrim}
@@ -156,7 +159,6 @@ Return exactly this JSON structure:
       setResult({ ...analysis, optimizedResume: "Generating optimized resume..." });
       setActiveSection("analysis");
 
-      // Call 2: Resume rewrite as plain text
       const p2 = `Rewrite this resume for the job below. Use Jake format. ALL CAPS section names: EDUCATION, EXPERIENCE, PROJECTS, SKILLS. Use bullet points starting with action verbs. Mirror keywords from the JD. Remove irrelevant projects. Add metrics where possible.
 
 JD keywords: ${jdTrim.slice(0, 300)}
@@ -184,7 +186,6 @@ Return plain text resume only. No JSON. No markdown symbols.`;
         <div style={{ color: C.muted, fontSize: 13 }}>Paste the job description + your resume. AI finds gaps, scores your fit, and rewrites your resume to match.</div>
       </div>
 
-      {/* Input Section */}
       {!result && (
         <div className="fade">
           {err && (
@@ -193,7 +194,6 @@ Return plain text resume only. No JSON. No markdown symbols.`;
             </div>
           )}
 
-          {/* JD Box */}
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20, marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <div style={{ width: 28, height: 28, borderRadius: 8, background: `${C.orange}20`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>📋</div>
@@ -202,14 +202,11 @@ Return plain text resume only. No JSON. No markdown symbols.`;
                 <div style={{ color: C.muted, fontSize: 11 }}>Paste the full JD - the more detail, the better the analysis</div>
               </div>
             </div>
-            <textarea
-              value={jd}
-              onChange={e => setJd(e.target.value)}
-              placeholder={"Paste the job description here...\n\nExample:\nWe're looking for a Backend Developer with 2+ years of experience in Java, Spring Boot, microservices, REST APIs...\nRequirements: Docker, Kubernetes, AWS, CI/CD..."}
-              style={{ ...inp, minHeight: 180, resize: "vertical", lineHeight: 1.7 }}
-            />
+            <textarea value={jd} onChange={e => setJd(e.target.value)}
+              placeholder={"Paste the job description here...\n\nExample:\nWe're looking for a Backend Developer with 2+ years of experience in Java, Spring Boot..."}
+              style={{ ...inp, minHeight: 180, resize: "vertical", lineHeight: 1.7 }} />
             {jd && (
-              <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
                 <span style={{ fontSize: 10, color: C.muted }}>{jd.split(/\s+/).filter(Boolean).length} words</span>
                 <span style={{ fontSize: 10, color: jd.length > 200 ? C.green : C.warn }}>
                   {jd.length > 200 ? "✓ Good length" : "⚠ Add more detail for better results"}
@@ -218,7 +215,6 @@ Return plain text resume only. No JSON. No markdown symbols.`;
             )}
           </div>
 
-          {/* Resume Box */}
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20, marginBottom: 20 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -228,8 +224,7 @@ Return plain text resume only. No JSON. No markdown symbols.`;
                   <div style={{ color: C.muted, fontSize: 11 }}>Paste text or upload a .txt file</div>
                 </div>
               </div>
-              <button
-                onClick={() => fileRef.current.click()}
+              <button onClick={() => fileRef.current.click()}
                 style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.soft, fontSize: 11, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>
                 📁 Upload .txt
               </button>
@@ -240,12 +235,9 @@ Return plain text resume only. No JSON. No markdown symbols.`;
               r.onload = ev => setResume(ev.target.result);
               r.readAsText(f);
             }} style={{ display: "none" }} />
-            <textarea
-              value={resume}
-              onChange={e => setResume(e.target.value)}
-              placeholder={"Paste your resume here...\n\nInclude: Education, Experience, Projects, Skills\n\nThe more complete your resume, the better the rewrite."}
-              style={{ ...inp, minHeight: 220, resize: "vertical", lineHeight: 1.7 }}
-            />
+            <textarea value={resume} onChange={e => setResume(e.target.value)}
+              placeholder={"Paste your resume here...\n\nInclude: Education, Experience, Projects, Skills"}
+              style={{ ...inp, minHeight: 220, resize: "vertical", lineHeight: 1.7 }} />
             {resume && (
               <div style={{ marginTop: 8 }}>
                 <span style={{ fontSize: 10, color: resume.length > 300 ? C.green : C.warn }}>
@@ -255,16 +247,13 @@ Return plain text resume only. No JSON. No markdown symbols.`;
             )}
           </div>
 
-          <Btn
-            onClick={analyze}
-            disabled={!jd.trim() || !resume.trim() || loading}
+          <Btn onClick={analyze} disabled={!jd.trim() || !resume.trim() || loading}
             style={{ width: "100%", padding: "14px", fontSize: 15, letterSpacing: 0.3 }}>
             {loading ? <><Spin size={16} /> &nbsp; Analyzing...</> : "🔍 Analyze & Optimize Resume"}
           </Btn>
         </div>
       )}
 
-      {/* Loading */}
       {loading && !result && (
         <div style={{ textAlign: "center", padding: "80px 20px" }}>
           <div style={{ fontSize: 64, marginBottom: 20, animation: "float 2s ease-in-out infinite" }}>🧠</div>
@@ -274,10 +263,8 @@ Return plain text resume only. No JSON. No markdown symbols.`;
         </div>
       )}
 
-      {/* Results */}
       {result && (
         <div className="fade">
-          {/* Score Header */}
           <div style={{ background: `linear-gradient(135deg,${C.purple}15,${C.orange}10)`, border: `1px solid ${C.purple}30`, borderRadius: 16, padding: 24, marginBottom: 16, textAlign: "center" }}>
             <div style={{ display: "flex", justifyContent: "center", gap: 40, marginBottom: 16 }}>
               <div>
@@ -296,7 +283,6 @@ Return plain text resume only. No JSON. No markdown symbols.`;
             <div style={{ color: C.soft, fontSize: 13, lineHeight: 1.7, maxWidth: 500, margin: "0 auto" }}>{result.summary}</div>
           </div>
 
-          {/* Section Tabs */}
           <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto" }}>
             {[["analysis", "📊 Analysis"], ["missing", "⚠️ Gaps"], ["projects", "🏗️ Projects"], ["resume", "✨ Optimized Resume"]].map(([key, label]) => (
               <button key={key} onClick={() => setActiveSection(key)}
@@ -306,7 +292,6 @@ Return plain text resume only. No JSON. No markdown symbols.`;
             ))}
           </div>
 
-          {/* Analysis Section */}
           {activeSection === "analysis" && (
             <div className="fade">
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20, marginBottom: 14 }}>
@@ -324,12 +309,12 @@ Return plain text resume only. No JSON. No markdown symbols.`;
                     <div style={{ color: C.muted, fontSize: 12, marginBottom: 6 }}>{m.reason}</div>
                     <ScoreBar score={m.strength} color={C.green} />
                   </div>
-                )) : <div style={{ color: C.muted, fontSize: 13 }}>No strong matches found. Consider tailoring your resume more closely to the JD.</div>}
+                )) : <div style={{ color: C.muted, fontSize: 13 }}>No strong matches found.</div>}
               </div>
 
               {result.suggestedSkillsToAdd?.length > 0 && (
                 <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20, marginBottom: 14 }}>
-                  <div style={{ fontWeight: 700, color: C.text, fontSize: 15, marginBottom: 12 }}>🎯 Skills to Add to Your Resume</div>
+                  <div style={{ fontWeight: 700, color: C.text, fontSize: 15, marginBottom: 12 }}>🎯 Skills to Add</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                     {result.suggestedSkillsToAdd.map((s, i) => (
                       <span key={i} style={{ background: `${C.purple}20`, color: C.purple, fontSize: 12, padding: "6px 14px", borderRadius: 20, fontWeight: 600 }}>+ {s}</span>
@@ -352,7 +337,6 @@ Return plain text resume only. No JSON. No markdown symbols.`;
             </div>
           )}
 
-          {/* Missing Keywords Section */}
           {activeSection === "missing" && (
             <div className="fade">
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20 }}>
@@ -372,21 +356,16 @@ Return plain text resume only. No JSON. No markdown symbols.`;
                       <div style={{ color: C.soft, fontSize: 12, lineHeight: 1.6 }}>💡 {m.tip}</div>
                     </div>
                   );
-                }) : (
-                  <div style={{ textAlign: "center", padding: "24px 0", color: C.green, fontSize: 14 }}>
-                    🎉 No critical missing keywords! Your resume covers the JD well.
-                  </div>
-                )}
+                }) : <div style={{ textAlign: "center", padding: "24px 0", color: C.green, fontSize: 14 }}>🎉 No critical missing keywords!</div>}
               </div>
             </div>
           )}
 
-          {/* Projects Section */}
           {activeSection === "projects" && (
             <div className="fade">
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20 }}>
                 <div style={{ fontWeight: 700, color: C.text, fontSize: 15, marginBottom: 4 }}>🏗️ Project Relevance to This JD</div>
-                <div style={{ color: C.muted, fontSize: 12, marginBottom: 16 }}>Which projects to keep, remove, or reframe for this role</div>
+                <div style={{ color: C.muted, fontSize: 12, marginBottom: 16 }}>Which projects to keep, remove, or reframe</div>
                 {result.projectFit?.length > 0 ? result.projectFit.map((p, i) => (
                   <div key={i} style={{ background: "#0a0e18", borderRadius: 12, padding: 16, marginBottom: 12, border: `1px solid ${p.keep ? "#14532d" : "#1c1917"}` }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -406,19 +385,18 @@ Return plain text resume only. No JSON. No markdown symbols.`;
                       </div>
                     )}
                   </div>
-                )) : <div style={{ color: C.muted, fontSize: 13 }}>No projects detected. Make sure your resume includes a Projects section.</div>}
+                )) : <div style={{ color: C.muted, fontSize: 13 }}>No projects detected.</div>}
               </div>
             </div>
           )}
 
-          {/* Optimized Resume Section */}
           {activeSection === "resume" && (
             <div className="fade">
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                   <div>
                     <div style={{ fontWeight: 700, color: C.text, fontSize: 15 }}>✨ Optimized Resume</div>
-                    <div style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>Tailored to this JD - ATS-optimized, Jake format, strong bullet points</div>
+                    <div style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>ATS-optimized, Jake format, strong bullet points</div>
                   </div>
                   <Btn variant="green" onClick={() => navigator.clipboard.writeText(result.optimizedResume || "")} style={{ padding: "7px 14px", fontSize: 12 }}>
                     📋 Copy
@@ -430,7 +408,7 @@ Return plain text resume only. No JSON. No markdown symbols.`;
                   </pre>
                 </div>
                 <div style={{ marginTop: 14, background: `${C.green}10`, border: `1px solid ${C.green}30`, borderRadius: 10, padding: "12px 16px", fontSize: 12, color: C.soft, lineHeight: 1.6 }}>
-                  💡 <strong style={{ color: C.green }}>Pro tip:</strong> Copy this into a Google Doc or Overleaf. Match formatting to a clean template. Always save as PDF before submitting.
+                  💡 <strong style={{ color: C.green }}>Pro tip:</strong> Copy into Google Doc or Overleaf. Always save as PDF before submitting.
                 </div>
               </div>
             </div>
@@ -511,7 +489,6 @@ function AuthPage({ onLogin }) {
 // --- ONBOARD PAGE ----------------------------------------------------------
 function OnboardPage({ user, onDone }) {
   const name = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "there";
-
   return (
     <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <style>{css}</style>
@@ -521,8 +498,7 @@ function OnboardPage({ user, onDone }) {
           Hey, <span style={{ background: `linear-gradient(135deg,${C.orange},${C.orangeLight})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{name.split(" ")[0]}!</span>
         </div>
         <div style={{ color: C.soft, fontSize: 15, lineHeight: 1.8, marginBottom: 36 }}>
-          Welcome to TakePlace.<br />
-          <strong style={{ color: C.text }}>Real jobs. AI resume. Zero guesswork.</strong>
+          Welcome to TakePlace.<br /><strong style={{ color: C.text }}>Real jobs. AI resume. Zero guesswork.</strong>
         </div>
         {[
           { icon: "🔥", text: "Real live jobs from Adzuna - Indian companies updated daily" },
@@ -582,8 +558,6 @@ function MainApp({ user, onLogout }) {
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Outfit',sans-serif" }}>
       <style>{css}</style>
-
-      {/* Header */}
       <div style={{ background: C.card, borderBottom: `1px solid ${C.border}`, padding: "14px 20px", position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: 780, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontWeight: 800, fontSize: 20, background: `linear-gradient(135deg,${C.orange},${C.orangeLight})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>⚡ TakePlace</div>
@@ -594,7 +568,6 @@ function MainApp({ user, onLogout }) {
         </div>
       </div>
 
-      {/* Tabs */}
       <div style={{ background: C.card, borderBottom: `1px solid ${C.border}`, position: "sticky", top: 53, zIndex: 99 }}>
         <div style={{ maxWidth: 780, margin: "0 auto", display: "flex" }}>
           {TABS.map((t, i) => (
@@ -607,8 +580,6 @@ function MainApp({ user, onLogout }) {
       </div>
 
       <div style={{ maxWidth: 780, margin: "0 auto", padding: "20px 16px 60px" }}>
-
-        {/* JOBS TAB */}
         {tab === 0 && (
           <div>
             <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20, marginBottom: 20 }}>
@@ -664,7 +635,7 @@ function MainApp({ user, onLogout }) {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ background: "#0c1a3a", color: "#60a5fa", fontSize: 10, padding: "3px 8px", borderRadius: 6 }}>{job.category}</span>
                     <div style={{ display: "flex", gap: 8 }}>
-                      <Btn variant="ghost" onClick={() => { setTab(1); }} style={{ fontSize: 11, padding: "7px 12px" }}>⚡ Analyze Resume</Btn>
+                      <Btn variant="ghost" onClick={() => setTab(1)} style={{ fontSize: 11, padding: "7px 12px" }}>⚡ Analyze Resume</Btn>
                       <Btn onClick={() => window.open(job.url, "_blank")} style={{ fontSize: 12, padding: "7px 16px" }}>Apply →</Btn>
                     </div>
                   </div>
@@ -673,10 +644,7 @@ function MainApp({ user, onLogout }) {
             })}
           </div>
         )}
-
-        {/* RESUME TAB */}
         {tab === 1 && <ResumeAnalyzer />}
-
       </div>
     </div>
   );
