@@ -6,33 +6,69 @@ const SUPABASE_URL = "https://mdwxmiywtghznpwulwko.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kd3htaXl3dGdoem5wd3Vsd2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5OTkyOTIsImV4cCI6MjA5MzU3NTI5Mn0.b6yq6bIu0ntAbrrb2CP1H_alIcCTLc9sbix7tuERVAw";
 const ADZUNA_ID = "845f6cff";
 const ADZUNA_KEY = "1255514b43792f219448b455d585c3ea";
-const GROQ_KEY = "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";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ─── GROQ API ──────────────────────────────────────────────────────────────
+// ─── ANTHROPIC API ─────────────────────────────────────────────────────────
+// Get your key from: https://console.anthropic.com/
+// Free tier: $5 credit on signup — plenty for testing
+const ANTHROPIC_KEY = import.meta.env.VITE_ANTHROPIC_KEY || "";
+
 async function callAI(prompt, maxTokens = 1500, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_KEY}` },
+        headers: {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+          ...(ANTHROPIC_KEY ? { "x-api-key": ANTHROPIC_KEY } : {}),
+        },
         body: JSON.stringify({
-          model: "llama-3.1-8b-instant",
-          messages: [
-            { role: "system", content: "Return ONLY raw JSON. No markdown, no backticks, no explanation. Start with { or [." },
-            { role: "user", content: prompt }
-          ],
+          model: "claude-haiku-4-5-20251001",
           max_tokens: maxTokens,
-          temperature: 0.3
+          system: "Return ONLY raw JSON. No markdown, no backticks, no explanation. Start with { or [.",
+          messages: [{ role: "user", content: prompt }]
         })
       });
       if (!res.ok) {
         const errBody = await res.text().catch(() => "");
-        throw new Error(`Groq ${res.status}: ${errBody.slice(0, 120)}`);
+        throw new Error(`Claude API ${res.status}: ${errBody.slice(0, 200)}`);
       }
       const data = await res.json();
-      return data.choices?.[0]?.message?.content || "";
+      return data.content?.[0]?.text || "";
+    } catch (e) {
+      if (attempt < retries) { await new Promise(r => setTimeout(r, 1200 * (attempt + 1))); continue; }
+      throw e;
+    }
+  }
+}
+
+// callAI for plain text (resume rewrite — no JSON system prompt)
+async function callAIText(prompt, maxTokens = 1500, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+          ...(ANTHROPIC_KEY ? { "x-api-key": ANTHROPIC_KEY } : {}),
+        },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: maxTokens,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => "");
+        throw new Error(`Claude API ${res.status}: ${errBody.slice(0, 200)}`);
+      }
+      const data = await res.json();
+      return data.content?.[0]?.text || "";
     } catch (e) {
       if (attempt < retries) { await new Promise(r => setTimeout(r, 1200 * (attempt + 1))); continue; }
       throw e;
@@ -125,7 +161,7 @@ function ResumeAnalyzer() {
     if (!jd.trim() || !resume.trim()) { setErr("Please fill in both the Job Description and your Resume."); return; }
     setLoading(true); setErr(""); setResult(null);
 
-    // Hard-trim inputs so total prompt stays well under Groq limits
+    // Hard-trim inputs so prompts stay concise and fast
     const jdTrim = jd.trim().slice(0, 600);
     const resTrim = resume.trim().slice(0, 700);
 
@@ -144,7 +180,7 @@ function ResumeAnalyzer() {
       // ── Call 2: Resume rewrite as plain text ──
       const prompt2 = "Rewrite this resume for the job. Jake format: ALL CAPS section names (EDUCATION, EXPERIENCE, PROJECTS, SKILLS). Bullet points. Action verbs. Mirror JD keywords. Remove irrelevant projects.\n\nJD keywords: " + jdTrim.slice(0, 300) + "\n\nRESUME: " + resTrim + "\n\nReturn plain text resume only. No JSON. No markdown.";
 
-      const raw2 = await callAI(prompt2, 1400);
+      const raw2 = await callAIText(prompt2, 1500);
       setResult(prev => ({ ...prev, optimizedResume: raw2.trim() || "Could not generate — please try again." }));
 
     } catch (e) {
