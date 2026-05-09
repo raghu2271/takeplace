@@ -11,7 +11,7 @@ const GROQ_KEY = "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";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ─── GROQ API ──────────────────────────────────────────────────────────────
-async function callAI(prompt, retries = 2) {
+async function callAI(prompt, maxTokens = 1500, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -20,18 +20,21 @@ async function callAI(prompt, retries = 2) {
         body: JSON.stringify({
           model: "llama-3.1-8b-instant",
           messages: [
-            { role: "system", content: "You are a helpful assistant. When asked for JSON, return ONLY raw JSON with no markdown, no backticks, no explanation. Start directly with { or [." },
+            { role: "system", content: "Return ONLY raw JSON. No markdown, no backticks, no explanation. Start with { or [." },
             { role: "user", content: prompt }
           ],
-          max_tokens: 3000,
+          max_tokens: maxTokens,
           temperature: 0.3
         })
       });
-      if (!res.ok) throw new Error(`Groq error ${res.status}`);
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => "");
+        throw new Error(`Groq ${res.status}: ${errBody.slice(0, 120)}`);
+      }
       const data = await res.json();
       return data.choices?.[0]?.message?.content || "";
     } catch (e) {
-      if (attempt < retries) { await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); continue; }
+      if (attempt < retries) { await new Promise(r => setTimeout(r, 1200 * (attempt + 1))); continue; }
       throw e;
     }
   }
@@ -121,44 +124,32 @@ function ResumeAnalyzer() {
   const analyze = async () => {
     if (!jd.trim() || !resume.trim()) { setErr("Please fill in both the Job Description and your Resume."); return; }
     setLoading(true); setErr(""); setResult(null);
+
+    // Hard-trim inputs so total prompt stays well under Groq limits
+    const jdTrim = jd.trim().slice(0, 600);
+    const resTrim = resume.trim().slice(0, 700);
+
     try {
-      const raw = await callAI(`You are an expert ATS resume analyst and career coach.
+      // ── Call 1: Analysis JSON (no resume rewrite here to save tokens) ──
+      const prompt1 = "ATS analyst. Compare resume to JD. JSON only, no markdown.\n\nJD: " + jdTrim + "\n\nRESUME: " + resTrim + '\n\nReturn: {"matchScore":68,"atsScore":72,"verdict":"Good Match","summary":"2 sentences","strongMatches":[{"skill":"Spring Boot","reason":"in both","strength":85}],"missingKeywords":[{"keyword":"Docker","importance":"High","tip":"add to skills"}],"weakAreas":[{"area":"Metrics","detail":"no numbers"}],"projectFit":[{"name":"Project","relevance":80,"reason":"relevant","keep":true,"suggestion":"highlight X"}],"suggestedSkillsToAdd":["Kubernetes"]}';
 
-Analyze this resume against the job description and return JSON ONLY. No markdown. No explanation.
+      const raw1 = await callAI(prompt1, 1200);
+      const analysis = safeJSON(raw1, null);
+      if (!analysis?.matchScore) throw new Error("Analysis failed — please try again.");
 
-JOB DESCRIPTION:
-${jd.slice(0, 1200)}
-
-RESUME:
-${resume.slice(0, 1500)}
-
-Return this EXACT JSON structure:
-{
-  "matchScore": 68,
-  "atsScore": 72,
-  "verdict": "Good Match",
-  "summary": "2-3 sentence honest overall assessment",
-  "strongMatches": [
-    {"skill": "Java Spring Boot", "reason": "Directly mentioned in JD and resume", "strength": 90}
-  ],
-  "missingKeywords": [
-    {"keyword": "Kubernetes", "importance": "High", "tip": "Add to skills if you have exposure"}
-  ],
-  "weakAreas": [
-    {"area": "Quantified metrics", "detail": "No numbers like % improvement or users served"}
-  ],
-  "projectFit": [
-    {"name": "E-commerce Platform", "relevance": 85, "reason": "Directly relevant to backend role", "keep": true, "suggestion": "Highlight the microservices architecture"}
-  ],
-  "suggestedSkillsToAdd": ["Docker", "CI/CD pipelines"],
-  "optimizedResume": "FULL rewritten resume tailored to JD — Jake format, bullet points, strong action verbs, metrics where possible, ATS-optimized. Keep only projects relevant to the JD. Rewrite bullet points to mirror JD language."
-}`);
-
-      const parsed = safeJSON(raw, null);
-      if (!parsed?.matchScore) throw new Error("Analysis failed. Please try again.");
-      setResult(parsed);
+      // Show analysis immediately so user sees progress
+      setResult({ ...analysis, optimizedResume: "⏳ Generating optimized resume..." });
       setActiveSection("analysis");
-    } catch (e) { setErr(e.message || "Something went wrong. Please try again."); }
+
+      // ── Call 2: Resume rewrite as plain text ──
+      const prompt2 = "Rewrite this resume for the job. Jake format: ALL CAPS section names (EDUCATION, EXPERIENCE, PROJECTS, SKILLS). Bullet points. Action verbs. Mirror JD keywords. Remove irrelevant projects.\n\nJD keywords: " + jdTrim.slice(0, 300) + "\n\nRESUME: " + resTrim + "\n\nReturn plain text resume only. No JSON. No markdown.";
+
+      const raw2 = await callAI(prompt2, 1400);
+      setResult(prev => ({ ...prev, optimizedResume: raw2.trim() || "Could not generate — please try again." }));
+
+    } catch (e) {
+      setErr(e.message || "Something went wrong. Please try again.");
+    }
     setLoading(false);
   };
 
@@ -253,7 +244,7 @@ Return this EXACT JSON structure:
       )}
 
       {/* Loading */}
-      {loading && (
+      {loading && !result && (
         <div style={{ textAlign: "center", padding: "80px 20px" }}>
           <div style={{ fontSize: 64, marginBottom: 20, animation: "float 2s ease-in-out infinite" }}>🧠</div>
           <div style={{ fontWeight: 800, fontSize: 22, color: C.text, marginBottom: 8 }}>Analyzing Your Resume</div>
@@ -263,7 +254,7 @@ Return this EXACT JSON structure:
       )}
 
       {/* Results */}
-      {result && !loading && (
+      {result && (
         <div className="fade">
           {/* Score Header */}
           <div style={{ background: `linear-gradient(135deg,${C.purple}15,${C.orange}10)`, border: `1px solid ${C.purple}30`, borderRadius: 16, padding: 24, marginBottom: 16, textAlign: "center" }}>
