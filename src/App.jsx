@@ -9,21 +9,22 @@ const ADZUNA_KEY = "1255514b43792f219448b455d585c3ea";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// --- AI API (Anthropic Claude - direct from frontend) ---------------------
+// --- AI API (Groq - free tier, 14400 req/day) ----------------------------
+const GROQ_KEY = "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";
+
 async function callClaude(prompt, maxTokens = 1500, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": "",           // Anthropic proxy handles auth
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
+          "Authorization": `Bearer ${GROQ_KEY}`,
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "llama-3.3-70b-versatile",
           max_tokens: maxTokens,
+          temperature: 0.3,
           messages: [{ role: "user", content: prompt }],
         }),
       });
@@ -32,7 +33,7 @@ async function callClaude(prompt, maxTokens = 1500, retries = 2) {
         throw new Error("AI error " + res.status + ": " + errBody.slice(0, 120));
       }
       const data = await res.json();
-      return data.content?.[0]?.text || "";
+      return data.choices?.[0]?.message?.content || "";
     } catch (e) {
       if (attempt < retries) { await new Promise(r => setTimeout(r, 1200 * (attempt + 1))); continue; }
       throw e;
