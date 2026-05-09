@@ -9,31 +9,29 @@ const ADZUNA_KEY = "1255514b43792f219448b455d585c3ea";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// --- AI API (Groq - free tier, 14400 req/day) ----------------------------
-const GROQ_KEY = "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";
+// --- AI API (Google Gemini - free tier, 1500 req/day) --------------------
+const GEMINI_KEY = "AIzaSyC4m5nHSUmCXN8r7yoDGL0BiOSG5HovMqg";
 
 async function callClaude(prompt, maxTokens = 1500, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${GROQ_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          max_tokens: maxTokens,
-          temperature: 0.3,
-          messages: [{ role: "user", content: prompt }],
-        }),
-      });
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: maxTokens, temperature: 0.3 },
+          }),
+        }
+      );
       if (!res.ok) {
         const errBody = await res.text().catch(() => "");
         throw new Error("AI error " + res.status + ": " + errBody.slice(0, 120));
       }
       const data = await res.json();
-      return data.choices?.[0]?.message?.content || "";
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     } catch (e) {
       if (attempt < retries) { await new Promise(r => setTimeout(r, 1200 * (attempt + 1))); continue; }
       throw e;
