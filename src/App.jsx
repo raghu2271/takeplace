@@ -122,7 +122,6 @@ const Tag = ({ children, color=C.blue, bg }) => (
 );
 
 // ─── AI API ─────────────────────────────────────────────────────────────────
-// Calls your /api/ai serverless function which talks to Groq
 async function callAI(prompt, maxTokens=1500, mode="json", retries=2) {
   for (let attempt=0; attempt<=retries; attempt++) {
     try {
@@ -158,7 +157,6 @@ function safeJSON(raw, fallback={}) {
 
 // ─── PDF TEXT EXTRACTION (client-side) ─────────────────────────────────────
 async function extractTextFromPDF(file) {
-  // Use PDF.js CDN
   if (!window.pdfjsLib) {
     await new Promise((res,rej) => {
       const s = document.createElement("script");
@@ -180,7 +178,6 @@ async function extractTextFromPDF(file) {
   return text.trim();
 }
 
-// DOCX extraction using mammoth via CDN
 async function extractTextFromDOCX(file) {
   if (!window.mammoth) {
     await new Promise((res,rej) => {
@@ -205,7 +202,6 @@ function downloadTXT(text, filename) {
 }
 
 async function downloadPDF(text, filename) {
-  // Use jsPDF
   if (!window.jspdf) {
     await new Promise((res,rej)=>{
       const s=document.createElement("script");
@@ -229,7 +225,6 @@ async function downloadPDF(text, filename) {
 }
 
 async function downloadDOCX(text, filename) {
-  // Use docx library
   if (!window.docx) {
     await new Promise((res,rej)=>{
       const s=document.createElement("script");
@@ -308,12 +303,10 @@ function LandingPage({ onGetStarted }) {
       {/* ── HERO ── */}
       <section style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center",
         padding:"120px 24px 80px", position:"relative", overflow:"hidden" }}>
-        {/* Background orbs */}
         {[["15%","20%","#FF5C1A"],["75%","60%","#1DDB8B"],["50%","80%","#a78bfa"]].map(([l,t,c],i)=>(
           <div key={i} style={{ position:"absolute", left:l, top:t, width:500, height:500, borderRadius:"50%",
             background:`radial-gradient(circle,${c}15,transparent 70%)`, pointerEvents:"none", filter:"blur(40px)" }}/>
         ))}
-        {/* Grid pattern */}
         <div style={{ position:"absolute", inset:0, backgroundImage:`linear-gradient(${C.border}40 1px,transparent 1px),linear-gradient(90deg,${C.border}40 1px,transparent 1px)`,
           backgroundSize:"60px 60px", opacity:.3, pointerEvents:"none" }}/>
 
@@ -348,7 +341,6 @@ function LandingPage({ onGetStarted }) {
               style={{ padding:"15px 28px", fontSize:16, borderRadius:14 }}>See How It Works ↓</Btn>
           </div>
 
-          {/* Stats */}
           <div className="fade" style={{ display:"flex", gap:0, justifyContent:"center", marginTop:64,
             background:C.card, border:`1px solid ${C.border}`, borderRadius:20, overflow:"hidden",
             maxWidth:560, margin:"64px auto 0", animationDelay:".4s" }}>
@@ -469,7 +461,7 @@ function LandingPage({ onGetStarted }) {
 // AUTH PAGE
 // ══════════════════════════════════════════════════════════════════════════
 function AuthPage({ onLogin, onBack }) {
-  const [mode, setMode] = useState("login"); // login | register | forgot
+  const [mode, setMode] = useState("login");
   const [form, setForm] = useState({ name:"", email:"", password:"" });
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
@@ -535,13 +527,11 @@ function AuthPage({ onLogin, onBack }) {
         border:`1px solid ${C.border}`, borderRadius:28, padding:40, position:"relative", zIndex:1,
         boxShadow:"0 32px 80px #00000060" }}>
 
-        {/* Back to landing */}
         <button onClick={onBack} style={{ background:"none", border:"none", color:C.muted,
           fontSize:12, cursor:"pointer", fontFamily:"'Outfit',sans-serif", marginBottom:24, display:"flex", alignItems:"center", gap:4 }}>
           ← Back to home
         </button>
 
-        {/* Logo */}
         <div style={{ textAlign:"center", marginBottom:32 }}>
           <div className="float" style={{ fontSize:52, marginBottom:8 }}>⚡</div>
           <div style={{ fontWeight:900, fontSize:28, background:`linear-gradient(135deg,${C.orange},${C.orangeLight})`,
@@ -554,7 +544,6 @@ function AuthPage({ onLogin, onBack }) {
 
         {mode!=="forgot" && (
           <>
-            {/* Google OAuth */}
             <button onClick={handleGoogle} disabled={googleLoading}
               style={{ width:"100%", padding:"12px", borderRadius:12, border:`1px solid ${C.border}`,
                 background:"#0a0d16", color:C.text, fontSize:14, cursor:"pointer",
@@ -578,7 +567,6 @@ function AuthPage({ onLogin, onBack }) {
               <div style={{ flex:1, height:1, background:C.border }}/>
             </div>
 
-            {/* Tab toggle */}
             <div style={{ display:"flex", background:"#080c16", borderRadius:12, padding:4, marginBottom:24 }}>
               {["login","register"].map(m=>(
                 <button key={m} onClick={()=>{setMode(m);setErr("");setMsg("");}}
@@ -592,7 +580,6 @@ function AuthPage({ onLogin, onBack }) {
           </>
         )}
 
-        {/* Form fields */}
         <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
           {mode==="register" && (
             <input style={inp} placeholder="Full name" value={form.name}
@@ -658,17 +645,14 @@ function LogoSplash({ onDone }) {
     <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center",
       justifyContent:"center", flexDirection:"column", position:"relative", overflow:"hidden" }}>
       <style>{css}</style>
-      {/* Radial glow */}
       <div style={{ position:"absolute", inset:0, background:`radial-gradient(circle at 50% 50%,${C.orange}20,transparent 60%)`, pointerEvents:"none" }}/>
 
-      {/* Pulsing rings */}
       {phase>=1 && [0,1,2].map(i=>(
         <div key={i} style={{ position:"absolute", width:120, height:120, borderRadius:"50%",
           border:`2px solid ${C.orange}`, opacity:0,
           animation:`ringPulse 1.5s ease-out ${i*0.4}s forwards` }}/>
       ))}
 
-      {/* Logo */}
       <div style={{ animation:phase>=1?"logoReveal .9s cubic-bezier(.34,1.56,.64,1) forwards":"none",
         opacity:phase>=1?1:0, textAlign:"center" }}>
         <div style={{ fontSize:100, lineHeight:1, filter:`drop-shadow(0 0 40px ${C.orange}80)` }}>⚡</div>
@@ -688,11 +672,13 @@ function LogoSplash({ onDone }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// RESUME ANALYZER
+// RESUME ANALYZER  ← localStorage persistence added here
 // ══════════════════════════════════════════════════════════════════════════
 function ResumeAnalyzer() {
-  const [jd, setJd] = useState("");
-  const [resume, setResume] = useState("");
+  // ── CHANGED: lazy-init from localStorage ──
+  const [jd, setJd] = useState(() => localStorage.getItem("tp_jd") || "");
+  const [resume, setResume] = useState(() => localStorage.getItem("tp_resume") || "");
+  // ──────────────────────────────────────────
   const [fileName, setFileName] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -708,8 +694,9 @@ function ResumeAnalyzer() {
       let text = "";
       if (f.type==="application/pdf"||f.name.endsWith(".pdf")) text = await extractTextFromPDF(f);
       else if (f.name.endsWith(".docx")) text = await extractTextFromDOCX(f);
-      else { const r=new FileReader(); r.onload=ev=>setResume(ev.target.result); r.readAsText(f); return; }
+      else { const r=new FileReader(); r.onload=ev=>{ setResume(ev.target.result); localStorage.setItem("tp_resume", ev.target.result); }; r.readAsText(f); return; }
       setResume(text);
+      localStorage.setItem("tp_resume", text);
     } catch(e2) { setErr("Could not read file: "+e2.message); }
   };
 
@@ -796,7 +783,8 @@ RESUME: ${reT}`;
               </div>
               {jd && <Tag color={jd.length>200?C.green:C.warn}>{jd.split(/\s+/).filter(Boolean).length} words</Tag>}
             </div>
-            <textarea value={jd} onChange={e=>setJd(e.target.value)}
+            <textarea value={jd}
+              onChange={e=>{ setJd(e.target.value); localStorage.setItem("tp_jd", e.target.value); }}
               placeholder={"Paste the job description here...\n\nWe are looking for a Full Stack Developer with experience in React, Node.js..."}
               style={{...inp, minHeight:180, resize:"vertical", lineHeight:1.8}}/>
           </div>
@@ -829,7 +817,8 @@ RESUME: ${reT}`;
                 ✅ {fileName} loaded
               </div>
             )}
-            <textarea value={resume} onChange={e=>setResume(e.target.value)}
+            <textarea value={resume}
+              onChange={e=>{ setResume(e.target.value); localStorage.setItem("tp_resume", e.target.value); }}
               placeholder={"Paste resume text here OR upload a file above...\n\nInclude: Education, Experience, Projects, Skills, Certifications"}
               style={{...inp, minHeight:220, resize:"vertical", lineHeight:1.8}}/>
             {resume && (
@@ -901,7 +890,6 @@ RESUME: ${reT}`;
           {/* Analysis Tab */}
           {section==="analysis" && (
             <div className="fade">
-              {/* Strong Matches */}
               <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:16 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
                   <span style={{ fontSize:18 }}>✅</span>
@@ -920,7 +908,6 @@ RESUME: ${reT}`;
                 )) : <div style={{ color:C.muted, fontSize:13 }}>No strong matches detected.</div>}
               </div>
 
-              {/* Skills to Add */}
               {result.suggestedSkillsToAdd?.length>0 && (
                 <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:16 }}>
                   <div style={{ fontWeight:700, color:C.text, fontSize:16, marginBottom:14 }}>🎯 Skills to Add</div>
@@ -932,7 +919,6 @@ RESUME: ${reT}`;
                 </div>
               )}
 
-              {/* Improvements */}
               {result.improvements?.length>0 && (
                 <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:16 }}>
                   <div style={{ fontWeight:700, color:C.text, fontSize:16, marginBottom:14 }}>📝 What to Improve</div>
@@ -946,7 +932,6 @@ RESUME: ${reT}`;
                 </div>
               )}
 
-              {/* Weak Areas */}
               {result.weakAreas?.length>0 && (
                 <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:22 }}>
                   <div style={{ fontWeight:700, color:C.text, fontSize:16, marginBottom:14 }}>⚡ Weak Areas</div>
@@ -1043,7 +1028,6 @@ RESUME: ${reT}`;
                   </div>
                 </div>
 
-                {/* Match % badge */}
                 <div style={{ display:"flex", gap:12, marginBottom:16, flexWrap:"wrap" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8, background:`${C.green}10`,
                     border:`1px solid ${C.green}30`, borderRadius:10, padding:"8px 14px" }}>
@@ -1079,8 +1063,11 @@ RESUME: ${reT}`;
           )}
 
           <div style={{ marginTop:20 }}>
-            <Btn variant="ghost" onClick={()=>{setResult(null);setErr("");setJd("");setResume("");setFileName("");}}
-              style={{ width:"100%", fontSize:13 }}>
+            {/* ── CHANGED: clear localStorage on reset ── */}
+            <Btn variant="ghost" onClick={()=>{
+              setResult(null); setErr(""); setJd(""); setResume(""); setFileName("");
+              localStorage.removeItem("tp_jd"); localStorage.removeItem("tp_resume");
+            }} style={{ width:"100%", fontSize:13 }}>
               🔄 Analyze Another Job
             </Btn>
           </div>
@@ -1176,7 +1163,6 @@ function MainApp({ user, onLogout }) {
         {/* ── JOBS TAB ── */}
         {tab===0 && (
           <div>
-            {/* Search */}
             <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:20, marginBottom:22 }}>
               <div style={{ fontWeight:700, color:C.text, fontSize:15, marginBottom:14 }}>🔍 Find Jobs</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
@@ -1188,7 +1174,6 @@ function MainApp({ user, onLogout }) {
               <Btn onClick={()=>fetchJobs()} style={{ width:"100%" }}>🔍 Search Jobs</Btn>
             </div>
 
-            {/* Live badge */}
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
               <div style={{ fontWeight:800, fontSize:18, color:C.text }}>Live Job Feed</div>
               {!jobsLoading&&jobs.length>0&&(
@@ -1265,7 +1250,7 @@ function MainApp({ user, onLogout }) {
 export default function App() {
   const [user, setUser]           = useState(null);
   const [appLoading, setAppLoading] = useState(true);
-  const [page, setPage]           = useState("landing"); // landing | auth | splash | app
+  const [page, setPage]           = useState("landing");
 
   useEffect(()=>{
     supabase.auth.getSession().then(({data:{session}})=>{
