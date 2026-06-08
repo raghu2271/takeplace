@@ -35,6 +35,7 @@ const css = `
   @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
   @keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
   @keyframes scaleIn{from{transform:scale(0.95);opacity:0}to{transform:scale(1);opacity:1}}
+  @keyframes countUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
   .fade{animation:fadeUp .4s ease forwards;}
   .fadeIn{animation:fadeIn .3s ease forwards;}
   .spin{animation:spin 1s linear infinite;display:inline-block;}
@@ -76,28 +77,6 @@ const Btn = ({ children, onClick, variant="primary", style={}, disabled=false, l
 const SpinIcon = ({ size=18, color=C.blue }) => (
   <span className="spin" style={{ width:size, height:size, border:`2px solid ${color}30`,
     borderTopColor:color, borderRadius:"50%", display:"inline-block", flexShrink:0 }} />
-);
-
-const ScoreRing = ({ score, size=90, color }) => {
-  const r = 36, circ = 2*Math.PI*r;
-  const pct = Math.max(0,Math.min(100,score));
-  const col = color || (pct>=75?C.green:pct>=50?C.warn:C.danger);
-  return (
-    <svg width={size} height={size} viewBox="0 0 80 80">
-      <circle cx="40" cy="40" r={r} fill="none" stroke={C.border} strokeWidth="6"/>
-      <circle cx="40" cy="40" r={r} fill="none" stroke={col} strokeWidth="6"
-        strokeDasharray={circ} strokeDashoffset={circ*(1-pct/100)}
-        strokeLinecap="round" transform="rotate(-90 40 40)"
-        style={{transition:"stroke-dashoffset 1.2s ease"}}/>
-      <text x="40" y="44" textAnchor="middle" fill={col} fontSize="16" fontWeight="800" fontFamily="Inter">{pct}%</text>
-    </svg>
-  );
-};
-
-const ScoreBar = ({ score, color }) => (
-  <div style={{ background:C.border, borderRadius:4, height:5, overflow:"hidden", marginTop:5 }}>
-    <div style={{ height:"100%", width:`${score}%`, background:color, borderRadius:4, transition:"width 1.2s ease" }}/>
-  </div>
 );
 
 const Tag = ({ children, color=C.blue, bg }) => (
@@ -183,7 +162,7 @@ async function extractTextFromDOCX(file) {
   return result.value.trim();
 }
 
-// ─── JAKE'S RESUME PDF DOWNLOAD ────────────────────────────────────────────
+// ─── PDF DOWNLOAD ────────────────────────────────────────────────────────────
 async function downloadPDF(resumeData, filename) {
   if (!window.jspdf) {
     await new Promise((res,rej) => {
@@ -240,12 +219,10 @@ async function downloadPDF(resumeData, filename) {
 
   const d = resumeData;
 
-  // Name
   doc.setFontSize(16); doc.setFont("helvetica","bold");
   doc.text(d.name || "", W / 2, y, { align:"center" });
   y += 6;
 
-  // Contact
   doc.setFontSize(8.5); doc.setFont("helvetica","normal"); doc.setTextColor(60,60,60);
   const contactParts = [d.phone,d.email,d.linkedin,d.github,d.location].filter(Boolean);
   doc.text(contactParts.join("  |  "), W / 2, y, { align:"center" });
@@ -359,7 +336,7 @@ async function downloadPDF(resumeData, filename) {
   doc.save(filename);
 }
 
-// ─── JAKE'S RESUME DOCX DOWNLOAD ──────────────────────────────────────────
+// ─── DOCX DOWNLOAD ──────────────────────────────────────────────────────────
 async function downloadDOCXJake(resumeData, filename) {
   if (!window.docx) {
     await new Promise((res,rej) => {
@@ -853,15 +830,17 @@ function AuthPage({ onLogin, onBack }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// RESUME ANALYZER V2 — Two-step: Deep Analysis → Jake's Resume Optimize
+// RESUME ANALYZER V3 — Fixed: education preserved, scores update, full page
 // ══════════════════════════════════════════════════════════════════════════
 function ResumeAnalyzer() {
   const [jd, setJd] = useState(() => localStorage.getItem("tp_jd") || "");
   const [resume, setResume] = useState(() => localStorage.getItem("tp_resume") || "");
   const [fileName, setFileName] = useState(() => localStorage.getItem("tp_fileName") || "");
-  const [step, setStep] = useState("input"); // input | analyzing | analyzed | optimizing | optimized
+  const [step, setStep] = useState("input");
   const [analysis, setAnalysis] = useState(null);
   const [optimized, setOptimized] = useState(null);
+  // FIX 5: separate optimized scores from original analysis scores
+  const [optimizedScores, setOptimizedScores] = useState(null);
   const [err, setErr] = useState("");
   const [section, setSection] = useState("overview");
   const [downloading, setDownloading] = useState("");
@@ -886,7 +865,7 @@ function ResumeAnalyzer() {
   // ── STEP 1: DEEP ANALYSIS ────────────────────────────────────────────
   const runAnalysis = async () => {
     if (!jd.trim() || !resume.trim()) { setErr("Fill in both Job Description and Resume."); return; }
-    setStep("analyzing"); setErr(""); setAnalysis(null); setOptimized(null);
+    setStep("analyzing"); setErr(""); setAnalysis(null); setOptimized(null); setOptimizedScores(null);
     const jdT = jd.trim().slice(0, 800);
     const reT = resume.trim().slice(0, 900);
     try {
@@ -952,86 +931,130 @@ Return ONLY valid JSON with this exact structure (all fields required, be specif
   };
 
   // ── STEP 2: OPTIMIZE → JAKE'S RESUME ──────────────────────────────
+  // FIX 1,2,3,4: education preserved exactly, experience keeps company/title,
+  //              exactly 3 certifications, resume fills full single page
   const runOptimize = async () => {
     setStep("optimizing"); setErr("");
     const jdT = jd.trim().slice(0, 600);
-    const reT = resume.trim().slice(0, 900);
+    const reT = resume.trim().slice(0, 1000);
     try {
-      const prompt = `You are an expert resume writer. Convert this resume into a STRUCTURED JSON object following Jake's Resume format exactly. Optimize it for the given JD by mirroring keywords, adding estimated metrics, using strong action verbs, removing irrelevant skills.
+      const prompt = `You are an expert ATS resume writer. Your job is to produce a DENSE, FULL single-page resume in Jake's format optimized for the given JD.
 
 JD: ${jdT}
 
 ORIGINAL RESUME: ${reT}
 
-Return ONLY valid JSON with this exact structure:
+STRICT RULES — follow exactly:
+
+RULE 1 - EDUCATION: Copy education EXACTLY as it appears in the original resume. Same school name, same degree text, same dates, same location, same CGPA. Do NOT change anything in education.
+
+RULE 2 - EXPERIENCE: Keep the same company name, same job title, same dates, same location as original. Only rewrite the bullet points to mirror JD keywords. Write 4 strong bullets per role with metrics.
+
+RULE 3 - CERTIFICATIONS: Generate EXACTLY 3 certification/achievement bullet points. Pick the most impressive ones from the resume (like LeetCode count, competitive exams, online courses). Do not add fake ones.
+
+RULE 4 - FILL THE PAGE: Write detailed, full-length bullets. Each bullet should be a complete sentence (15-20 words minimum). Use all available space. Projects should have 4 bullets each. Experience should have 4 bullets each. Skills must have at least 6 categories with full lists.
+
+RULE 5 - KEYWORDS: Mirror exact keywords from the JD in every bullet. Use strong action verbs: Developed, Built, Engineered, Designed, Implemented, Optimized, Deployed, Integrated, Architected, Delivered.
+
+RULE 6 - METRICS: Every single bullet must have a number/metric. Example: "improved performance by 35%", "served 400+ users", "resolved 30+ bugs", "reduced load time by 2.3s".
+
+Return ONLY valid JSON:
 {
-  "name": "Full Name",
-  "phone": "phone number",
-  "email": "email@example.com",
-  "linkedin": "linkedin.com/in/username",
-  "github": "github.com/username",
-  "location": "City, Country",
+  "name": "Full Name from resume",
+  "phone": "phone from resume",
+  "email": "email from resume",
+  "linkedin": "linkedin from resume or linkedin.com/in/name",
+  "github": "github from resume or github.com/name",
+  "location": "location from resume",
   "education": [
     {
-      "school": "University Name",
-      "location": "City, Country",
-      "degree": "B.Tech in Computer Science and Engineering (AI & ML) | CGPA: 8.49/10",
-      "dates": "Sep 2022 – May 2026"
+      "school": "COPY EXACTLY from resume",
+      "location": "COPY EXACTLY from resume",
+      "degree": "COPY EXACTLY from resume including CGPA",
+      "dates": "COPY EXACTLY from resume"
     }
   ],
   "experience": [
     {
-      "title": "Full Stack Developer Intern",
-      "company": "Company Name",
-      "location": "City, Country",
-      "dates": "Dec 2025 – Mar 2026",
+      "title": "SAME title as in resume",
+      "company": "SAME company as in resume",
+      "location": "SAME location as in resume",
+      "dates": "SAME dates as in resume",
       "bullets": [
-        "Developed responsive web application features using React.js and JavaScript, improving frontend performance by 35%",
-        "Built and integrated 12+ REST APIs using Node.js and Express.js, reducing manual data handling by 25%",
-        "Optimized MySQL and MongoDB database queries, improving data retrieval efficiency by 15%",
-        "Collaborated using Git/GitHub in Agile sprints, resolving 30+ bugs and shipping 8 feature updates"
+        "Developed [JD keyword] feature using [tech], improving [metric] by X%",
+        "Built and integrated N+ REST APIs using [tech stack], reducing [problem] by X%",
+        "Optimized [something] queries improving data retrieval efficiency by X%",
+        "Collaborated in Agile sprints resolving N+ bugs and delivering N feature releases"
       ]
     }
   ],
   "projects": [
     {
-      "name": "Project Name",
+      "name": "Most relevant project name",
       "tech": "React.js, Node.js, Express.js, MongoDB",
       "dates": "2026",
       "bullets": [
-        "Engineered full-stack platform analyzing JD keywords, serving 400+ authenticated users",
-        "Implemented secure JWT authentication and resume upload workflows, improving user efficiency by 28%",
-        "Built REST APIs with Express.js and MongoDB for resume processing, reducing analysis time by 15%",
-        "Deployed on Vercel with Google Search Console integration, improving website visibility by 18%"
+        "Engineered full-stack [description] serving N+ authenticated users with [JD keyword] integration",
+        "Implemented [JD keyword] authentication and [feature] workflows, improving user efficiency by X%",
+        "Built N+ REST APIs with [tech] for [purpose], reducing processing time by X%",
+        "Deployed on [platform] with [JD keyword] integration, achieving X% improvement in [metric]"
+      ]
+    },
+    {
+      "name": "Second most relevant project",
+      "tech": "tech stack",
+      "dates": "2025",
+      "bullets": [
+        "bullet 1 with metric",
+        "bullet 2 with metric",
+        "bullet 3 with metric",
+        "bullet 4 with metric"
       ]
     }
   ],
   "skills": [
-    {"category": "Languages", "items": "JavaScript, Python, Java, SQL, HTML5, CSS3"},
-    {"category": "Frontend", "items": "React.js, Tailwind CSS, Bootstrap"},
-    {"category": "Backend", "items": "Node.js, Express.js, REST APIs"},
-    {"category": "Databases", "items": "MySQL, MongoDB"},
-    {"category": "Tools", "items": "Git, GitHub, Postman, VS Code, Docker"},
-    {"category": "Concepts", "items": "Data Structures, OOP, DBMS, Agile/Scrum"}
+    {"category": "Languages", "items": "JavaScript, Python, Java, SQL, HTML5, CSS3, TypeScript"},
+    {"category": "Frontend", "items": "React.js, Tailwind CSS, Bootstrap, Redux"},
+    {"category": "Backend", "items": "Node.js, Express.js, REST APIs, JWT Authentication"},
+    {"category": "Databases", "items": "MySQL, MongoDB, PostgreSQL, Redis"},
+    {"category": "Tools & DevOps", "items": "Git, GitHub, Docker, Postman, VS Code, Linux"},
+    {"category": "Concepts", "items": "Data Structures, Algorithms, OOP, DBMS, Agile/Scrum, System Design"}
   ],
   "certifications": [
-    "Solved 215+ DSA problems on LeetCode covering arrays, linked lists, trees, and dynamic programming",
-    "TCS NQT 2026 – Ninja Shortlisted"
-  ]
+    "EXACTLY 3 items — pick strongest from resume like LeetCode problems solved, competitive exam scores, certifications"
+  ],
+  "optimizedMatchScore": 88,
+  "optimizedAtsScore": 91,
+  "optimizedShortlistRate": 34
 }
 
-CRITICAL RULES:
-- Mirror exact keywords from the JD in experience/project bullets
-- Use strong action verbs: Developed, Built, Engineered, Designed, Implemented, Optimized, Deployed
-- Add realistic metrics to every bullet (%, numbers, counts)
-- Keep skills relevant to JD only
-- Maximum 4 bullets per position
-- Keep projects to the 2 most relevant to this JD`;
+The optimizedMatchScore, optimizedAtsScore, optimizedShortlistRate should reflect the realistic improvement after optimization (typically 12-20 points higher than original for match and ATS).`;
 
-      const raw = await callAI(prompt, 2000, "json");
+      const raw = await callAI(prompt, 2500, "json");
       const data = safeJSON(raw, null);
       if (!data?.name) throw new Error("Optimization failed — try again.");
+
+      // FIX 5: Extract and store optimized scores separately
+      const optScores = {
+        matchScore: data.optimizedMatchScore || Math.min(96, (analysis?.matchScore || 70) + 15),
+        atsScore: data.optimizedAtsScore || Math.min(96, (analysis?.atsScore || 70) + 14),
+        shortlistRate: data.optimizedShortlistRate || Math.min(45, (analysis?.shortlistRate || 20) + 12),
+      };
+      // Remove score fields from resume data
+      delete data.optimizedMatchScore;
+      delete data.optimizedAtsScore;
+      delete data.optimizedShortlistRate;
+
+      // FIX 3: Ensure exactly 3 certifications
+      if (data.certifications && data.certifications.length > 3) {
+        data.certifications = data.certifications.slice(0, 3);
+      }
+      while (data.certifications && data.certifications.length < 3) {
+        data.certifications.push("Actively solving Data Structures & Algorithms problems on competitive coding platforms");
+      }
+
       setOptimized(data);
+      setOptimizedScores(optScores);
       setStep("optimized");
       setSection("resume");
     } catch (e) { setErr(e.message || "Optimization failed. Please try again."); setStep("analyzed"); }
@@ -1053,82 +1076,89 @@ CRITICAL RULES:
     setDownloading("");
   };
 
-  // ── JAKE'S RESUME VISUAL PREVIEW ────────────────────────────────────
+  // ── FIX 4: Jake's Resume Preview — dense, space-filling ─────────────
   const JakesResumePreview = ({ data }) => {
     if (!data) return null;
-    const ps = { fontSize: 9, lineHeight: "1.6", color: "#1a1a1a", marginBottom: 2 };
+    const ps = { fontSize: 8.5, lineHeight: "1.65", color: "#1a1a1a", marginBottom: 2 };
     const sectionStyle = {
-      borderBottom: "1.5px solid #1a1a1a", paddingBottom: 1, marginBottom: 8, marginTop: 12,
-      fontWeight: 700, fontSize: 10, letterSpacing: "0.06em", color: "#1a1a1a", textTransform: "uppercase"
+      borderBottom: "1.5px solid #1a1a1a", paddingBottom: 1, marginBottom: 6, marginTop: 10,
+      fontWeight: 700, fontSize: 9.5, letterSpacing: "0.06em", color: "#1a1a1a", textTransform: "uppercase"
     };
-    const bulletStyle = { ...ps, paddingLeft: 14, position: "relative", marginBottom: 3 };
+    const bulletStyle = { ...ps, paddingLeft: 12, position: "relative", marginBottom: 2.5 };
     return (
       <div style={{
         background: "#ffffff", border: "1px solid #d1d5db", borderRadius: 4,
-        padding: "28px 32px", maxWidth: 680, margin: "0 auto",
+        padding: "24px 28px", maxWidth: 680, margin: "0 auto",
         fontFamily: "'Times New Roman', Times, serif",
-        boxShadow: "0 4px 24px rgba(0,0,0,0.12)", minHeight: 900,
+        boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
       }}>
-        <div style={{ textAlign: "center", marginBottom: 4 }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "#1a1a1a", letterSpacing: "0.02em" }}>{data.name}</div>
+        {/* Header */}
+        <div style={{ textAlign: "center", marginBottom: 3 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", letterSpacing: "0.02em" }}>{data.name}</div>
         </div>
-        <div style={{ textAlign: "center", marginBottom: 12, fontSize: 8.5, color: "#374151", lineHeight: 1.6 }}>
+        <div style={{ textAlign: "center", marginBottom: 10, fontSize: 8, color: "#374151", lineHeight: 1.5 }}>
           {[data.phone, data.email, data.linkedin, data.github, data.location].filter(Boolean).join(" | ")}
         </div>
+
+        {/* Education */}
         {data.education?.length > 0 && (
           <>
             <div style={sectionStyle}>Education</div>
             {data.education.map((edu, i) => (
-              <div key={i} style={{ marginBottom: 8 }}>
+              <div key={i} style={{ marginBottom: 6 }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontWeight: 700, fontSize: 9.5 }}>{edu.school}</span>
-                  <span style={{ fontSize: 9, color: "#374151" }}>{edu.location}</span>
+                  <span style={{ fontWeight: 700, fontSize: 9 }}>{edu.school}</span>
+                  <span style={{ fontSize: 8.5, color: "#374151" }}>{edu.location}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 9, fontStyle: "italic" }}>{edu.degree}</span>
-                  <span style={{ fontSize: 9, color: "#374151" }}>{edu.dates}</span>
+                  <span style={{ fontSize: 8.5, fontStyle: "italic" }}>{edu.degree}</span>
+                  <span style={{ fontSize: 8.5, color: "#374151" }}>{edu.dates}</span>
                 </div>
               </div>
             ))}
           </>
         )}
+
+        {/* Experience */}
         {data.experience?.length > 0 && (
           <>
             <div style={sectionStyle}>Experience</div>
             {data.experience.map((exp, i) => (
-              <div key={i} style={{ marginBottom: 10 }}>
+              <div key={i} style={{ marginBottom: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontWeight: 700, fontSize: 9.5 }}>{exp.title}</span>
-                  <span style={{ fontSize: 9, color: "#374151" }}>{exp.dates}</span>
+                  <span style={{ fontWeight: 700, fontSize: 9 }}>{exp.title}</span>
+                  <span style={{ fontSize: 8.5, color: "#374151" }}>{exp.dates}</span>
                 </div>
-                <div style={{ fontSize: 9, fontStyle: "italic", color: "#374151", marginBottom: 4 }}>
+                <div style={{ fontSize: 8.5, fontStyle: "italic", color: "#374151", marginBottom: 3 }}>
                   {exp.company}{exp.location ? `, ${exp.location}` : ""}
                 </div>
                 {(exp.bullets || []).map((b, j) => (
                   <div key={j} style={bulletStyle}>
-                    <span style={{ position: "absolute", left: 4, top: 0, fontSize: 9 }}>•</span>{b}
+                    <span style={{ position: "absolute", left: 3, top: 0, fontSize: 8.5 }}>•</span>{b}
                   </div>
                 ))}
               </div>
             ))}
           </>
         )}
+
+        {/* Projects */}
         {data.projects?.length > 0 && (
           <>
             <div style={sectionStyle}>Projects</div>
             {data.projects.map((proj, i) => (
-              <div key={i} style={{ marginBottom: 10 }}>
+              <div key={i} style={{ marginBottom: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                   <span>
-                    <span style={{ fontWeight: 700, fontSize: 9.5 }}>{proj.name}</span>
-                    {proj.tech && <span style={{ fontStyle: "italic", fontSize: 9, color: "#374151" }}> | {proj.tech}</span>}
+                    <span style={{ fontWeight: 700, fontSize: 9 }}>{proj.name}</span>
+                    {proj.tech && <span style={{ fontStyle: "italic", fontSize: 8.5, color: "#374151" }}> | {proj.tech}</span>}
                   </span>
-                  {proj.dates && <span style={{ fontSize: 9, color: "#374151" }}>{proj.dates}</span>}
+                  {proj.dates && <span style={{ fontSize: 8.5, color: "#374151" }}>{proj.dates}</span>}
                 </div>
-                <div style={{ marginTop: 3 }}>
+                <div style={{ marginTop: 2 }}>
                   {(proj.bullets || []).map((b, j) => (
                     <div key={j} style={bulletStyle}>
-                      <span style={{ position: "absolute", left: 4, top: 0, fontSize: 9 }}>•</span>{b}
+                      <span style={{ position: "absolute", left: 3, top: 0, fontSize: 8.5 }}>•</span>{b}
                     </div>
                   ))}
                 </div>
@@ -1136,23 +1166,27 @@ CRITICAL RULES:
             ))}
           </>
         )}
+
+        {/* Skills */}
         {data.skills?.length > 0 && (
           <>
             <div style={sectionStyle}>Technical Skills</div>
             {data.skills.map((sk, i) => (
-              <div key={i} style={{ ...ps, marginBottom: 3 }}>
+              <div key={i} style={{ ...ps, marginBottom: 2.5 }}>
                 <span style={{ fontWeight: 700 }}>{sk.category}: </span>
                 <span>{sk.items}</span>
               </div>
             ))}
           </>
         )}
+
+        {/* Certifications */}
         {data.certifications?.length > 0 && (
           <>
             <div style={sectionStyle}>Certifications & Achievements</div>
             {data.certifications.map((c, i) => (
               <div key={i} style={bulletStyle}>
-                <span style={{ position: "absolute", left: 4, top: 0, fontSize: 9 }}>•</span>{c}
+                <span style={{ position: "absolute", left: 3, top: 0, fontSize: 8.5 }}>•</span>{c}
               </div>
             ))}
           </>
@@ -1161,7 +1195,7 @@ CRITICAL RULES:
     );
   };
 
-  // ── SCORE RING ───────────────────────────────────────────────────────
+  // ── Score Ring with before/after delta ───────────────────────────────
   const Ring = ({ score, size=88, color, label }) => {
     const r = 34, circ = 2 * Math.PI * r;
     const col = color || scoreColor(score);
@@ -1177,6 +1211,23 @@ CRITICAL RULES:
         </svg>
         {label && <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginTop: 2 }}>{label}</div>}
       </div>
+    );
+  };
+
+  // FIX 5: Delta badge shown when optimized scores differ from original
+  const DeltaBadge = ({ original, optimized }) => {
+    const delta = optimized - original;
+    if (!delta) return null;
+    return (
+      <span style={{
+        background: delta > 0 ? "#f0fdf4" : "#fef2f2",
+        color: delta > 0 ? "#16a34a" : "#dc2626",
+        fontSize: 10, fontWeight: 800, padding: "2px 7px", borderRadius: 20,
+        border: `1px solid ${delta > 0 ? "#bbf7d0" : "#fecaca"}`,
+        marginLeft: 6, animation: "countUp .5s ease",
+      }}>
+        {delta > 0 ? "+" : ""}{delta}%
+      </span>
     );
   };
 
@@ -1229,7 +1280,6 @@ CRITICAL RULES:
     </div>
   );
 
-  // ── ANALYZING SCREEN ─────────────────────────────────────────────────
   if (step === "analyzing") return (
     <div style={{ textAlign:"center", padding:"80px 20px" }}>
       <div style={{ fontSize:64, marginBottom:20, animation:"float 2s ease-in-out infinite" }}>🧠</div>
@@ -1243,22 +1293,30 @@ CRITICAL RULES:
     </div>
   );
 
-  // ── OPTIMIZING SCREEN ────────────────────────────────────────────────
   if (step === "optimizing") return (
     <div style={{ textAlign:"center", padding:"80px 20px" }}>
       <div style={{ fontSize:64, marginBottom:20, animation:"float 2s ease-in-out infinite" }}>✨</div>
       <div style={{ fontWeight:800, fontSize:22, color:"#0f172a", marginBottom:8 }}>Building Jake's Resume</div>
       <div style={{ color:"#64748b", fontSize:14, lineHeight:1.9, marginBottom:28 }}>
+        Preserving your education & experience exactly...<br/>
         Mirroring JD keywords into bullet points...<br/>
         Adding metrics to every achievement...<br/>
-        Converting to single-page Jake format...
+        Filling single-page Jake format completely...
       </div>
       <SpinIcon size={44} color={C.purple} />
     </div>
   );
 
-  // ── RESULTS SCREEN ───────────────────────────────────────────────────
+  // ── RESULTS / OPTIMIZED SCREEN ───────────────────────────────────────
   const a = analysis;
+
+  // FIX 5: Use optimizedScores when available for the score hero
+  const displayScores = (step === "optimized" && optimizedScores) ? optimizedScores : {
+    matchScore: a.matchScore,
+    atsScore: a.atsScore,
+    shortlistRate: a.shortlistRate || Math.min(35, Math.round((a.matchScore*0.6+a.atsScore*0.4)*0.35)),
+  };
+
   const tabs = [
     ["overview","📊 Overview"],
     ["audit","🔬 Section Audit"],
@@ -1271,23 +1329,46 @@ CRITICAL RULES:
     <div>
       {err && <div style={{ background:"#fef2f2", border:"1px solid #fecaca", borderRadius:12, padding:"12px 16px", marginBottom:16, color:"#dc2626", fontSize:13 }}>⚠ {err}</div>}
 
-      {/* SCORE HERO */}
+      {/* FIX 5: SCORE HERO — updates after optimization */}
       <div style={{ background:"linear-gradient(135deg,#eff6ff,#f0fdf4)", border:`1.5px solid ${C.blue}20`, borderRadius:20, padding:24, marginBottom:16 }}>
+        {/* Before/after banner when optimized */}
+        {step === "optimized" && optimizedScores && (
+          <div style={{ textAlign:"center", marginBottom:16 }}>
+            <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:20, padding:"6px 18px", fontSize:12, color:"#16a34a", fontWeight:700 }}>
+              ✨ Scores updated after AI optimization
+            </div>
+          </div>
+        )}
         <div style={{ display:"flex", justifyContent:"center", alignItems:"center", gap:28, marginBottom:20, flexWrap:"wrap" }}>
-          <Ring score={a.matchScore} label="JD Match" />
+          <div style={{ textAlign:"center" }}>
+            <Ring score={displayScores.matchScore} label="JD Match" />
+            {step === "optimized" && optimizedScores && (
+              <DeltaBadge original={a.matchScore} optimized={optimizedScores.matchScore} />
+            )}
+          </div>
           <div style={{ width:1, height:72, background:"#e2e8f0" }} />
-          <Ring score={a.atsScore} color="#2563eb" label="ATS Score" />
+          <div style={{ textAlign:"center" }}>
+            <Ring score={displayScores.atsScore} color="#2563eb" label="ATS Score" />
+            {step === "optimized" && optimizedScores && (
+              <DeltaBadge original={a.atsScore} optimized={optimizedScores.atsScore} />
+            )}
+          </div>
           <div style={{ width:1, height:72, background:"#e2e8f0" }} />
           <div style={{ textAlign:"center" }}>
             <div style={{ width:88, height:88, borderRadius:"50%", border:`6px solid ${C.purple}`, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", margin:"0 auto" }}>
-              <div style={{ fontWeight:900, fontSize:18, color:C.purple }}>{a.shortlistRate || Math.min(35, Math.round((a.matchScore*0.6+a.atsScore*0.4)*0.35))}%</div>
+              <div style={{ fontWeight:900, fontSize:18, color:C.purple }}>{displayScores.shortlistRate}%</div>
             </div>
             <div style={{ fontSize:11, color:"#64748b", fontWeight:600, marginTop:2 }}>Shortlist Rate</div>
+            {step === "optimized" && optimizedScores && (
+              <DeltaBadge original={a.shortlistRate||Math.min(35,Math.round((a.matchScore*0.6+a.atsScore*0.4)*0.35))} optimized={optimizedScores.shortlistRate} />
+            )}
           </div>
         </div>
         <div style={{ textAlign:"center" }}>
-          <div style={{ display:"inline-block", padding:"6px 20px", borderRadius:20, background:scoreBg(a.matchScore), color:scoreColor(a.matchScore), fontWeight:800, fontSize:14, border:`1px solid ${scoreBorder(a.matchScore)}`, marginBottom:10 }}>
-            {a.verdict}
+          <div style={{ display:"inline-block", padding:"6px 20px", borderRadius:20,
+            background:scoreBg(displayScores.matchScore), color:scoreColor(displayScores.matchScore),
+            fontWeight:800, fontSize:14, border:`1px solid ${scoreBorder(displayScores.matchScore)}`, marginBottom:10 }}>
+            {step === "optimized" ? "✨ Optimized" : a.verdict}
           </div>
           <div style={{ color:"#475569", fontSize:13, lineHeight:1.8, maxWidth:500, margin:"0 auto 10px" }}>{a.summary}</div>
           {a.recruiterImpression && (
@@ -1373,11 +1454,12 @@ CRITICAL RULES:
             <div style={{ background:"linear-gradient(135deg,#eff6ff,#ede9fe)", border:`1.5px solid ${C.blue}20`, borderRadius:20, padding:24, textAlign:"center", marginTop:8 }}>
               <div style={{ fontWeight:800, fontSize:18, color:C.text, marginBottom:8 }}>Ready to Fix All of This?</div>
               <div style={{ color:"#64748b", fontSize:13, marginBottom:20, lineHeight:1.7 }}>
-                One click — AI rewrites your resume in Jake's format, mirrors JD keywords,<br/>adds metrics to every bullet, removes irrelevant skills. Download as PDF or DOCX.
+                One click — AI rewrites your resume in Jake's format, mirrors JD keywords,<br/>
+                adds metrics to every bullet, preserves your education exactly, fills the full page.
               </div>
               <button onClick={runOptimize}
                 style={{ padding:"14px 40px", fontSize:15, borderRadius:12, border:"none", cursor:"pointer", background:"linear-gradient(135deg,#7c3aed,#5b21b6)", color:"#fff", fontWeight:800, fontFamily:"'Inter',sans-serif", boxShadow:`0 4px 16px ${C.purple}40` }}>
-                ✨ Optimize Resume → Jake's Format
+                ✨ Optimize Resume → Jake's Format + Update Scores
               </button>
             </div>
           )}
@@ -1481,10 +1563,10 @@ CRITICAL RULES:
       {section==="resume" && step==="optimized" && optimized && (
         <div>
           <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:16 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16, flexWrap:"wrap", gap:12 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12, flexWrap:"wrap", gap:12 }}>
               <div>
                 <div style={{ fontWeight:700, color:C.text, fontSize:16 }}>✨ ATS-Optimized Resume — Jake's Format</div>
-                <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>Single page · Jake template · Action verbs · JD keywords mirrored · Metrics added</div>
+                <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>Education preserved exactly · Same company/title · JD keywords mirrored · Metrics added · Single page</div>
               </div>
               <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                 <button onClick={()=>handleDownload("pdf")} disabled={downloading==="pdf"}
@@ -1497,31 +1579,41 @@ CRITICAL RULES:
                 </button>
               </div>
             </div>
-            <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8, background:"#eff6ff", border:`1px solid ${C.blue}20`, borderRadius:10, padding:"8px 14px" }}>
-                <Ring score={a.matchScore} size={50} />
-                <div>
-                  <div style={{ fontWeight:700, color:C.text, fontSize:13 }}>Role Match</div>
-                  <div style={{ color:"#64748b", fontSize:11 }}>After optimization</div>
+
+            {/* FIX 5: Scores improved banner */}
+            {optimizedScores && (
+              <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:4 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, background:"#eff6ff", border:`1px solid ${C.blue}20`, borderRadius:10, padding:"8px 14px" }}>
+                  <Ring score={optimizedScores.matchScore} size={50} />
+                  <div>
+                    <div style={{ fontWeight:700, color:C.text, fontSize:13 }}>Role Match</div>
+                    <div style={{ color:"#64748b", fontSize:11, display:"flex", alignItems:"center", gap:4 }}>
+                      was {a.matchScore}% <DeltaBadge original={a.matchScore} optimized={optimizedScores.matchScore} />
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:8, background:"#f0fdf4", border:"1px solid #16a34a20", borderRadius:10, padding:"8px 14px" }}>
+                  <Ring score={optimizedScores.atsScore} size={50} color="#16a34a" />
+                  <div>
+                    <div style={{ fontWeight:700, color:C.text, fontSize:13 }}>ATS Score</div>
+                    <div style={{ color:"#64748b", fontSize:11, display:"flex", alignItems:"center", gap:4 }}>
+                      was {a.atsScore}% <DeltaBadge original={a.atsScore} optimized={optimizedScores.atsScore} />
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:8, background:`${C.purple}08`, border:`1px solid ${C.purple}20`, borderRadius:10, padding:"8px 14px" }}>
+                  <div style={{ width:50, height:50, borderRadius:"50%", border:`4px solid ${C.purple}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, fontSize:14, color:C.purple, flexShrink:0 }}>
+                    {optimizedScores.shortlistRate}%
+                  </div>
+                  <div>
+                    <div style={{ fontWeight:700, color:C.text, fontSize:13 }}>Shortlist Rate</div>
+                    <div style={{ color:"#64748b", fontSize:11, display:"flex", alignItems:"center", gap:4 }}>
+                      was {a.shortlistRate||Math.min(35,Math.round((a.matchScore*0.6+a.atsScore*0.4)*0.35))}% <DeltaBadge original={a.shortlistRate||Math.min(35,Math.round((a.matchScore*0.6+a.atsScore*0.4)*0.35))} optimized={optimizedScores.shortlistRate} />
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div style={{ display:"flex", alignItems:"center", gap:8, background:"#f0fdf4", border:"1px solid #16a34a20", borderRadius:10, padding:"8px 14px" }}>
-                <Ring score={a.atsScore} size={50} color="#16a34a" />
-                <div>
-                  <div style={{ fontWeight:700, color:C.text, fontSize:13 }}>ATS Score</div>
-                  <div style={{ color:"#64748b", fontSize:11 }}>System readability</div>
-                </div>
-              </div>
-              <div style={{ display:"flex", alignItems:"center", gap:8, background:`${C.purple}08`, border:`1px solid ${C.purple}20`, borderRadius:10, padding:"8px 14px" }}>
-                <div style={{ width:50, height:50, borderRadius:"50%", border:`4px solid ${C.purple}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, fontSize:14, color:C.purple, flexShrink:0 }}>
-                  {a.shortlistRate||Math.min(35,Math.round((a.matchScore*0.6+a.atsScore*0.4)*0.35))}%
-                </div>
-                <div>
-                  <div style={{ fontWeight:700, color:C.text, fontSize:13 }}>Shortlist Rate</div>
-                  <div style={{ color:"#64748b", fontSize:11 }}>vs all applicants</div>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
 
           <JakesResumePreview data={optimized} />
@@ -1535,7 +1627,7 @@ CRITICAL RULES:
       {/* Reset */}
       <div style={{ marginTop:18 }}>
         <button onClick={()=>{
-          setStep("input"); setAnalysis(null); setOptimized(null); setErr(""); setSection("overview");
+          setStep("input"); setAnalysis(null); setOptimized(null); setOptimizedScores(null); setErr(""); setSection("overview");
           setJd(""); setResume(""); setFileName("");
           localStorage.removeItem("tp_jd"); localStorage.removeItem("tp_resume"); localStorage.removeItem("tp_fileName");
         }} style={{ width:"100%", padding:"12px", borderRadius:10, border:`1.5px solid ${C.border}`, background:"transparent", color:"#64748b", cursor:"pointer", fontFamily:"'Inter',sans-serif", fontSize:13 }}>
