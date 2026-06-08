@@ -29,7 +29,8 @@ export default async function handler(req, res) {
         "Authorization": `Bearer ${GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "model: "llama-3.3-70b-versatile",      // Free, fast, great quality
+        model: "llama-3.3-70b-versatile",
+          // Free, fast, great quality
         // Alternatives: "llama3-70b-8192" (better quality, slower)
         //               "mixtral-8x7b-32768" (long context)
         max_tokens: Math.min(maxTokens, 2000),
