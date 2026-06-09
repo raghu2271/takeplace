@@ -832,19 +832,32 @@ function AuthPage({ onLogin, onBack }) {
 // ══════════════════════════════════════════════════════════════════════════
 // RESUME ANALYZER V3 — Fixed: education preserved, scores update, full page
 // ══════════════════════════════════════════════════════════════════════════
-function ResumeAnalyzer() {
+function ResumeAnalyzer({ user }) {
   const [jd, setJd] = useState(() => localStorage.getItem("tp_jd") || "");
   const [resume, setResume] = useState(() => localStorage.getItem("tp_resume") || "");
   const [fileName, setFileName] = useState(() => localStorage.getItem("tp_fileName") || "");
   const [step, setStep] = useState("input");
   const [analysis, setAnalysis] = useState(null);
   const [optimized, setOptimized] = useState(null);
-  // FIX 5: separate optimized scores from original analysis scores
   const [optimizedScores, setOptimizedScores] = useState(null);
   const [err, setErr] = useState("");
   const [section, setSection] = useState("overview");
   const [downloading, setDownloading] = useState("");
   const fileRef = useRef();
+
+  // ── SILENT ACTIVITY TRACKER ──────────────────────────────────────────
+  // Logs to Supabase user_activity table. Fails silently — never breaks UI.
+  const trackActivity = async (action, details = "") => {
+    try {
+      if (!user?.id) return;
+      await supabase.from("user_activity").insert({
+        user_id: user.id,
+        email: user.email,
+        action,
+        details,
+      });
+    } catch (_) { /* silent — never interrupt user */ }
+  };
 
   const handleFile = async (e) => {
     const f = e.target.files[0]; if (!f) return;
@@ -855,10 +868,14 @@ function ResumeAnalyzer() {
       else if (f.name.endsWith(".docx")) text = await extractTextFromDOCX(f);
       else {
         const r = new FileReader();
-        r.onload = ev => { setResume(ev.target.result); localStorage.setItem("tp_resume", ev.target.result); };
+        r.onload = ev => {
+          setResume(ev.target.result); localStorage.setItem("tp_resume", ev.target.result);
+          trackActivity("resume_uploaded", f.name);
+        };
         r.readAsText(f); return;
       }
       setResume(text); localStorage.setItem("tp_resume", text);
+      trackActivity("resume_uploaded", f.name);
     } catch (e2) { setErr("Could not read file: " + e2.message); }
   };
 
@@ -927,6 +944,7 @@ Return ONLY valid JSON with this exact structure (all fields required, be specif
       setAnalysis(data);
       setStep("analyzed");
       setSection("overview");
+      trackActivity("analysis_run", `match:${data.matchScore}% ats:${data.atsScore}%`);
     } catch (e) { setErr(e.message || "Analysis failed. Please try again."); setStep("input"); }
   };
 
@@ -1162,6 +1180,7 @@ Return format:
       setOptimizedScores(optScores);
       setStep("optimized");
       setSection("resume");
+      trackActivity("resume_optimized", `match:${optScores.matchScore}% ats:${optScores.atsScore}%`);
     } catch (e) { setErr(e.message || "Optimization failed. Please try again."); setStep("analyzed"); }
   };
 
@@ -1175,8 +1194,13 @@ Return format:
     if (!optimized) return;
     setDownloading(type);
     try {
-      if (type === "pdf") await downloadPDF(optimized, "TakePlace_Optimized_Resume.pdf");
-      else await downloadDOCXJake(optimized, "TakePlace_Optimized_Resume.docx");
+      if (type === "pdf") {
+        await downloadPDF(optimized, "TakePlace_Optimized_Resume.pdf");
+        trackActivity("downloaded_pdf", optimized.name || "");
+      } else {
+        await downloadDOCXJake(optimized, "TakePlace_Optimized_Resume.docx");
+        trackActivity("downloaded_docx", optimized.name || "");
+      }
     } catch (e) { alert("Download failed: " + e.message); }
     setDownloading("");
   };
@@ -1889,7 +1913,7 @@ function MainApp({ user, onLogout }) {
             })}
           </div>
         )}
-        {tab===1 && <ResumeAnalyzer/>}
+        {tab===1 && <ResumeAnalyzer user={user}/>}
       </div>
     </div>
   );
