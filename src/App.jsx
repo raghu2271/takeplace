@@ -930,13 +930,91 @@ Return ONLY valid JSON with this exact structure (all fields required, be specif
     } catch (e) { setErr(e.message || "Analysis failed. Please try again."); setStep("input"); }
   };
 
+  // ── EDUCATION EXTRACTOR — reads raw resume text, bypasses AI ────────
+  // This runs in JS, no AI involved. Result is injected directly into
+  // the optimized JSON so education is ALWAYS from the original resume.
+  const extractEducationFromResume = (rawText) => {
+    if (!rawText) return [];
+    const lines = rawText.split(/\n/).map(l => l.trim()).filter(Boolean);
+
+    // Find where education section starts
+    let eduStart = -1;
+    let eduEnd = -1;
+    const sectionHeaders = /^(EXPERIENCE|WORK|PROJECTS|SKILLS|TECHNICAL|CERTIF|ACHIEVEMENTS|SUMMARY|OBJECTIVE|INTERNSHIP)/i;
+
+    for (let i = 0; i < lines.length; i++) {
+      if (/^EDUCATION/i.test(lines[i])) { eduStart = i + 1; continue; }
+      if (eduStart !== -1 && sectionHeaders.test(lines[i])) { eduEnd = i; break; }
+    }
+    if (eduStart === -1) return [];
+    if (eduEnd === -1) eduEnd = Math.min(eduStart + 8, lines.length);
+
+    const eduLines = lines.slice(eduStart, eduEnd).filter(l =>
+      !l.match(/^(EDUCATION|EXPERIENCE|PROJECTS|SKILLS)/i)
+    );
+
+    if (eduLines.length === 0) return [];
+
+    // Try to build structured entry from the lines
+    // Common patterns:
+    // Line 1: "University Name   City, Country"  or just "University Name"
+    // Line 2: "B.Tech in ... | CGPA: 8.x   Sep 2022 – May 2026"
+    const entries = [];
+    let i = 0;
+    while (i < eduLines.length) {
+      const line1 = eduLines[i] || "";
+      const line2 = eduLines[i + 1] || "";
+
+      // Detect date patterns like "2022 – 2026" or "Sep 2022 - May 2026"
+      const datePattern = /(\b\d{4}\b.*?(?:–|-|to).*?\b\d{4}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{4}\b)/i;
+
+      // Split line1 into school + location if it has multiple words separated by large gap
+      // Usually PDF extraction joins them: "Lovely Professional University    Punjab, India"
+      let school = line1, location = "";
+      const locMatch = line1.match(/^(.+?)\s{2,}(.+)$/);
+      if (locMatch) { school = locMatch[1].trim(); location = locMatch[2].trim(); }
+
+      // Check for date in line1 or line2
+      let degree = "", dates = "";
+      const dateInLine2 = line2.match(datePattern);
+      if (dateInLine2) {
+        // line2 has the degree + date
+        // Split: "B.Tech CSE (AI & ML) | CGPA: 8.49    Sep 2022 – May 2026"
+        const degDateSplit = line2.match(/^(.+?)\s{2,}(\S.*?\d{4}.*)$/);
+        if (degDateSplit) { degree = degDateSplit[1].trim(); dates = degDateSplit[2].trim(); }
+        else {
+          // Try splitting at the date match
+          const dIdx = line2.indexOf(dateInLine2[0]);
+          degree = line2.slice(0, dIdx).trim();
+          dates = dateInLine2[0].trim();
+        }
+        i += 2;
+      } else {
+        degree = line2;
+        i += 2;
+      }
+
+      // If school looks like it contains a degree (fallback: whole line1 is degree)
+      if (!degree && school.match(/B\.Tech|B\.E|M\.Tech|MBA|BCA|MCA|Bachelor|Master|B\.Sc/i)) {
+        degree = school; school = "";
+      }
+
+      if (school || degree) {
+        entries.push({ school, location, degree, dates });
+      }
+    }
+
+    return entries.length > 0 ? entries : [];
+  };
+
   // ── STEP 2: OPTIMIZE → JAKE'S RESUME ──────────────────────────────
-  // FIX 1,2,3,4: education preserved exactly, experience keeps company/title,
-  //              exactly 3 certifications, resume fills full single page
   const runOptimize = async () => {
     setStep("optimizing"); setErr("");
     const jdT = jd.trim().slice(0, 600);
-    const reT = resume.trim().slice(0, 1000);
+    const reT = resume.trim().slice(0, 2500); // increased from 1000
+
+    // Extract education from raw resume text BEFORE calling AI
+    const extractedEducation = extractEducationFromResume(resume);
     try {
       const prompt = `You are an expert ATS resume writer. Your job is to produce a DENSE, FULL single-page resume in Jake's format optimized for the given JD.
 
@@ -1033,6 +1111,33 @@ The optimizedMatchScore, optimizedAtsScore, optimizedShortlistRate should reflec
       const raw = await callAI(prompt, 2500, "json");
       const data = safeJSON(raw, null);
       if (!data?.name) throw new Error("Optimization failed — try again.");
+
+      // ── EDUCATION OVERRIDE ─────────────────────────────────────────
+      // AI fails to copy education when resume text is long/truncated.
+      // We extracted it from the raw resume in JS before the AI call.
+      // Force-inject it now so education is ALWAYS from original resume.
+      if (extractedEducation.length > 0) {
+        data.education = extractedEducation;
+      } else {
+        const eduBad = !data.education || data.education.length === 0 ||
+          (data.education[0]?.school || "").toLowerCase().includes("not mentioned") ||
+          (data.education[0]?.school || "").trim() === "";
+        if (eduBad) {
+          try {
+            const eduPrompt = `Extract ONLY the education section from this resume as a JSON array. No other text.
+Resume:
+${resume.trim().slice(0, 1500)}
+Return format:
+[{"school":"University Name","location":"City","degree":"B.Tech CSE | CGPA: 8.49","dates":"Sep 2022 – May 2026"}]`;
+            const eduRaw = await callAI(eduPrompt, 300, "json");
+            const eduArr = safeJSON(eduRaw, []);
+            if (Array.isArray(eduArr) && eduArr.length > 0 &&
+                !(eduArr[0]?.school || "").toLowerCase().includes("not mentioned")) {
+              data.education = eduArr;
+            }
+          } catch(_) {}
+        }
+      }
 
       // FIX 5: Extract and store optimized scores separately
       const optScores = {
