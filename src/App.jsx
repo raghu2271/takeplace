@@ -1414,7 +1414,7 @@ Return format:
               style={{ padding:"7px 14px", borderRadius:10, border:`1.5px solid ${C.orange}40`, background:`${C.orange}08`, color:C.orange, fontSize:12, cursor:"pointer", fontFamily:"'Inter',sans-serif", fontWeight:600, display:"flex", alignItems:"center", gap:6, whiteSpace:"nowrap" }}>
               {jdImageLoading ? <><SpinIcon size={12} color={C.orange}/> Reading...</> : <>📸 Upload Photo</>}
             </button>
-            <input ref={jdImageRef} type="file" accept="image/*" capture="environment" onChange={handleJDImage} style={{ display:"none" }} />
+            <input ref={jdImageRef} type="file" accept="image/*" onChange={handleJDImage} style={{ display:"none" }} />
           </div>
         </div>
         {jdImageLoading && (
