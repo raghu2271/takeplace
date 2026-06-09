@@ -844,6 +844,8 @@ function ResumeAnalyzer({ user }) {
   const [section, setSection] = useState("overview");
   const [downloading, setDownloading] = useState("");
   const fileRef = useRef();
+  const jdImageRef = useRef();
+  const [jdImageLoading, setJdImageLoading] = useState(false);
 
   // ── SILENT ACTIVITY TRACKER ──────────────────────────────────────────
   // Logs to Supabase user_activity table. Fails silently — never breaks UI.
@@ -948,7 +950,38 @@ Return ONLY valid JSON with this exact structure (all fields required, be specif
     } catch (e) { setErr(e.message || "Analysis failed. Please try again."); setStep("input"); }
   };
 
-  // ── EDUCATION EXTRACTOR — reads raw resume text, bypasses AI ────────
+  // ── JD IMAGE EXTRACTOR — photo/screenshot → text via Claude vision ──
+  const handleJDImage = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    setJdImageLoading(true); setErr("");
+    try {
+      const base64 = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result.split(",")[1]);
+        r.onerror = rej;
+        r.readAsDataURL(f);
+      });
+      const mediaType = f.type || "image/jpeg";
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: "Extract ALL text from this job description image. Return only the plain text exactly as it appears, preserving all requirements, skills, responsibilities. No formatting, no commentary, just the text.",
+          maxTokens: 1500,
+          mode: "text",
+          image: { base64, mediaType },
+        }),
+      });
+      if (!res.ok) throw new Error("Image read failed");
+      const data = await res.json();
+      const text = data.text || "";
+      if (!text.trim()) throw new Error("Could not read text from image. Try a clearer photo.");
+      setJd(text); localStorage.setItem("tp_jd", text);
+      trackActivity("jd_image_uploaded", f.name);
+    } catch (e2) { setErr("Image upload failed: " + e2.message); }
+    setJdImageLoading(false);
+    e.target.value = "";
+  };
   // This runs in JS, no AI involved. Result is injected directly into
   // the optimized JSON so education is ALWAYS from the original resume.
   const extractEducationFromResume = (rawText) => {
@@ -1371,14 +1404,31 @@ Return format:
       <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:14 }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
           <div style={{ width:32, height:32, borderRadius:10, background:"#dbeafe", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>📋</div>
-          <div>
+          <div style={{ flex:1 }}>
             <div style={{ fontWeight:700, color:C.text, fontSize:15 }}>Job Description</div>
-            <div style={{ color:"#94a3b8", fontSize:11 }}>More detail = better analysis. Paste full JD.</div>
+            <div style={{ color:"#94a3b8", fontSize:11 }}>Paste text OR upload a photo/screenshot of the JD</div>
           </div>
-          {jd && <span style={{ background:jd.split(/\s+/).filter(Boolean).length>150?"#f0fdf4":"#fffbeb", color:jd.split(/\s+/).filter(Boolean).length>150?"#16a34a":"#d97706", fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700, marginLeft:"auto" }}>{jd.split(/\s+/).filter(Boolean).length} words</span>}
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            {jd && <span style={{ background:jd.split(/\s+/).filter(Boolean).length>150?"#f0fdf4":"#fffbeb", color:jd.split(/\s+/).filter(Boolean).length>150?"#16a34a":"#d97706", fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{jd.split(/\s+/).filter(Boolean).length} words</span>}
+            <button onClick={()=>jdImageRef.current.click()} disabled={jdImageLoading}
+              style={{ padding:"7px 14px", borderRadius:10, border:`1.5px solid ${C.orange}40`, background:`${C.orange}08`, color:C.orange, fontSize:12, cursor:"pointer", fontFamily:"'Inter',sans-serif", fontWeight:600, display:"flex", alignItems:"center", gap:6, whiteSpace:"nowrap" }}>
+              {jdImageLoading ? <><SpinIcon size={12} color={C.orange}/> Reading...</> : <>📸 Upload Photo</>}
+            </button>
+            <input ref={jdImageRef} type="file" accept="image/*" capture="environment" onChange={handleJDImage} style={{ display:"none" }} />
+          </div>
         </div>
+        {jdImageLoading && (
+          <div style={{ background:"#fff7ed", border:"1px solid #fed7aa", borderRadius:10, padding:"10px 14px", marginBottom:10, fontSize:12, color:C.orange, display:"flex", alignItems:"center", gap:8 }}>
+            <SpinIcon size={14} color={C.orange}/> Reading text from your image...
+          </div>
+        )}
+        {jd && !jdImageLoading && (
+          <div style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:8, padding:"6px 12px", marginBottom:8, fontSize:12, color:"#16a34a" }}>
+            ✅ JD loaded — {jd.split(/\s+/).filter(Boolean).length} words detected
+          </div>
+        )}
         <textarea value={jd} onChange={e=>{ setJd(e.target.value); localStorage.setItem("tp_jd",e.target.value); }}
-          placeholder={"Paste the job description here...\n\nWe are looking for a Full Stack Developer with React, Node.js..."}
+          placeholder={"Paste the job description here...\n\nOR tap 📸 Upload Photo to take a photo of the JD\n\nWe are looking for a Full Stack Developer with React, Node.js..."}
           style={{...inp, minHeight:180, resize:"vertical", lineHeight:1.8}} />
       </div>
       <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:20 }}>
