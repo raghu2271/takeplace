@@ -950,34 +950,38 @@ Return ONLY valid JSON with this exact structure (all fields required, be specif
     } catch (e) { setErr(e.message || "Analysis failed. Please try again."); setStep("input"); }
   };
 
-  // ── JD IMAGE EXTRACTOR — photo/screenshot → text via Claude vision ──
+  // ── JD IMAGE EXTRACTOR — multiple photos → combined text via Claude vision ──
   const handleJDImage = async (e) => {
-    const f = e.target.files[0]; if (!f) return;
+    const files = Array.from(e.target.files); if (!files.length) return;
     setJdImageLoading(true); setErr("");
     try {
-      const base64 = await new Promise((res, rej) => {
-        const r = new FileReader();
-        r.onload = () => res(r.result.split(",")[1]);
-        r.onerror = rej;
-        r.readAsDataURL(f);
-      });
-      const mediaType = f.type || "image/jpeg";
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: "Extract ALL text from this job description image. Return only the plain text exactly as it appears, preserving all requirements, skills, responsibilities. No formatting, no commentary, just the text.",
-          maxTokens: 1500,
-          mode: "text",
-          image: { base64, mediaType },
-        }),
-      });
-      if (!res.ok) throw new Error("Image read failed");
-      const data = await res.json();
-      const text = data.text || "";
-      if (!text.trim()) throw new Error("Could not read text from image. Try a clearer photo.");
-      setJd(text); localStorage.setItem("tp_jd", text);
-      trackActivity("jd_image_uploaded", f.name);
+      let allText = "";
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        const base64 = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result.split(",")[1]);
+          r.onerror = rej;
+          r.readAsDataURL(f);
+        });
+        const mediaType = f.type || "image/jpeg";
+        const res = await fetch("/api/ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: `This is page ${i+1} of ${files.length} of a job description. Extract ALL text exactly as it appears. Return only the plain text, no commentary.`,
+            maxTokens: 1500,
+            mode: "text",
+            image: { base64, mediaType },
+          }),
+        });
+        if (!res.ok) throw new Error(`Page ${i+1} failed to read`);
+        const data = await res.json();
+        allText += (data.text || "") + "\n\n";
+      }
+      if (!allText.trim()) throw new Error("Could not read text from images. Try clearer photos.");
+      setJd(allText.trim()); localStorage.setItem("tp_jd", allText.trim());
+      trackActivity("jd_image_uploaded", `${files.length} page(s)`);
     } catch (e2) { setErr("Image upload failed: " + e2.message); }
     setJdImageLoading(false);
     e.target.value = "";
@@ -1406,7 +1410,7 @@ Return format:
           <div style={{ width:32, height:32, borderRadius:10, background:"#dbeafe", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>📋</div>
           <div style={{ flex:1 }}>
             <div style={{ fontWeight:700, color:C.text, fontSize:15 }}>Job Description</div>
-            <div style={{ color:"#94a3b8", fontSize:11 }}>Paste text OR upload a photo/screenshot of the JD</div>
+            <div style={{ color:"#94a3b8", fontSize:11 }}>Paste text OR upload photos (select multiple pages at once)</div>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
             {jd && <span style={{ background:jd.split(/\s+/).filter(Boolean).length>150?"#f0fdf4":"#fffbeb", color:jd.split(/\s+/).filter(Boolean).length>150?"#16a34a":"#d97706", fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{jd.split(/\s+/).filter(Boolean).length} words</span>}
@@ -1414,12 +1418,12 @@ Return format:
               style={{ padding:"7px 14px", borderRadius:10, border:`1.5px solid ${C.orange}40`, background:`${C.orange}08`, color:C.orange, fontSize:12, cursor:"pointer", fontFamily:"'Inter',sans-serif", fontWeight:600, display:"flex", alignItems:"center", gap:6, whiteSpace:"nowrap" }}>
               {jdImageLoading ? <><SpinIcon size={12} color={C.orange}/> Reading...</> : <>📸 Upload Photo</>}
             </button>
-            <input ref={jdImageRef} type="file" accept="image/*" onChange={handleJDImage} style={{ display:"none" }} />
+            <input ref={jdImageRef} type="file" accept="image/*" multiple onChange={handleJDImage} style={{ display:"none" }} />
           </div>
         </div>
         {jdImageLoading && (
           <div style={{ background:"#fff7ed", border:"1px solid #fed7aa", borderRadius:10, padding:"10px 14px", marginBottom:10, fontSize:12, color:C.orange, display:"flex", alignItems:"center", gap:8 }}>
-            <SpinIcon size={14} color={C.orange}/> Reading text from your image...
+            <SpinIcon size={14} color={C.orange}/> Reading text from all pages... this may take a few seconds
           </div>
         )}
         {jd && !jdImageLoading && (
@@ -1428,7 +1432,7 @@ Return format:
           </div>
         )}
         <textarea value={jd} onChange={e=>{ setJd(e.target.value); localStorage.setItem("tp_jd",e.target.value); }}
-          placeholder={"Paste the job description here...\n\nOR tap 📸 Upload Photo to take a photo of the JD\n\nWe are looking for a Full Stack Developer with React, Node.js..."}
+          placeholder={"Paste the job description here...\n\nOR tap 📸 Upload Photos to select 1, 2 or 3 JD page screenshots\n\nWe are looking for a Full Stack Developer with React, Node.js..."}
           style={{...inp, minHeight:180, resize:"vertical", lineHeight:1.8}} />
       </div>
       <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:20 }}>
