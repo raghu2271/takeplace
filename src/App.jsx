@@ -632,18 +632,19 @@ function LandingPage({ onGetStarted }) {
         </div>
       </section>
 
+      {/* ── SUPPORT / CONTACT SECTION ── */}
       <section style={{ padding:"60px 24px", maxWidth:700, margin:"0 auto", textAlign:"center" }}>
         <div style={{ background:"#ffffff", border:`1.5px solid ${C.border}`, borderRadius:20, padding:"40px 32px", boxShadow:"0 4px 20px rgba(0,0,0,0.06)" }}>
           <div style={{ fontSize:40, marginBottom:12 }}>💬</div>
-          <div style={{ fontWeight:800, fontSize:22, color:C.text, marginBottom:10 }}>Need Help?</div>
+          <div style={{ fontWeight:800, fontSize:22, color:C.text, marginBottom:10 }}>Need Help or Have a Query?</div>
           <div style={{ color:C.soft, fontSize:14, marginBottom:20, lineHeight:1.7 }}>
-            Facing an issue? Got feedback? Reach out — Raghu reads every message personally.
+            Facing an issue? Got feedback? Message any queries — Raghu reads every message personally.
           </div>
-          <a href="mailto:support@takeplace.in" style={{ display:"inline-flex", alignItems:"center", gap:8,
+          <a href="mailto:takeplace.in@gmail.com" style={{ display:"inline-flex", alignItems:"center", gap:8,
             background:`linear-gradient(135deg,${C.blue},${C.blueLight})`, color:"#fff", fontWeight:700,
             padding:"12px 28px", borderRadius:10, fontSize:14, textDecoration:"none",
             boxShadow:"0 2px 12px "+C.blue+"40" }}>
-            📧 support@takeplace.in
+            📧 takeplace.in@gmail.com
           </a>
         </div>
       </section>
@@ -668,7 +669,7 @@ function LandingPage({ onGetStarted }) {
       <footer style={{ borderTop:`1px solid ${C.border}`, padding:"24px", textAlign:"center", background:"#ffffff" }}>
         <div style={{ color:C.muted, fontSize:12 }}>
           © 2026 TakePlace · Developed by Raghu Dadigela ·{" "}
-          <a href="mailto:support@takeplace.in" style={{ color:C.blue, textDecoration:"none", fontWeight:600 }}>support@takeplace.in</a>
+          <a href="mailto:takeplace.in@gmail.com" style={{ color:C.blue, textDecoration:"none", fontWeight:600 }}>takeplace.in@gmail.com</a>
         </div>
       </footer>
     </div>
@@ -830,7 +831,7 @@ function AuthPage({ onLogin, onBack }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// RESUME ANALYZER V3 — Fixed: education preserved, scores update, full page
+// RESUME ANALYZER
 // ══════════════════════════════════════════════════════════════════════════
 function ResumeAnalyzer({ user }) {
   const [jd, setJd] = useState(() => localStorage.getItem("tp_jd") || "");
@@ -844,11 +845,8 @@ function ResumeAnalyzer({ user }) {
   const [section, setSection] = useState("overview");
   const [downloading, setDownloading] = useState("");
   const fileRef = useRef();
-  const jdImageRef = useRef();
-  const [jdImageLoading, setJdImageLoading] = useState(false);
 
   // ── SILENT ACTIVITY TRACKER ──────────────────────────────────────────
-  // Logs to Supabase user_activity table. Fails silently — never breaks UI.
   const trackActivity = async (action, details = "") => {
     try {
       if (!user?.id) return;
@@ -858,7 +856,7 @@ function ResumeAnalyzer({ user }) {
         action,
         details,
       });
-    } catch (_) { /* silent — never interrupt user */ }
+    } catch (_) { /* silent */ }
   };
 
   const handleFile = async (e) => {
@@ -950,95 +948,37 @@ Return ONLY valid JSON with this exact structure (all fields required, be specif
     } catch (e) { setErr(e.message || "Analysis failed. Please try again."); setStep("input"); }
   };
 
-  // ── JD IMAGE EXTRACTOR — multiple photos → combined text via Claude vision ──
-  const handleJDImage = async (e) => {
-    const files = Array.from(e.target.files); if (!files.length) return;
-    setJdImageLoading(true); setErr("");
-    try {
-      let allText = "";
-      for (let i = 0; i < files.length; i++) {
-        const f = files[i];
-        const base64 = await new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload = () => res(r.result.split(",")[1]);
-          r.onerror = rej;
-          r.readAsDataURL(f);
-        });
-        const mediaType = f.type || "image/jpeg";
-        const res = await fetch("/api/ai", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt: `This is page ${i+1} of ${files.length} of a job description. Extract ALL text exactly as it appears. Return only the plain text, no commentary.`,
-            maxTokens: 1500,
-            mode: "text",
-            image: { base64, mediaType },
-          }),
-        });
-        if (!res.ok) throw new Error(`Page ${i+1} failed to read`);
-        const data = await res.json();
-        allText += (data.text || "") + "\n\n";
-      }
-      if (!allText.trim()) throw new Error("Could not read text from images. Try clearer photos.");
-      setJd(allText.trim()); localStorage.setItem("tp_jd", allText.trim());
-      trackActivity("jd_image_uploaded", `${files.length} page(s)`);
-    } catch (e2) { setErr("Image upload failed: " + e2.message); }
-    setJdImageLoading(false);
-    e.target.value = "";
-  };
-  // This runs in JS, no AI involved. Result is injected directly into
-  // the optimized JSON so education is ALWAYS from the original resume.
   const extractEducationFromResume = (rawText) => {
     if (!rawText) return [];
     const lines = rawText.split(/\n/).map(l => l.trim()).filter(Boolean);
-
-    // Find where education section starts
     let eduStart = -1;
     let eduEnd = -1;
     const sectionHeaders = /^(EXPERIENCE|WORK|PROJECTS|SKILLS|TECHNICAL|CERTIF|ACHIEVEMENTS|SUMMARY|OBJECTIVE|INTERNSHIP)/i;
-
     for (let i = 0; i < lines.length; i++) {
       if (/^EDUCATION/i.test(lines[i])) { eduStart = i + 1; continue; }
       if (eduStart !== -1 && sectionHeaders.test(lines[i])) { eduEnd = i; break; }
     }
     if (eduStart === -1) return [];
     if (eduEnd === -1) eduEnd = Math.min(eduStart + 8, lines.length);
-
     const eduLines = lines.slice(eduStart, eduEnd).filter(l =>
       !l.match(/^(EDUCATION|EXPERIENCE|PROJECTS|SKILLS)/i)
     );
-
     if (eduLines.length === 0) return [];
-
-    // Try to build structured entry from the lines
-    // Common patterns:
-    // Line 1: "University Name   City, Country"  or just "University Name"
-    // Line 2: "B.Tech in ... | CGPA: 8.x   Sep 2022 – May 2026"
     const entries = [];
     let i = 0;
     while (i < eduLines.length) {
       const line1 = eduLines[i] || "";
       const line2 = eduLines[i + 1] || "";
-
-      // Detect date patterns like "2022 – 2026" or "Sep 2022 - May 2026"
       const datePattern = /(\b\d{4}\b.*?(?:–|-|to).*?\b\d{4}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{4}\b)/i;
-
-      // Split line1 into school + location if it has multiple words separated by large gap
-      // Usually PDF extraction joins them: "Lovely Professional University    Punjab, India"
       let school = line1, location = "";
       const locMatch = line1.match(/^(.+?)\s{2,}(.+)$/);
       if (locMatch) { school = locMatch[1].trim(); location = locMatch[2].trim(); }
-
-      // Check for date in line1 or line2
       let degree = "", dates = "";
       const dateInLine2 = line2.match(datePattern);
       if (dateInLine2) {
-        // line2 has the degree + date
-        // Split: "B.Tech CSE (AI & ML) | CGPA: 8.49    Sep 2022 – May 2026"
         const degDateSplit = line2.match(/^(.+?)\s{2,}(\S.*?\d{4}.*)$/);
         if (degDateSplit) { degree = degDateSplit[1].trim(); dates = degDateSplit[2].trim(); }
         else {
-          // Try splitting at the date match
           const dIdx = line2.indexOf(dateInLine2[0]);
           degree = line2.slice(0, dIdx).trim();
           dates = dateInLine2[0].trim();
@@ -1048,17 +988,13 @@ Return ONLY valid JSON with this exact structure (all fields required, be specif
         degree = line2;
         i += 2;
       }
-
-      // If school looks like it contains a degree (fallback: whole line1 is degree)
       if (!degree && school.match(/B\.Tech|B\.E|M\.Tech|MBA|BCA|MCA|Bachelor|Master|B\.Sc/i)) {
         degree = school; school = "";
       }
-
       if (school || degree) {
         entries.push({ school, location, degree, dates });
       }
     }
-
     return entries.length > 0 ? entries : [];
   };
 
@@ -1066,9 +1002,7 @@ Return ONLY valid JSON with this exact structure (all fields required, be specif
   const runOptimize = async () => {
     setStep("optimizing"); setErr("");
     const jdT = jd.trim().slice(0, 600);
-    const reT = resume.trim().slice(0, 2500); // increased from 1000
-
-    // Extract education from raw resume text BEFORE calling AI
+    const reT = resume.trim().slice(0, 2500);
     const extractedEducation = extractEducationFromResume(resume);
     try {
       const prompt = `You are an expert ATS resume writer. Your job is to produce a DENSE, FULL single-page resume in Jake's format optimized for the given JD.
@@ -1159,18 +1093,12 @@ Return ONLY valid JSON:
   "optimizedMatchScore": 88,
   "optimizedAtsScore": 91,
   "optimizedShortlistRate": 34
-}
-
-The optimizedMatchScore, optimizedAtsScore, optimizedShortlistRate should reflect the realistic improvement after optimization (typically 12-20 points higher than original for match and ATS).`;
+}`;
 
       const raw = await callAI(prompt, 2500, "json");
       const data = safeJSON(raw, null);
       if (!data?.name) throw new Error("Optimization failed — try again.");
 
-      // ── EDUCATION OVERRIDE ─────────────────────────────────────────
-      // AI fails to copy education when resume text is long/truncated.
-      // We extracted it from the raw resume in JS before the AI call.
-      // Force-inject it now so education is ALWAYS from original resume.
       if (extractedEducation.length > 0) {
         data.education = extractedEducation;
       } else {
@@ -1194,18 +1122,15 @@ Return format:
         }
       }
 
-      // FIX 5: Extract and store optimized scores separately
       const optScores = {
         matchScore: data.optimizedMatchScore || Math.min(96, (analysis?.matchScore || 70) + 15),
         atsScore: data.optimizedAtsScore || Math.min(96, (analysis?.atsScore || 70) + 14),
         shortlistRate: data.optimizedShortlistRate || Math.min(45, (analysis?.shortlistRate || 20) + 12),
       };
-      // Remove score fields from resume data
       delete data.optimizedMatchScore;
       delete data.optimizedAtsScore;
       delete data.optimizedShortlistRate;
 
-      // FIX 3: Ensure exactly 3 certifications
       if (data.certifications && data.certifications.length > 3) {
         data.certifications = data.certifications.slice(0, 3);
       }
@@ -1242,7 +1167,6 @@ Return format:
     setDownloading("");
   };
 
-  // ── FIX 4: Jake's Resume Preview — dense, space-filling ─────────────
   const JakesResumePreview = ({ data }) => {
     if (!data) return null;
     const ps = { fontSize: 8.5, lineHeight: "1.65", color: "#1a1a1a", marginBottom: 2 };
@@ -1258,15 +1182,12 @@ Return format:
         fontFamily: "'Times New Roman', Times, serif",
         boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
       }}>
-        {/* Header */}
         <div style={{ textAlign: "center", marginBottom: 3 }}>
           <div style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", letterSpacing: "0.02em" }}>{data.name}</div>
         </div>
         <div style={{ textAlign: "center", marginBottom: 10, fontSize: 8, color: "#374151", lineHeight: 1.5 }}>
           {[data.phone, data.email, data.linkedin, data.github, data.location].filter(Boolean).join(" | ")}
         </div>
-
-        {/* Education */}
         {data.education?.length > 0 && (
           <>
             <div style={sectionStyle}>Education</div>
@@ -1284,8 +1205,6 @@ Return format:
             ))}
           </>
         )}
-
-        {/* Experience */}
         {data.experience?.length > 0 && (
           <>
             <div style={sectionStyle}>Experience</div>
@@ -1307,8 +1226,6 @@ Return format:
             ))}
           </>
         )}
-
-        {/* Projects */}
         {data.projects?.length > 0 && (
           <>
             <div style={sectionStyle}>Projects</div>
@@ -1332,8 +1249,6 @@ Return format:
             ))}
           </>
         )}
-
-        {/* Skills */}
         {data.skills?.length > 0 && (
           <>
             <div style={sectionStyle}>Technical Skills</div>
@@ -1345,8 +1260,6 @@ Return format:
             ))}
           </>
         )}
-
-        {/* Certifications */}
         {data.certifications?.length > 0 && (
           <>
             <div style={sectionStyle}>Certifications & Achievements</div>
@@ -1361,7 +1274,6 @@ Return format:
     );
   };
 
-  // ── Score Ring with before/after delta ───────────────────────────────
   const Ring = ({ score, size=88, color, label }) => {
     const r = 34, circ = 2 * Math.PI * r;
     const col = color || scoreColor(score);
@@ -1380,7 +1292,6 @@ Return format:
     );
   };
 
-  // FIX 5: Delta badge shown when optimized scores differ from original
   const DeltaBadge = ({ original, optimized }) => {
     const delta = optimized - original;
     if (!delta) return null;
@@ -1405,36 +1316,32 @@ Return format:
         <div style={{ color: "#64748b", fontSize: 13 }}>Paste JD + resume → Deep section analysis → ATS scores → Jake's resume PDF</div>
       </div>
       {err && <div style={{ background:"#fef2f2", border:"1px solid #fecaca", borderRadius:12, padding:"12px 16px", marginBottom:16, color:"#dc2626", fontSize:13 }}>⚠ {err}</div>}
+
+      {/* ── JD CARD — Upload Photo removed ── */}
       <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:14 }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
           <div style={{ width:32, height:32, borderRadius:10, background:"#dbeafe", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>📋</div>
           <div style={{ flex:1 }}>
             <div style={{ fontWeight:700, color:C.text, fontSize:15 }}>Job Description</div>
-            <div style={{ color:"#94a3b8", fontSize:11 }}>Paste text OR upload photos (select multiple pages at once)</div>
+            <div style={{ color:"#94a3b8", fontSize:11 }}>Paste the job description text here</div>
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            {jd && <span style={{ background:jd.split(/\s+/).filter(Boolean).length>150?"#f0fdf4":"#fffbeb", color:jd.split(/\s+/).filter(Boolean).length>150?"#16a34a":"#d97706", fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{jd.split(/\s+/).filter(Boolean).length} words</span>}
-            <button onClick={()=>jdImageRef.current.click()} disabled={jdImageLoading}
-              style={{ padding:"7px 14px", borderRadius:10, border:`1.5px solid ${C.orange}40`, background:`${C.orange}08`, color:C.orange, fontSize:12, cursor:"pointer", fontFamily:"'Inter',sans-serif", fontWeight:600, display:"flex", alignItems:"center", gap:6, whiteSpace:"nowrap" }}>
-              {jdImageLoading ? <><SpinIcon size={12} color={C.orange}/> Reading...</> : <>📸 Upload Photo</>}
-            </button>
-            <input ref={jdImageRef} type="file" accept="image/*" multiple onChange={handleJDImage} style={{ display:"none" }} />
-          </div>
+          {jd && (
+            <span style={{ background:jd.split(/\s+/).filter(Boolean).length>150?"#f0fdf4":"#fffbeb", color:jd.split(/\s+/).filter(Boolean).length>150?"#16a34a":"#d97706", fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>
+              {jd.split(/\s+/).filter(Boolean).length} words
+            </span>
+          )}
         </div>
-        {jdImageLoading && (
-          <div style={{ background:"#fff7ed", border:"1px solid #fed7aa", borderRadius:10, padding:"10px 14px", marginBottom:10, fontSize:12, color:C.orange, display:"flex", alignItems:"center", gap:8 }}>
-            <SpinIcon size={14} color={C.orange}/> Reading text from all pages... this may take a few seconds
-          </div>
-        )}
-        {jd && !jdImageLoading && (
+        {jd && (
           <div style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:8, padding:"6px 12px", marginBottom:8, fontSize:12, color:"#16a34a" }}>
             ✅ JD loaded — {jd.split(/\s+/).filter(Boolean).length} words detected
           </div>
         )}
         <textarea value={jd} onChange={e=>{ setJd(e.target.value); localStorage.setItem("tp_jd",e.target.value); }}
-          placeholder={"Paste the job description here...\n\nOR tap 📸 Upload Photos to select 1, 2 or 3 JD page screenshots\n\nWe are looking for a Full Stack Developer with React, Node.js..."}
+          placeholder={"Paste the full job description here...\n\nWe are looking for a Full Stack Developer with React, Node.js..."}
           style={{...inp, minHeight:180, resize:"vertical", lineHeight:1.8}} />
       </div>
+
+      {/* ── RESUME CARD ── */}
       <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:20 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -1456,6 +1363,7 @@ Return format:
           style={{...inp, minHeight:220, resize:"vertical", lineHeight:1.8}} />
         {resume && <div style={{ marginTop:8, fontSize:11, color:resume.length>400?"#16a34a":"#d97706" }}>{resume.length>400?"✓ Resume looks complete":"⚠ Add more content for better analysis"}</div>}
       </div>
+
       <button onClick={runAnalysis} disabled={!jd.trim()||!resume.trim()}
         style={{ width:"100%", padding:"15px", fontSize:16, borderRadius:12, border:"none", cursor:!jd.trim()||!resume.trim()?"not-allowed":"pointer", background:"linear-gradient(135deg,#2563eb,#1d4ed8)", color:"#fff", fontWeight:800, fontFamily:"'Inter',sans-serif", opacity:!jd.trim()||!resume.trim()?0.5:1 }}>
         🔍 Analyze Resume — Get Deep Score Breakdown
@@ -1490,10 +1398,7 @@ Return format:
     </div>
   );
 
-  // ── RESULTS / OPTIMIZED SCREEN ───────────────────────────────────────
   const a = analysis;
-
-  // FIX 5: Use optimizedScores when available for the score hero
   const displayScores = (step === "optimized" && optimizedScores) ? optimizedScores : {
     matchScore: a.matchScore,
     atsScore: a.atsScore,
@@ -1512,9 +1417,8 @@ Return format:
     <div>
       {err && <div style={{ background:"#fef2f2", border:"1px solid #fecaca", borderRadius:12, padding:"12px 16px", marginBottom:16, color:"#dc2626", fontSize:13 }}>⚠ {err}</div>}
 
-      {/* FIX 5: SCORE HERO — updates after optimization */}
+      {/* SCORE HERO */}
       <div style={{ background:"linear-gradient(135deg,#eff6ff,#f0fdf4)", border:`1.5px solid ${C.blue}20`, borderRadius:20, padding:24, marginBottom:16 }}>
-        {/* Before/after banner when optimized */}
         {step === "optimized" && optimizedScores && (
           <div style={{ textAlign:"center", marginBottom:16 }}>
             <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:20, padding:"6px 18px", fontSize:12, color:"#16a34a", fontWeight:700 }}>
@@ -1572,7 +1476,7 @@ Return format:
         ))}
       </div>
 
-      {/* ── OVERVIEW TAB ── */}
+      {/* OVERVIEW TAB */}
       {section==="overview" && (
         <div>
           <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:14 }}>
@@ -1649,7 +1553,7 @@ Return format:
         </div>
       )}
 
-      {/* ── SECTION AUDIT TAB ── */}
+      {/* SECTION AUDIT TAB */}
       {section==="audit" && (
         <div>
           <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:14 }}>
@@ -1692,7 +1596,7 @@ Return format:
         </div>
       )}
 
-      {/* ── GAPS TAB ── */}
+      {/* GAPS TAB */}
       {section==="gaps" && (
         <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22 }}>
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
@@ -1714,7 +1618,7 @@ Return format:
         </div>
       )}
 
-      {/* ── PROJECTS TAB ── */}
+      {/* PROJECTS TAB */}
       {section==="projects" && (
         <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22 }}>
           <div style={{ fontWeight:700, color:C.text, fontSize:16, marginBottom:4 }}>🏗️ Project Relevance Audit</div>
@@ -1742,7 +1646,7 @@ Return format:
         </div>
       )}
 
-      {/* ── OPTIMIZED RESUME TAB ── */}
+      {/* OPTIMIZED RESUME TAB */}
       {section==="resume" && step==="optimized" && optimized && (
         <div>
           <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:16 }}>
@@ -1763,7 +1667,6 @@ Return format:
               </div>
             </div>
 
-            {/* FIX 5: Scores improved banner */}
             {optimizedScores && (
               <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:4 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:8, background:"#eff6ff", border:`1px solid ${C.blue}20`, borderRadius:10, padding:"8px 14px" }}>
