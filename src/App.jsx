@@ -25,7 +25,7 @@ const css = `
   html{scroll-behavior:smooth;}
   body{background:#ffffff;font-family:'Inter',sans-serif;color:#0f172a;}
   ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px;}
-  ::selection{background:${C.blue}30;color:#0f172a;}
+  ::selection{background:#2563eb30;color:#0f172a;}
   @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
@@ -42,7 +42,7 @@ const css = `
   .float{animation:float 3s ease-in-out infinite;}
   .hover-lift{transition:all .2s;cursor:pointer;}
   .hover-lift:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.10);}
-  input:focus,textarea:focus,select:focus{border-color:${C.blue}!important;outline:none;box-shadow:0 0 0 3px ${C.blue}18;}
+  input:focus,textarea:focus,select:focus{border-color:#2563eb!important;outline:none;box-shadow:0 0 0 3px #2563eb18;}
   button:active{transform:scale(.98);}
 `;
 
@@ -160,6 +160,44 @@ async function extractTextFromDOCX(file) {
   const ab = await file.arrayBuffer();
   const result = await window.mammoth.extractRawText({arrayBuffer:ab});
   return result.value.trim();
+}
+
+// ─── DETECT EXPERIENCE ──────────────────────────────────────────────────────
+// Returns true only if the resume has a real experience section with company/role
+function detectHasExperience(resumeText) {
+  if (!resumeText) return false;
+  const text = resumeText.toLowerCase();
+
+  // Must contain experience/work section header
+  const hasExpHeader = /\b(experience|work experience|internship|employment|work history)\b/.test(text);
+  if (!hasExpHeader) return false;
+
+  // Must have a company-like line (something that looks like a job)
+  // Look for patterns: company names, job titles with dates
+  const hasCompanyOrRole = (
+    /\b(intern|developer|engineer|analyst|designer|manager|associate|trainee|consultant)\b/.test(text) ||
+    /(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{4}/.test(text) ||
+    /\d{4}\s*(–|-|to)\s*\d{4}/.test(text) ||
+    /\d{4}\s*(–|-|to)\s*(present|current)/i.test(text)
+  );
+
+  // Avoid false positives — "I have experience in Python" should not count
+  // Check that experience section actually has bullet points or role descriptions
+  const lines = resumeText.split("\n").map(l => l.trim()).filter(Boolean);
+  let inExpSection = false;
+  let expLineCount = 0;
+  const sectionEndPattern = /^(education|projects|skills|technical|certif|achievements|summary|objective)\b/i;
+
+  for (const line of lines) {
+    if (/^(experience|work experience|internship|employment)\b/i.test(line)) {
+      inExpSection = true; continue;
+    }
+    if (inExpSection && sectionEndPattern.test(line)) break;
+    if (inExpSection && line.length > 10) expLineCount++;
+  }
+
+  // Need at least 2 lines under experience section AND company/role signal
+  return hasCompanyOrRole && expLineCount >= 2;
 }
 
 // ─── PDF DOWNLOAD ────────────────────────────────────────────────────────────
@@ -632,7 +670,6 @@ function LandingPage({ onGetStarted }) {
         </div>
       </section>
 
-      {/* ── SUPPORT / CONTACT SECTION ── */}
       <section style={{ padding:"60px 24px", maxWidth:700, margin:"0 auto", textAlign:"center" }}>
         <div style={{ background:"#ffffff", border:`1.5px solid ${C.border}`, borderRadius:20, padding:"40px 32px", boxShadow:"0 4px 20px rgba(0,0,0,0.06)" }}>
           <div style={{ fontSize:40, marginBottom:12 }}>💬</div>
@@ -844,6 +881,12 @@ function ResumeAnalyzer({ user }) {
   const [err, setErr] = useState("");
   const [section, setSection] = useState("overview");
   const [downloading, setDownloading] = useState("");
+
+  // ── Suggested stronger projects state ──────────────────────────────
+  const [suggestedProjects, setSuggestedProjects] = useState(null);
+  const [suggestingProjects, setSuggestingProjects] = useState(false);
+  const [usingSuggestedProjects, setUsingSuggestedProjects] = useState(false);
+
   const fileRef = useRef();
 
   // ── SILENT ACTIVITY TRACKER ──────────────────────────────────────────
@@ -883,6 +926,7 @@ function ResumeAnalyzer({ user }) {
   const runAnalysis = async () => {
     if (!jd.trim() || !resume.trim()) { setErr("Fill in both Job Description and Resume."); return; }
     setStep("analyzing"); setErr(""); setAnalysis(null); setOptimized(null); setOptimizedScores(null);
+    setSuggestedProjects(null); setUsingSuggestedProjects(false);
     const jdT = jd.trim().slice(0, 800);
     const reT = resume.trim().slice(0, 900);
     try {
@@ -927,6 +971,7 @@ Return ONLY valid JSON with this exact structure (all fields required, be specif
     {"name": "TakePlace", "relevance": 92, "keep": true, "reason": "Directly relevant — full stack with React, Node.js matches JD", "suggestion": "Add specific metric like '400+ users'"},
     {"name": "Smart Job Tracker", "relevance": 75, "keep": true, "reason": "Reason", "suggestion": "Suggestion"}
   ],
+  "projectsAreWeak": false,
   "suggestedSkillsToAdd": ["Docker", "TypeScript", "Jest"],
   "improvements": [
     "Add metrics to every experience bullet",
@@ -937,7 +982,9 @@ Return ONLY valid JSON with this exact structure (all fields required, be specif
     "Resume is not in Jake's single-column format",
     "Skills section uses categories but missing some JD keywords"
   ]
-}`;
+}
+
+Set "projectsAreWeak": true if 2 or more projects score below 65% relevance for this JD.`;
       const raw = await callAI(prompt, 2000, "json");
       const data = safeJSON(raw, null);
       if (!data?.matchScore) throw new Error("Analysis failed — AI returned unexpected format. Try again.");
@@ -948,6 +995,56 @@ Return ONLY valid JSON with this exact structure (all fields required, be specif
     } catch (e) { setErr(e.message || "Analysis failed. Please try again."); setStep("input"); }
   };
 
+  // ── SUGGEST STRONGER PROJECTS ─────────────────────────────────────────
+  const suggestStrongerProjects = async () => {
+    setSuggestingProjects(true);
+    const jdT = jd.trim().slice(0, 600);
+    const reT = resume.trim().slice(0, 800);
+    try {
+      const prompt = `You are an expert resume consultant. The user's projects are weak for this job role.
+Based on their skills and the JD, suggest 3 STRONGER alternative projects they could build/highlight.
+
+JD: ${jdT}
+RESUME (for their skill level): ${reT}
+
+Rules:
+- Projects must be REALISTIC for a fresher/student to build
+- Use technologies from both the JD and resume
+- Give projects that would DIRECTLY impress this recruiter
+- Metrics must be realistic: freshers don't have "500K users" — use "50+ users", "tested with 20+ users", "reduced by 18%"
+- Each project needs 4 punchy bullets with realistic numbers
+
+Return ONLY valid JSON array:
+[
+  {
+    "name": "Project Name",
+    "tech": "React.js, Node.js, MongoDB",
+    "dates": "2025",
+    "whyStrong": "One sentence: why this impresses the recruiter for this specific role",
+    "bullets": [
+      "Built [specific thing] using [JD keyword], serving 40+ beta users with 95% uptime",
+      "Implemented [JD keyword] feature reducing manual effort by 22% across 3 test workflows",
+      "Designed REST API with Express.js handling 15+ endpoints, improving response time by 18%",
+      "Deployed on Vercel with CI/CD pipeline, achieving zero-downtime releases over 8 iterations"
+    ]
+  },
+  { ... },
+  { ... }
+]`;
+      const raw = await callAI(prompt, 1500, "json");
+      const arr = safeJSON(raw, []);
+      if (Array.isArray(arr) && arr.length > 0) {
+        setSuggestedProjects(arr);
+      } else {
+        throw new Error("Could not generate project suggestions. Try again.");
+      }
+    } catch(e) {
+      alert("Project suggestion failed: " + e.message);
+    }
+    setSuggestingProjects(false);
+  };
+
+  // ── EXTRACT EDUCATION ──────────────────────────────────────────────────
   const extractEducationFromResume = (rawText) => {
     if (!rawText) return [];
     const lines = rawText.split(/\n/).map(l => l.trim()).filter(Boolean);
@@ -998,40 +1095,79 @@ Return ONLY valid JSON with this exact structure (all fields required, be specif
     return entries.length > 0 ? entries : [];
   };
 
-  // ── STEP 2: OPTIMIZE → JAKE'S RESUME ──────────────────────────────
+  // ── STEP 2: OPTIMIZE → JAKE'S RESUME ──────────────────────────────────
   const runOptimize = async () => {
     setStep("optimizing"); setErr("");
+
+    // ── KEY FIX: detect if resume has real experience ──────────────────
+    const hasExperience = detectHasExperience(resume);
+
     const jdT = jd.trim().slice(0, 600);
     const reT = resume.trim().slice(0, 2500);
     const extractedEducation = extractEducationFromResume(resume);
+
+    // Determine which projects to use
+    const projectsToUse = (usingSuggestedProjects && suggestedProjects?.length > 0)
+      ? suggestedProjects : null;
+
     try {
-      const prompt = `You are an expert ATS resume writer. Your job is to produce a DENSE, FULL single-page resume in Jake's format optimized for the given JD.
+      // ── Build experience instruction based on detection ──────────────
+      const expInstruction = hasExperience
+        ? `RULE 2 - EXPERIENCE (RESUME HAS EXPERIENCE — INCLUDE IT):
+Keep the SAME company name, SAME job title, SAME dates, SAME location as original resume.
+Only rewrite the bullet points to mirror JD keywords.
+Write 4 strong bullets per role with realistic metrics (15-25% improvements, not 80%).`
+        : `RULE 2 - NO EXPERIENCE (RESUME HAS NO EXPERIENCE):
+The original resume has NO work experience section.
+DO NOT invent or fabricate any experience.
+Return "experience": [] — empty array.
+To fill the single page, use 3 strong projects with 4 bullets each instead.`;
+
+      // ── Build projects instruction ───────────────────────────────────
+      const projectsInstruction = projectsToUse
+        ? `RULE 3 - PROJECTS (USE THESE AI-SUGGESTED PROJECTS — DO NOT CHANGE THEM):
+Use exactly these projects provided below. Copy their name, tech, dates, bullets exactly:
+${JSON.stringify(projectsToUse, null, 2)}`
+        : `RULE 3 - PROJECTS (USE PROJECTS FROM RESUME):
+Keep the same project names from the original resume.
+Rewrite bullets to mirror JD keywords with realistic metrics.
+${hasExperience ? "Write 4 bullets per project." : "Write 5 bullets per project since there is no experience section — make projects very detailed to fill the page."}`;
+
+      const prompt = `You are an expert ATS resume writer. Produce a DENSE, FULL single-page resume in Jake's format optimized for the given JD.
 
 JD: ${jdT}
 
-ORIGINAL RESUME: ${reT}
+ORIGINAL RESUME:
+${reT}
 
 STRICT RULES — follow exactly:
 
-RULE 1 - EDUCATION: Copy education EXACTLY as it appears in the original resume. Same school name, same degree text, same dates, same location, same CGPA. Do NOT change anything in education.
+RULE 1 - EDUCATION: Copy education EXACTLY as it appears in the original resume. Same school name, degree, dates, location, CGPA. Do NOT change anything.
 
-RULE 2 - EXPERIENCE: Keep the same company name, same job title, same dates, same location as original. Only rewrite the bullet points to mirror JD keywords. Write 4 strong bullets per role with metrics.
+${expInstruction}
 
-RULE 3 - CERTIFICATIONS: Generate EXACTLY 3 certification/achievement bullet points. Pick the most impressive ones from the resume (like LeetCode count, competitive exams, online courses). Do not add fake ones.
+${projectsInstruction}
 
-RULE 4 - FILL THE PAGE: Write detailed, full-length bullets. Each bullet should be a complete sentence (15-20 words minimum). Use all available space. Projects should have 4 bullets each. Experience should have 4 bullets each. Skills must have at least 6 categories with full lists.
+RULE 4 - SINGLE PAGE & FULL: The resume MUST look completely filled. No empty space.
+${hasExperience
+  ? "With experience: 3 projects × 4 bullets each + experience × 4 bullets."
+  : "Without experience: 3 projects × 5 bullets each. Make each bullet 15-20 words minimum. This fills the space that experience would have used."}
 
 RULE 5 - KEYWORDS: Mirror exact keywords from the JD in every bullet. Use strong action verbs: Developed, Built, Engineered, Designed, Implemented, Optimized, Deployed, Integrated, Architected, Delivered.
 
-RULE 6 - METRICS: Every single bullet must have a number/metric. Example: "improved performance by 35%", "served 400+ users", "resolved 30+ bugs", "reduced load time by 2.3s".
+RULE 6 - REALISTIC METRICS: Use fresher-appropriate numbers only.
+Good: "improved by 18%", "served 45+ users", "resolved 12+ bugs", "reduced load time by 1.4s", "handled 8+ API endpoints"
+Bad: "improved by 400%", "served 500K users", "resolved 300+ bugs"
+
+RULE 7 - SKILLS: At least 6 categories with full lists. Mirror JD tech keywords.
 
 Return ONLY valid JSON:
 {
   "name": "Full Name from resume",
   "phone": "phone from resume",
   "email": "email from resume",
-  "linkedin": "linkedin from resume or linkedin.com/in/name",
-  "github": "github from resume or github.com/name",
+  "linkedin": "linkedin from resume",
+  "github": "github from resume",
   "location": "location from resume",
   "education": [
     {
@@ -1041,64 +1177,62 @@ Return ONLY valid JSON:
       "dates": "COPY EXACTLY from resume"
     }
   ],
-  "experience": [
+  "experience": ${hasExperience ? `[
     {
-      "title": "SAME title as in resume",
-      "company": "SAME company as in resume",
-      "location": "SAME location as in resume",
-      "dates": "SAME dates as in resume",
+      "title": "SAME title as in original resume",
+      "company": "SAME company as in original resume",
+      "location": "SAME location as in original resume",
+      "dates": "SAME dates as in original resume",
       "bullets": [
-        "Developed [JD keyword] feature using [tech], improving [metric] by X%",
-        "Built and integrated N+ REST APIs using [tech stack], reducing [problem] by X%",
-        "Optimized [something] queries improving data retrieval efficiency by X%",
-        "Collaborated in Agile sprints resolving N+ bugs and delivering N feature releases"
+        "Developed [JD keyword] feature using [tech], improving [metric] by 18%",
+        "Built and integrated 8+ REST APIs using [tech stack], reducing [problem] by 22%",
+        "Optimized database queries improving data retrieval efficiency by 15%",
+        "Collaborated in Agile sprints resolving 12+ bugs across 4 feature releases"
       ]
     }
-  ],
+  ]` : "[]"},
   "projects": [
     {
-      "name": "Most relevant project name",
-      "tech": "React.js, Node.js, Express.js, MongoDB",
-      "dates": "2026",
+      "name": "Project name from resume or suggested",
+      "tech": "Exact tech stack",
+      "dates": "2025 or 2026",
       "bullets": [
-        "Engineered full-stack [description] serving N+ authenticated users with [JD keyword] integration",
-        "Implemented [JD keyword] authentication and [feature] workflows, improving user efficiency by X%",
-        "Built N+ REST APIs with [tech] for [purpose], reducing processing time by X%",
-        "Deployed on [platform] with [JD keyword] integration, achieving X% improvement in [metric]"
-      ]
-    },
-    {
-      "name": "Second most relevant project",
-      "tech": "tech stack",
-      "dates": "2025",
-      "bullets": [
-        "bullet 1 with metric",
-        "bullet 2 with metric",
-        "bullet 3 with metric",
-        "bullet 4 with metric"
+        "Engineered [description] with [JD keyword], serving 40+ users and achieving 94% task completion rate",
+        "Implemented [JD keyword] authentication with JWT, reducing unauthorized access incidents to zero across 3 test cycles",
+        "Built 8+ REST APIs with Express.js for [purpose], cutting average response time by 1.2s",
+        "Deployed on [platform] with environment configs, achieving 97% uptime over 6-week live period"
+        ${hasExperience ? "" : ',\n        "Designed responsive UI with [frontend tech] supporting 4 screen sizes, improving mobile usability score by 24%"'}
       ]
     }
   ],
   "skills": [
-    {"category": "Languages", "items": "JavaScript, Python, Java, SQL, HTML5, CSS3, TypeScript"},
-    {"category": "Frontend", "items": "React.js, Tailwind CSS, Bootstrap, Redux"},
-    {"category": "Backend", "items": "Node.js, Express.js, REST APIs, JWT Authentication"},
-    {"category": "Databases", "items": "MySQL, MongoDB, PostgreSQL, Redis"},
-    {"category": "Tools & DevOps", "items": "Git, GitHub, Docker, Postman, VS Code, Linux"},
-    {"category": "Concepts", "items": "Data Structures, Algorithms, OOP, DBMS, Agile/Scrum, System Design"}
+    {"category": "Languages", "items": "JavaScript, Python, Java, SQL, HTML5, CSS3"},
+    {"category": "Frontend", "items": "React.js, Tailwind CSS, Bootstrap"},
+    {"category": "Backend", "items": "Node.js, Express.js, REST APIs, JWT"},
+    {"category": "Databases", "items": "MySQL, MongoDB, PostgreSQL"},
+    {"category": "Tools", "items": "Git, GitHub, Docker, Postman, VS Code"},
+    {"category": "Concepts", "items": "Data Structures, OOP, DBMS, Agile, System Design"}
   ],
   "certifications": [
-    "EXACTLY 3 items — pick strongest from resume like LeetCode problems solved, competitive exam scores, certifications"
+    "Exact certification 1 from resume",
+    "Exact certification 2 from resume",
+    "Exact certification 3 from resume"
   ],
   "optimizedMatchScore": 88,
   "optimizedAtsScore": 91,
   "optimizedShortlistRate": 34
 }`;
 
-      const raw = await callAI(prompt, 2500, "json");
+      const raw = await callAI(prompt, 3000, "json");
       const data = safeJSON(raw, null);
       if (!data?.name) throw new Error("Optimization failed — try again.");
 
+      // ── Enforce no experience if resume has none ─────────────────────
+      if (!hasExperience) {
+        data.experience = [];
+      }
+
+      // ── Fix education if AI hallucinated it ──────────────────────────
       if (extractedEducation.length > 0) {
         data.education = extractedEducation;
       } else {
@@ -1122,6 +1256,33 @@ Return format:
         }
       }
 
+      // ── Ensure exactly 3 projects when no experience (fills page) ──
+      if (!hasExperience && data.projects) {
+        while (data.projects.length < 3) {
+          data.projects.push({
+            name: "Personal Portfolio Website",
+            tech: "React.js, Node.js, Tailwind CSS",
+            dates: "2025",
+            bullets: [
+              "Built responsive portfolio showcasing 5+ academic projects with React.js, achieving 98% Lighthouse performance score",
+              "Implemented dark/light theme toggle and smooth scroll animations, improving user engagement by 28% in peer testing",
+              "Deployed on Vercel with custom domain and SSL, maintaining 99% uptime over 3-month live period",
+              "Optimized image loading with lazy load, reducing initial page load time from 3.2s to 1.8s",
+              "Integrated contact form with email notifications, handling 10+ inquiries with zero delivery failures"
+            ]
+          });
+        }
+        if (data.projects.length > 3) data.projects = data.projects.slice(0, 3);
+      }
+
+      // ── Fix certifications ────────────────────────────────────────────
+      if (data.certifications && data.certifications.length > 3) {
+        data.certifications = data.certifications.slice(0, 3);
+      }
+      while (data.certifications && data.certifications.length < 3) {
+        data.certifications.push("Actively solving Data Structures & Algorithms problems on LeetCode and competitive coding platforms");
+      }
+
       const optScores = {
         matchScore: data.optimizedMatchScore || Math.min(96, (analysis?.matchScore || 70) + 15),
         atsScore: data.optimizedAtsScore || Math.min(96, (analysis?.atsScore || 70) + 14),
@@ -1131,18 +1292,11 @@ Return format:
       delete data.optimizedAtsScore;
       delete data.optimizedShortlistRate;
 
-      if (data.certifications && data.certifications.length > 3) {
-        data.certifications = data.certifications.slice(0, 3);
-      }
-      while (data.certifications && data.certifications.length < 3) {
-        data.certifications.push("Actively solving Data Structures & Algorithms problems on competitive coding platforms");
-      }
-
       setOptimized(data);
       setOptimizedScores(optScores);
       setStep("optimized");
       setSection("resume");
-      trackActivity("resume_optimized", `match:${optScores.matchScore}% ats:${optScores.atsScore}%`);
+      trackActivity("resume_optimized", `match:${optScores.matchScore}% ats:${optScores.atsScore}% hasExp:${hasExperience}`);
     } catch (e) { setErr(e.message || "Optimization failed. Please try again."); setStep("analyzed"); }
   };
 
@@ -1167,6 +1321,7 @@ Return format:
     setDownloading("");
   };
 
+  // ── JAKE'S RESUME PREVIEW ─────────────────────────────────────────────
   const JakesResumePreview = ({ data }) => {
     if (!data) return null;
     const ps = { fontSize: 8.5, lineHeight: "1.65", color: "#1a1a1a", marginBottom: 2 };
@@ -1182,12 +1337,15 @@ Return format:
         fontFamily: "'Times New Roman', Times, serif",
         boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
       }}>
+        {/* Header */}
         <div style={{ textAlign: "center", marginBottom: 3 }}>
           <div style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", letterSpacing: "0.02em" }}>{data.name}</div>
         </div>
         <div style={{ textAlign: "center", marginBottom: 10, fontSize: 8, color: "#374151", lineHeight: 1.5 }}>
           {[data.phone, data.email, data.linkedin, data.github, data.location].filter(Boolean).join(" | ")}
         </div>
+
+        {/* Education */}
         {data.education?.length > 0 && (
           <>
             <div style={sectionStyle}>Education</div>
@@ -1205,6 +1363,8 @@ Return format:
             ))}
           </>
         )}
+
+        {/* Experience — only renders if data.experience has entries */}
         {data.experience?.length > 0 && (
           <>
             <div style={sectionStyle}>Experience</div>
@@ -1226,6 +1386,8 @@ Return format:
             ))}
           </>
         )}
+
+        {/* Projects */}
         {data.projects?.length > 0 && (
           <>
             <div style={sectionStyle}>Projects</div>
@@ -1249,6 +1411,8 @@ Return format:
             ))}
           </>
         )}
+
+        {/* Skills */}
         {data.skills?.length > 0 && (
           <>
             <div style={sectionStyle}>Technical Skills</div>
@@ -1260,6 +1424,8 @@ Return format:
             ))}
           </>
         )}
+
+        {/* Certifications */}
         {data.certifications?.length > 0 && (
           <>
             <div style={sectionStyle}>Certifications & Achievements</div>
@@ -1317,7 +1483,6 @@ Return format:
       </div>
       {err && <div style={{ background:"#fef2f2", border:"1px solid #fecaca", borderRadius:12, padding:"12px 16px", marginBottom:16, color:"#dc2626", fontSize:13 }}>⚠ {err}</div>}
 
-      {/* ── JD CARD — Upload Photo removed ── */}
       <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:14 }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
           <div style={{ width:32, height:32, borderRadius:10, background:"#dbeafe", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>📋</div>
@@ -1341,7 +1506,6 @@ Return format:
           style={{...inp, minHeight:180, resize:"vertical", lineHeight:1.8}} />
       </div>
 
-      {/* ── RESUME CARD ── */}
       <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:20 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -1387,12 +1551,13 @@ Return format:
   if (step === "optimizing") return (
     <div style={{ textAlign:"center", padding:"80px 20px" }}>
       <div style={{ fontSize:64, marginBottom:20, animation:"float 2s ease-in-out infinite" }}>✨</div>
-      <div style={{ fontWeight:800, fontSize:22, color:"#0f172a", marginBottom:8 }}>Building Jake's Resume</div>
+      <div style={{ fontWeight:800, fontSize:22, color:"#0f172a", marginBottom:8 }}>Building Your Optimized Resume</div>
       <div style={{ color:"#64748b", fontSize:14, lineHeight:1.9, marginBottom:28 }}>
-        Preserving your education & experience exactly...<br/>
-        Mirroring JD keywords into bullet points...<br/>
-        Adding metrics to every achievement...<br/>
-        Filling single-page Jake format completely...
+        {detectHasExperience(resume)
+          ? "Preserving your experience exactly · Rewriting bullets with JD keywords..."
+          : "No experience detected · Building 3 strong projects to fill the page..."}
+        <br/>
+        Mirroring JD keywords · Adding realistic metrics · Jake format...
       </div>
       <SpinIcon size={44} color={C.purple} />
     </div>
@@ -1479,6 +1644,17 @@ Return format:
       {/* OVERVIEW TAB */}
       {section==="overview" && (
         <div>
+          {/* No-experience notice */}
+          {!detectHasExperience(resume) && (
+            <div style={{ background:"#fffbeb", border:"1px solid #fef08a", borderRadius:12, padding:"12px 16px", marginBottom:14, display:"flex", gap:10, alignItems:"flex-start" }}>
+              <span style={{ fontSize:18, flexShrink:0 }}>ℹ️</span>
+              <div>
+                <div style={{ fontWeight:700, color:"#92400e", fontSize:13 }}>No work experience detected in your resume</div>
+                <div style={{ color:"#78350f", fontSize:12, marginTop:2 }}>When you optimize, AI will use 3 strong projects with 5 bullets each to fill the single page instead of experience.</div>
+              </div>
+            </div>
+          )}
+
           <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:14 }}>
             <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
               <span style={{ fontSize:18 }}>✅</span>
@@ -1542,7 +1718,9 @@ Return format:
               <div style={{ fontWeight:800, fontSize:18, color:C.text, marginBottom:8 }}>Ready to Fix All of This?</div>
               <div style={{ color:"#64748b", fontSize:13, marginBottom:20, lineHeight:1.7 }}>
                 One click — AI rewrites your resume in Jake's format, mirrors JD keywords,<br/>
-                adds metrics to every bullet, preserves your education exactly, fills the full page.
+                {detectHasExperience(resume)
+                  ? "keeps your experience exactly, adds realistic metrics, fills the full page."
+                  : "uses 3 strong projects to fill the page (no fake experience added)."}
               </div>
               <button onClick={runOptimize}
                 style={{ padding:"14px 40px", fontSize:15, borderRadius:12, border:"none", cursor:"pointer", background:"linear-gradient(135deg,#7c3aed,#5b21b6)", color:"#fff", fontWeight:800, fontFamily:"'Inter',sans-serif", boxShadow:`0 4px 16px ${C.purple}40` }}>
@@ -1620,29 +1798,103 @@ Return format:
 
       {/* PROJECTS TAB */}
       {section==="projects" && (
-        <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22 }}>
-          <div style={{ fontWeight:700, color:C.text, fontSize:16, marginBottom:4 }}>🏗️ Project Relevance Audit</div>
-          <div style={{ color:"#64748b", fontSize:12, marginBottom:16 }}>Which projects to keep, remove, or reframe for this specific role</div>
-          {(a.projectFit||[]).map((p,i)=>(
-            <div key={i} style={{ background:p.keep?"#f0fdf4":"#f8fafc", borderRadius:14, padding:16, marginBottom:12, border:`1.5px solid ${p.keep?"#bbf7d0":C.border}` }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                <div style={{ fontWeight:700, color:C.text, fontSize:15 }}>{p.name}</div>
-                <div style={{ display:"flex", gap:8 }}>
-                  <span style={{ background:scoreBg(p.relevance), color:scoreColor(p.relevance), fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{p.relevance}% match</span>
-                  <span style={{ background:p.keep?"#f0fdf4":"#f1f5f9", color:p.keep?"#16a34a":"#64748b", fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{p.keep?"✓ Keep":"Low priority"}</span>
+        <div>
+          <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:14 }}>
+            <div style={{ fontWeight:700, color:C.text, fontSize:16, marginBottom:4 }}>🏗️ Project Relevance Audit</div>
+            <div style={{ color:"#64748b", fontSize:12, marginBottom:16 }}>Which projects to keep, remove, or reframe for this specific role</div>
+            {(a.projectFit||[]).map((p,i)=>(
+              <div key={i} style={{ background:p.keep?"#f0fdf4":"#f8fafc", borderRadius:14, padding:16, marginBottom:12, border:`1.5px solid ${p.keep?"#bbf7d0":C.border}` }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                  <div style={{ fontWeight:700, color:C.text, fontSize:15 }}>{p.name}</div>
+                  <div style={{ display:"flex", gap:8 }}>
+                    <span style={{ background:scoreBg(p.relevance), color:scoreColor(p.relevance), fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{p.relevance}% match</span>
+                    <span style={{ background:p.keep?"#f0fdf4":"#f1f5f9", color:p.keep?"#16a34a":"#64748b", fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{p.keep?"✓ Keep":"Low priority"}</span>
+                  </div>
+                </div>
+                <div style={{ color:"#475569", fontSize:13, marginBottom:10 }}>{p.reason}</div>
+                <div style={{ background:"#e2e8f0", borderRadius:4, height:5, overflow:"hidden", marginBottom:10 }}>
+                  <div style={{ height:"100%", width:`${p.relevance}%`, background:scoreColor(p.relevance), borderRadius:4 }} />
+                </div>
+                {p.suggestion && (
+                  <div style={{ background:`${C.purple}08`, border:`1px solid ${C.purple}20`, borderRadius:10, padding:"10px 14px", color:"#475569", fontSize:12 }}>
+                    💡 <strong style={{ color:C.purple }}>Suggestion:</strong> {p.suggestion}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* ── SUGGEST STRONGER PROJECTS SECTION ─────────────────────── */}
+          {(a.projectsAreWeak || (a.projectFit||[]).filter(p=>p.relevance<65).length >= 2) && step !== "optimized" && (
+            <div style={{ background:"linear-gradient(135deg,#fdf4ff,#ede9fe)", border:`1.5px solid ${C.purple}30`, borderRadius:20, padding:22, marginBottom:14 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+                <span style={{ fontSize:24 }}>🚀</span>
+                <div>
+                  <div style={{ fontWeight:800, color:C.text, fontSize:15 }}>Your projects are weak for this role</div>
+                  <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>AI can suggest 3 stronger, role-specific projects with realistic metrics that would impress this recruiter</div>
                 </div>
               </div>
-              <div style={{ color:"#475569", fontSize:13, marginBottom:10 }}>{p.reason}</div>
-              <div style={{ background:"#e2e8f0", borderRadius:4, height:5, overflow:"hidden", marginBottom:10 }}>
-                <div style={{ height:"100%", width:`${p.relevance}%`, background:scoreColor(p.relevance), borderRadius:4 }} />
-              </div>
-              {p.suggestion && (
-                <div style={{ background:`${C.purple}08`, border:`1px solid ${C.purple}20`, borderRadius:10, padding:"10px 14px", color:"#475569", fontSize:12 }}>
-                  💡 <strong style={{ color:C.purple }}>Suggestion:</strong> {p.suggestion}
+
+              {!suggestedProjects && (
+                <button onClick={suggestStrongerProjects} disabled={suggestingProjects}
+                  style={{ padding:"11px 24px", borderRadius:10, border:"none", cursor:suggestingProjects?"not-allowed":"pointer", background:`linear-gradient(135deg,${C.purpleDark},${C.purple})`, color:"#fff", fontWeight:700, fontFamily:"'Inter',sans-serif", fontSize:13, display:"flex", alignItems:"center", gap:8, opacity:suggestingProjects?0.7:1 }}>
+                  {suggestingProjects ? <><SpinIcon size={14} color="#fff"/> Generating stronger projects...</> : "✨ Suggest Stronger Projects for This Role"}
+                </button>
+              )}
+
+              {suggestedProjects && (
+                <div>
+                  <div style={{ fontWeight:700, color:C.text, fontSize:14, marginBottom:12 }}>
+                    ✨ AI-Suggested Stronger Projects
+                    <span style={{ color:"#64748b", fontWeight:400, fontSize:12, marginLeft:8 }}>— built for this specific role</span>
+                  </div>
+                  {suggestedProjects.map((proj,i)=>(
+                    <div key={i} style={{ background:"#ffffff", border:`1.5px solid ${C.purple}30`, borderRadius:14, padding:16, marginBottom:10 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+                        <div>
+                          <div style={{ fontWeight:800, color:C.text, fontSize:14 }}>{proj.name}</div>
+                          <div style={{ fontSize:11, color:C.purple, fontWeight:600, marginTop:2 }}>{proj.tech}</div>
+                        </div>
+                        <span style={{ background:"#f0fdf4", color:C.green, fontSize:10, padding:"3px 10px", borderRadius:20, fontWeight:700, border:"1px solid #bbf7d0", flexShrink:0 }}>Stronger</span>
+                      </div>
+                      {proj.whyStrong && (
+                        <div style={{ background:`${C.purple}08`, border:`1px solid ${C.purple}20`, borderRadius:8, padding:"8px 12px", marginBottom:10, fontSize:12, color:C.purple }}>
+                          💡 {proj.whyStrong}
+                        </div>
+                      )}
+                      {(proj.bullets||[]).map((b,j)=>(
+                        <div key={j} style={{ fontSize:12, color:"#475569", marginBottom:4, paddingLeft:12, position:"relative", lineHeight:1.6 }}>
+                          <span style={{ position:"absolute", left:2, top:0 }}>•</span>{b}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+
+                  <div style={{ display:"flex", gap:10, marginTop:14, flexWrap:"wrap" }}>
+                    <button
+                      onClick={()=>{ setUsingSuggestedProjects(true); runOptimize(); }}
+                      style={{ padding:"11px 24px", borderRadius:10, border:"none", cursor:"pointer", background:`linear-gradient(135deg,${C.green},${C.greenDark})`, color:"#fff", fontWeight:700, fontFamily:"'Inter',sans-serif", fontSize:13 }}>
+                      ✅ Use These Projects → Optimize Resume
+                    </button>
+                    <button
+                      onClick={()=>{ setUsingSuggestedProjects(false); runOptimize(); }}
+                      style={{ padding:"11px 24px", borderRadius:10, border:`1.5px solid ${C.border}`, cursor:"pointer", background:"#ffffff", color:C.soft, fontWeight:600, fontFamily:"'Inter',sans-serif", fontSize:13 }}>
+                      Keep My Original Projects
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
-          ))}
+          )}
+
+          {step !== "optimized" && !(a.projectsAreWeak || (a.projectFit||[]).filter(p=>p.relevance<65).length >= 2) && (
+            <div style={{ textAlign:"center", marginTop:8 }}>
+              <button onClick={runOptimize}
+                style={{ padding:"14px 40px", fontSize:15, borderRadius:12, border:"none", cursor:"pointer", background:"linear-gradient(135deg,#7c3aed,#5b21b6)", color:"#fff", fontWeight:800, fontFamily:"'Inter',sans-serif" }}>
+                ✨ Optimize Resume with These Projects
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1653,7 +1905,11 @@ Return format:
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12, flexWrap:"wrap", gap:12 }}>
               <div>
                 <div style={{ fontWeight:700, color:C.text, fontSize:16 }}>✨ ATS-Optimized Resume — Jake's Format</div>
-                <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>Education preserved exactly · Same company/title · JD keywords mirrored · Metrics added · Single page</div>
+                <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>
+                  {optimized.experience?.length > 0
+                    ? "Education + Experience preserved · JD keywords mirrored · Realistic metrics · Single page"
+                    : "No fake experience added · 3 strong projects fill the page · JD keywords mirrored · Single page"}
+                </div>
               </div>
               <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                 <button onClick={()=>handleDownload("pdf")} disabled={downloading==="pdf"}
@@ -1705,7 +1961,7 @@ Return format:
           <JakesResumePreview data={optimized} />
 
           <div style={{ marginTop:14, background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:12, padding:"12px 16px", fontSize:13, color:"#475569", lineHeight:1.7 }}>
-            💡 <strong style={{ color:"#16a34a" }}>Pro tip:</strong> Download PDF for job portals (Naukri, LinkedIn, company sites). Download DOCX to edit in Google Docs.
+            💡 <strong style={{ color:"#16a34a" }}>Pro tip:</strong> Download PDF for job portals (Naukri, LinkedIn, company sites). Download DOCX to edit in Google Docs or Word.
           </div>
         </div>
       )}
@@ -1714,7 +1970,7 @@ Return format:
       <div style={{ marginTop:18 }}>
         <button onClick={()=>{
           setStep("input"); setAnalysis(null); setOptimized(null); setOptimizedScores(null); setErr(""); setSection("overview");
-          setJd(""); setResume(""); setFileName("");
+          setJd(""); setResume(""); setFileName(""); setSuggestedProjects(null); setUsingSuggestedProjects(false);
           localStorage.removeItem("tp_jd"); localStorage.removeItem("tp_resume"); localStorage.removeItem("tp_fileName");
         }} style={{ width:"100%", padding:"12px", borderRadius:10, border:`1.5px solid ${C.border}`, background:"transparent", color:"#64748b", cursor:"pointer", fontFamily:"'Inter',sans-serif", fontSize:13 }}>
           🔄 Analyze Another Job
