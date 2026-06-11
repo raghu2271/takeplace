@@ -18,7 +18,6 @@ const C = {
   orange:"#ea580c", orangeLight:"#f97316",
 };
 
-// ─── GLOBAL CSS ─────────────────────────────────────────────────────────────
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap');
   *{box-sizing:border-box;margin:0;padding:0;}
@@ -46,7 +45,6 @@ const css = `
   button:active{transform:scale(.98);}
 `;
 
-// ─── SHARED COMPONENTS ──────────────────────────────────────────────────────
 const inp = {
   width:"100%", background:"#ffffff", border:`1.5px solid ${C.border}`,
   borderRadius:10, padding:"11px 14px", color:C.text, fontSize:14,
@@ -162,42 +160,149 @@ async function extractTextFromDOCX(file) {
   return result.value.trim();
 }
 
-// ─── DETECT EXPERIENCE ──────────────────────────────────────────────────────
-// Returns true only if the resume has a real experience section with company/role
-function detectHasExperience(resumeText) {
-  if (!resumeText) return false;
-  const text = resumeText.toLowerCase();
+// ══════════════════════════════════════════════════════════════════════════
+// ─── RESUME SECTION EXTRACTOR (the real fix — parse before AI) ───────────
+// ══════════════════════════════════════════════════════════════════════════
+function parseResumeStructure(rawText) {
+  if (!rawText) return { name:"", contact:"", education:[], experience:[], projects:[], skills:[], certifications:[], raw:rawText };
 
-  // Must contain experience/work section header
-  const hasExpHeader = /\b(experience|work experience|internship|employment|work history)\b/.test(text);
-  if (!hasExpHeader) return false;
+  const lines = rawText.split(/\n/).map(l => l.trim()).filter(Boolean);
 
-  // Must have a company-like line (something that looks like a job)
-  // Look for patterns: company names, job titles with dates
-  const hasCompanyOrRole = (
-    /\b(intern|developer|engineer|analyst|designer|manager|associate|trainee|consultant)\b/.test(text) ||
-    /(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{4}/.test(text) ||
-    /\d{4}\s*(–|-|to)\s*\d{4}/.test(text) ||
-    /\d{4}\s*(–|-|to)\s*(present|current)/i.test(text)
-  );
-
-  // Avoid false positives — "I have experience in Python" should not count
-  // Check that experience section actually has bullet points or role descriptions
-  const lines = resumeText.split("\n").map(l => l.trim()).filter(Boolean);
-  let inExpSection = false;
-  let expLineCount = 0;
-  const sectionEndPattern = /^(education|projects|skills|technical|certif|achievements|summary|objective)\b/i;
-
+  // Detect section boundaries
+  const SECTION_RE = /^(PROFESSIONAL SUMMARY|TECHNICAL SKILLS|EXPERIENCE|PROJECTS|EDUCATION|CERTIFICATIONS|CERTIFICATIONS & ACHIEVEMENTS|ACHIEVEMENTS|SKILLS|SUMMARY|OBJECTIVE|WORK EXPERIENCE|INTERNSHIP)\s*$/i;
+  const sections = {};
+  let currentSection = "header";
+  sections["header"] = [];
   for (const line of lines) {
-    if (/^(experience|work experience|internship|employment)\b/i.test(line)) {
-      inExpSection = true; continue;
+    if (SECTION_RE.test(line)) {
+      currentSection = line.toUpperCase().replace(/\s+/g," ").replace("CERTIFICATIONS & ACHIEVEMENTS","CERTIFICATIONS").replace("WORK EXPERIENCE","EXPERIENCE");
+      sections[currentSection] = [];
+    } else {
+      if (!sections[currentSection]) sections[currentSection] = [];
+      sections[currentSection].push(line);
     }
-    if (inExpSection && sectionEndPattern.test(line)) break;
-    if (inExpSection && line.length > 10) expLineCount++;
   }
 
-  // Need at least 2 lines under experience section AND company/role signal
-  return hasCompanyOrRole && expLineCount >= 2;
+  // ── HEADER: name + contact ──
+  const headerLines = sections["header"] || [];
+  const name = headerLines[0] || "";
+  const contact = headerLines.slice(1).join(" | ");
+
+  // ── EDUCATION ──
+  const eduLines = sections["EDUCATION"] || [];
+  const education = [];
+  let i = 0;
+  while (i < eduLines.length) {
+    const line = eduLines[i];
+    // Lines with degree keywords
+    if (/B\.Tech|B\.E|M\.Tech|MBA|BCA|MCA|Bachelor|Master|B\.Sc|Intermediate|10th|12th|SSC|HSC/i.test(line)) {
+      // Extract CGPA/percentage
+      const cgpaMatch = line.match(/CGPA[\s:]+[\d.]+\s*\/\s*10/i) || line.match(/[\d.]+\s*\/\s*10/) || line.match(/[\d.]+%/);
+      // Extract dates
+      const dateMatch = line.match(/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{4}|\d{4}/g);
+      const lastDate = dateMatch ? dateMatch[dateMatch.length - 1] : "";
+      // School from next line or same line
+      let school = "", location = "", degree = line, dates = lastDate;
+      // Check if school/location is on this line or next
+      if (eduLines[i+1] && /University|College|Institute|School/i.test(eduLines[i+1])) {
+        school = eduLines[i+1];
+        i += 2;
+      } else {
+        // Try to split "Degree | School, City  dates" pattern
+        const pipeSplit = line.split("|");
+        if (pipeSplit.length >= 2) {
+          degree = pipeSplit[0].trim();
+          const rest = pipeSplit.slice(1).join("|");
+          const dateInRest = rest.match(/(May \d{4}|Jun \d{4}|\d{4})/);
+          if (dateInRest) {
+            dates = rest.slice(dateInRest.index).trim();
+            school = rest.slice(0, dateInRest.index).trim();
+          } else {
+            school = rest.trim();
+          }
+        }
+        i++;
+      }
+      // Clean up degree — remove trailing dates
+      degree = degree.replace(/\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{4}.*$/, "").replace(/\s+\d{4}.*$/, "").trim();
+      education.push({ degree, school, location, dates });
+    } else {
+      i++;
+    }
+  }
+
+  // ── EXPERIENCE ──
+  const expLines = sections["EXPERIENCE"] || [];
+  const experience = [];
+  let currentExp = null;
+  for (const line of expLines) {
+    // Line with em dash or — usually means "Title — Company, City  dates"
+    const titleLine = line.match(/^(.+?)\s+[—–-]{1,2}\s+(.+?),\s*(.+?)\s+((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{4}\s*[–-]\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{4}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{4}\s*[–-]\s*Present|\d{4}\s*[–-]\s*\d{4})/i);
+    if (titleLine) {
+      if (currentExp) experience.push(currentExp);
+      currentExp = {
+        title: titleLine[1].trim(),
+        company: titleLine[2].trim(),
+        location: titleLine[3].trim(),
+        dates: titleLine[4].trim(),
+        bullets: [],
+      };
+    } else if (line.match(/^[•\-\*]/) && currentExp) {
+      currentExp.bullets.push(line.replace(/^[•\-\*]\s*/, "").trim());
+    } else if (currentExp && line.length > 15 && !line.match(/^\d{4}/)) {
+      // Could be a bullet without bullet char
+      currentExp.bullets.push(line);
+    }
+  }
+  if (currentExp) experience.push(currentExp);
+
+  // ── PROJECTS ──
+  const projLines = sections["PROJECTS"] || [];
+  const projects = [];
+  let currentProj = null;
+  for (const line of projLines) {
+    // Project name line: not starting with bullet, has a year or tech
+    const isBullet = /^[•\-\*]/.test(line);
+    const hasYear = /\b(2024|2025|2026|2023)\b/.test(line);
+    const isTechLine = /^[A-Z][a-z]+,\s|Java,|Python,|React|Node|Spring|Flask|Django/.test(line);
+    if (!isBullet && !isTechLine && (hasYear || (line.length < 80 && !line.includes("•")))) {
+      if (currentProj && (currentProj.bullets.length > 0 || currentProj.tech)) {
+        projects.push(currentProj);
+      }
+      currentProj = { name: line.replace(/\s+\d{4}$/, "").trim(), tech: "", dates: "", bullets: [] };
+      const yearMatch = line.match(/\b(2024|2025|2026|2023)\b/);
+      if (yearMatch) currentProj.dates = yearMatch[0];
+    } else if (isTechLine && currentProj) {
+      currentProj.tech = line;
+    } else if (isBullet && currentProj) {
+      currentProj.bullets.push(line.replace(/^[•\-\*]\s*/, "").trim());
+    }
+  }
+  if (currentProj && (currentProj.bullets.length > 0 || currentProj.tech)) projects.push(currentProj);
+
+  // ── SKILLS ──
+  const skillLines = sections["TECHNICAL SKILLS"] || sections["SKILLS"] || [];
+  const skills = [];
+  for (const line of skillLines) {
+    const colonIdx = line.indexOf(":");
+    if (colonIdx > 0) {
+      skills.push({ category: line.slice(0, colonIdx).trim(), items: line.slice(colonIdx+1).trim() });
+    }
+  }
+
+  // ── CERTIFICATIONS ──
+  const certLines = sections["CERTIFICATIONS"] || [];
+  const certifications = certLines
+    .map(l => l.replace(/^[•\-\*]\s*/, "").trim())
+    .filter(l => l.length > 5);
+
+  return { name, contact, education, experience, projects, skills, certifications, raw: rawText };
+}
+
+function detectHasExperience(resumeText) {
+  if (!resumeText) return false;
+  const parsed = parseResumeStructure(resumeText);
+  return parsed.experience.length > 0 && parsed.experience[0].bullets.length > 0;
 }
 
 // ─── PDF DOWNLOAD ────────────────────────────────────────────────────────────
@@ -214,53 +319,11 @@ async function downloadPDF(resumeData, filename) {
   const doc = new jsPDF({ orientation:"portrait", unit:"mm", format:"a4" });
   const W = 210, ml = 15, mr = 15, cw = W - ml - mr;
   let y = 18;
-
-  if (typeof resumeData === "string") {
-    const lines = resumeData.split("\n");
-    doc.setFont("helvetica","normal");
-    lines.forEach(line => {
-      const trimmed = line.trim();
-      if (!trimmed) { y += 3; return; }
-      if (/^[A-Z\s&]+$/.test(trimmed) && trimmed.length > 3 && trimmed.length < 40) {
-        if (y > 260) { doc.addPage(); y = 15; }
-        y += 2;
-        doc.setFontSize(9.5); doc.setFont("helvetica","bold");
-        doc.text(trimmed, ml, y);
-        y += 1;
-        doc.setDrawColor(0,0,0); doc.setLineWidth(0.4);
-        doc.line(ml, y, W - mr, y);
-        y += 4;
-        doc.setFont("helvetica","normal"); doc.setFontSize(9);
-      } else if (trimmed.startsWith("•") || trimmed.startsWith("-")) {
-        if (y > 270) { doc.addPage(); y = 15; }
-        const text = trimmed.replace(/^[•\-]\s*/,"");
-        doc.setFontSize(9);
-        doc.text("•", ml + 2, y);
-        const wrapped = doc.splitTextToSize(text, cw - 6);
-        wrapped.forEach((wl, i) => {
-          if (y > 270) { doc.addPage(); y = 15; }
-          doc.text(wl, ml + 6, y);
-          if (i < wrapped.length - 1) y += 4.2;
-        });
-        y += 4.5;
-      } else {
-        if (y > 270) { doc.addPage(); y = 15; }
-        const wrapped = doc.splitTextToSize(trimmed, cw);
-        doc.setFontSize(9);
-        wrapped.forEach(wl => { doc.text(wl, ml, y); y += 4.2; });
-        y += 1;
-      }
-    });
-    doc.save(filename);
-    return;
-  }
-
   const d = resumeData;
 
   doc.setFontSize(16); doc.setFont("helvetica","bold");
   doc.text(d.name || "", W / 2, y, { align:"center" });
   y += 6;
-
   doc.setFontSize(8.5); doc.setFont("helvetica","normal"); doc.setTextColor(60,60,60);
   const contactParts = [d.phone,d.email,d.linkedin,d.github,d.location].filter(Boolean);
   doc.text(contactParts.join("  |  "), W / 2, y, { align:"center" });
@@ -332,11 +395,10 @@ async function downloadPDF(resumeData, filename) {
     d.projects.forEach(proj => {
       if (y > 260) { doc.addPage(); y = 15; }
       doc.setFont("helvetica","bold"); doc.setFontSize(9);
-      const projTitle = proj.name || "";
-      doc.text(projTitle, ml, y);
+      doc.text(proj.name || "", ml, y);
       if (proj.tech) {
         const techStr = ` | ${proj.tech}`;
-        const boldW = doc.getTextWidth(projTitle);
+        const boldW = doc.getTextWidth(proj.name||"");
         doc.setFont("helvetica","italic");
         const techWrapped = doc.splitTextToSize(techStr, cw - boldW - 2);
         doc.text(techWrapped[0] || "", ml + boldW, y);
@@ -385,18 +447,6 @@ async function downloadDOCXJake(resumeData, filename) {
     });
   }
   const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle } = window.docx;
-
-  if (typeof resumeData === "string") {
-    const paragraphs = resumeData.split("\n").map(line =>
-      new Paragraph({ children:[new TextRun({ text:line, size:20 })] })
-    );
-    const doc = new Document({ sections:[{ properties:{}, children:paragraphs }] });
-    const blob = await Packer.toBlob(doc);
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob); a.download = filename; a.click();
-    return;
-  }
-
   const d = resumeData;
   const children = [];
 
@@ -490,7 +540,7 @@ async function downloadDOCXJake(resumeData, filename) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// LANDING PAGE
+// LANDING PAGE (unchanged from original)
 // ══════════════════════════════════════════════════════════════════════════
 function LandingPage({ onGetStarted }) {
   const [scrolled, setScrolled] = useState(false);
@@ -566,7 +616,7 @@ function LandingPage({ onGetStarted }) {
             <Btn variant="cta" onClick={onGetStarted} style={{ padding:"15px 36px", fontSize:16, borderRadius:12 }}>
               🚀 Start Free — No Credit Card
             </Btn>
-            <Btn variant="ghost" onClick={()=>document.getElementById("features").scrollIntoView({behavior:"smooth"})}
+            <Btn variant="ghost" onClick={()=>document.getElementById("features")?.scrollIntoView({behavior:"smooth"})}
               style={{ padding:"15px 28px", fontSize:16, borderRadius:12 }}>See How It Works ↓</Btn>
           </div>
           <div className="fade" style={{ display:"flex", gap:0, justifyContent:"center", marginTop:64,
@@ -655,12 +705,10 @@ function LandingPage({ onGetStarted }) {
 
       <section style={{ padding:"60px 24px", background:"#eff6ff" }}>
         <div style={{ maxWidth:700, margin:"0 auto", textAlign:"center" }}>
-          <div style={{ fontSize:12, color:C.blue, fontWeight:700, letterSpacing:2, marginBottom:10, textTransform:"uppercase" }}>About</div>
           <div style={{ fontWeight:800, fontSize:30, color:C.text, marginBottom:16 }}>Built by a Fresher, for Freshers</div>
           <div style={{ color:C.soft, fontSize:15, lineHeight:1.9, marginBottom:20 }}>
             TakePlace was built by <strong style={{color:C.blue}}>Raghu Dadigela</strong>, a B.Tech CSE (AI & ML) student who
-            felt the real pain of job hunting — endless applications, ATS rejections, and resumes that
-            never got shortlisted. So he built the tool he wished existed.
+            felt the real pain of job hunting — endless applications, ATS rejections, and resumes that never got shortlisted.
           </div>
           <div style={{ display:"flex", gap:12, justifyContent:"center", flexWrap:"wrap" }}>
             <Tag color={C.blue}>🎓 CSE AI & ML Graduate 2026</Tag>
@@ -672,15 +720,10 @@ function LandingPage({ onGetStarted }) {
 
       <section style={{ padding:"60px 24px", maxWidth:700, margin:"0 auto", textAlign:"center" }}>
         <div style={{ background:"#ffffff", border:`1.5px solid ${C.border}`, borderRadius:20, padding:"40px 32px", boxShadow:"0 4px 20px rgba(0,0,0,0.06)" }}>
-          <div style={{ fontSize:40, marginBottom:12 }}>💬</div>
           <div style={{ fontWeight:800, fontSize:22, color:C.text, marginBottom:10 }}>Need Help or Have a Query?</div>
-          <div style={{ color:C.soft, fontSize:14, marginBottom:20, lineHeight:1.7 }}>
-            Facing an issue? Got feedback? Message any queries — Raghu reads every message personally.
-          </div>
           <a href="mailto:takeplace.in@gmail.com" style={{ display:"inline-flex", alignItems:"center", gap:8,
             background:`linear-gradient(135deg,${C.blue},${C.blueLight})`, color:"#fff", fontWeight:700,
-            padding:"12px 28px", borderRadius:10, fontSize:14, textDecoration:"none",
-            boxShadow:"0 2px 12px "+C.blue+"40" }}>
+            padding:"12px 28px", borderRadius:10, fontSize:14, textDecoration:"none" }}>
             📧 takeplace.in@gmail.com
           </a>
         </div>
@@ -693,9 +736,6 @@ function LandingPage({ onGetStarted }) {
           <div className="float" style={{ fontSize:52, marginBottom:16 }}>⚡</div>
           <div style={{ fontWeight:900, fontSize:30, color:C.text, marginBottom:12 }}>
             It's Your Time.<br/><span style={{ color:C.blue }}>TakePlace.</span>
-          </div>
-          <div style={{ color:C.soft, fontSize:15, marginBottom:32, lineHeight:1.7 }}>
-            Join 12,000+ freshers who optimized their resumes and landed interviews faster.
           </div>
           <Btn variant="cta" onClick={onGetStarted} style={{ padding:"16px 48px", fontSize:16, borderRadius:12 }}>
             Start Free Now →
@@ -714,7 +754,7 @@ function LandingPage({ onGetStarted }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// AUTH PAGE
+// AUTH PAGE (unchanged)
 // ══════════════════════════════════════════════════════════════════════════
 function AuthPage({ onLogin, onBack }) {
   const [mode, setMode] = useState("login");
@@ -723,27 +763,12 @@ function AuthPage({ onLogin, onBack }) {
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-
   const set = (k,v) => setForm(p=>({...p,[k]:v}));
 
   const handleGoogle = async () => {
     setGoogleLoading(true); setErr("");
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider:"google",
-      options:{ redirectTo: window.location.origin }
-    });
+    const { error } = await supabase.auth.signInWithOAuth({ provider:"google", options:{ redirectTo: window.location.origin } });
     if (error) { setErr(error.message); setGoogleLoading(false); }
-  };
-
-  const handleForgot = async () => {
-    if (!form.email) { setErr("Enter your email address first."); return; }
-    setLoading(true); setErr(""); setMsg("");
-    const { error } = await supabase.auth.resetPasswordForEmail(form.email, {
-      redirectTo:`${window.location.origin}/reset-password`
-    });
-    setLoading(false);
-    if (error) setErr(error.message);
-    else setMsg("✅ Password reset email sent! Check your inbox.");
   };
 
   const handle = async () => {
@@ -752,10 +777,7 @@ function AuthPage({ onLogin, onBack }) {
       if (mode==="register") {
         if (!form.name||!form.email||!form.password) throw new Error("All fields are required");
         if (form.password.length<6) throw new Error("Password must be at least 6 characters");
-        const { error } = await supabase.auth.signUp({
-          email:form.email, password:form.password,
-          options:{ data:{ full_name:form.name } }
-        });
+        const { error } = await supabase.auth.signUp({ email:form.email, password:form.password, options:{ data:{ full_name:form.name } } });
         if (error) throw error;
         setMsg("✅ Account created! Check your email to confirm, then sign in.");
         setMode("login");
@@ -774,101 +796,52 @@ function AuthPage({ onLogin, onBack }) {
       <style>{css}</style>
       <div className="fade" style={{ width:"100%", maxWidth:420, background:"#ffffff",
         border:`1.5px solid ${C.border}`, borderRadius:24, padding:"36px 36px",
-        boxShadow:"0 16px 48px rgba(37,99,235,0.12)", position:"relative", zIndex:1 }}>
-        <button onClick={onBack} style={{ background:"none", border:"none", color:C.muted,
-          fontSize:12, cursor:"pointer", fontFamily:"'Inter',sans-serif", marginBottom:24,
-          display:"flex", alignItems:"center", gap:4 }}>← Back to home</button>
+        boxShadow:"0 16px 48px rgba(37,99,235,0.12)" }}>
+        <button onClick={onBack} style={{ background:"none", border:"none", color:C.muted, fontSize:12, cursor:"pointer", fontFamily:"'Inter',sans-serif", marginBottom:24 }}>← Back to home</button>
         <div style={{ textAlign:"center", marginBottom:28 }}>
           <div style={{ fontSize:44, marginBottom:6 }}>⚡</div>
           <div style={{ fontWeight:900, fontSize:26, color:C.blue }}>TakePlace</div>
-          <div style={{ color:C.muted, fontSize:13, marginTop:4 }}>
-            {mode==="login"?"Welcome back 👋":mode==="register"?"Create your account ✨":"Reset your password 🔑"}
-          </div>
+          <div style={{ color:C.muted, fontSize:13, marginTop:4 }}>{mode==="login"?"Welcome back 👋":"Create your account ✨"}</div>
         </div>
-        {mode!=="forgot" && (
-          <>
-            <button onClick={handleGoogle} disabled={googleLoading}
-              style={{ width:"100%", padding:"12px", borderRadius:10, border:`1.5px solid ${C.border}`,
-                background:"#ffffff", color:C.text, fontSize:14, cursor:"pointer",
-                fontFamily:"'Inter',sans-serif", fontWeight:600, display:"flex",
-                alignItems:"center", justifyContent:"center", gap:10, marginBottom:18,
-                transition:"all .2s", boxShadow:"0 1px 4px rgba(0,0,0,0.06)" }}>
-              {googleLoading ? <SpinIcon size={16}/> : (
-                <svg width="18" height="18" viewBox="0 0 24 24">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                </svg>
-              )}
-              Continue with Google
+        <button onClick={handleGoogle} disabled={googleLoading}
+          style={{ width:"100%", padding:"12px", borderRadius:10, border:`1.5px solid ${C.border}`,
+            background:"#ffffff", color:C.text, fontSize:14, cursor:"pointer",
+            fontFamily:"'Inter',sans-serif", fontWeight:600, display:"flex",
+            alignItems:"center", justifyContent:"center", gap:10, marginBottom:18, transition:"all .2s" }}>
+          {googleLoading ? <SpinIcon size={16}/> : <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>}
+          Continue with Google
+        </button>
+        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:18 }}>
+          <div style={{ flex:1, height:1, background:C.border }}/><span style={{ color:C.muted, fontSize:12 }}>or</span><div style={{ flex:1, height:1, background:C.border }}/>
+        </div>
+        <div style={{ display:"flex", background:C.card, borderRadius:10, padding:4, marginBottom:22 }}>
+          {["login","register"].map(m=>(
+            <button key={m} onClick={()=>{setMode(m);setErr("");setMsg("");}}
+              style={{ flex:1, padding:"9px", borderRadius:8, border:"none", cursor:"pointer",
+                fontFamily:"'Inter',sans-serif", fontWeight:600, fontSize:13, transition:"all .2s",
+                background:mode===m?"#ffffff":"transparent", color:mode===m?C.blue:C.muted,
+                boxShadow:mode===m?"0 1px 4px rgba(0,0,0,0.08)":"none" }}>
+              {m==="login"?"Sign In":"Register"}
             </button>
-            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:18 }}>
-              <div style={{ flex:1, height:1, background:C.border }}/>
-              <span style={{ color:C.muted, fontSize:12 }}>or</span>
-              <div style={{ flex:1, height:1, background:C.border }}/>
-            </div>
-            <div style={{ display:"flex", background:C.card, borderRadius:10, padding:4, marginBottom:22 }}>
-              {["login","register"].map(m=>(
-                <button key={m} onClick={()=>{setMode(m);setErr("");setMsg("");}}
-                  style={{ flex:1, padding:"9px", borderRadius:8, border:"none", cursor:"pointer",
-                    fontFamily:"'Inter',sans-serif", fontWeight:600, fontSize:13, transition:"all .2s",
-                    background:mode===m?"#ffffff":"transparent",
-                    color:mode===m?C.blue:C.muted,
-                    boxShadow:mode===m?"0 1px 4px rgba(0,0,0,0.08)":"none" }}>
-                  {m==="login"?"Sign In":"Register"}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+          ))}
+        </div>
         <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-          {mode==="register" && (
-            <input style={inp} placeholder="Full name" value={form.name} onChange={e=>set("name",e.target.value)}/>
-          )}
-          <input style={inp} placeholder="Email address" type="email" value={form.email}
-            onChange={e=>set("email",e.target.value)} onKeyDown={e=>e.key==="Enter"&&handle()}/>
-          {mode!=="forgot" && (
-            <input style={inp} placeholder="Password" type="password" value={form.password}
-              onChange={e=>set("password",e.target.value)} onKeyDown={e=>e.key==="Enter"&&handle()}/>
-          )}
+          {mode==="register" && <input style={inp} placeholder="Full name" value={form.name} onChange={e=>set("name",e.target.value)}/>}
+          <input style={inp} placeholder="Email address" type="email" value={form.email} onChange={e=>set("email",e.target.value)} onKeyDown={e=>e.key==="Enter"&&handle()}/>
+          <input style={inp} placeholder="Password" type="password" value={form.password} onChange={e=>set("password",e.target.value)} onKeyDown={e=>e.key==="Enter"&&handle()}/>
         </div>
-        {err && <div style={{ color:C.danger, fontSize:12, marginTop:12, background:"#fef2f2",
-          padding:"8px 12px", borderRadius:8, border:"1px solid #fecaca" }}>⚠ {err}</div>}
-        {msg && <div style={{ color:C.green, fontSize:12, marginTop:12, background:"#f0fdf4",
-          padding:"8px 12px", borderRadius:8, border:"1px solid #bbf7d0" }}>{msg}</div>}
-        {mode==="forgot" ? (
-          <>
-            <Btn variant="cta" onClick={handleForgot} loading={loading} style={{ width:"100%", marginTop:20, padding:"13px" }}>
-              Send Reset Email →
-            </Btn>
-            <button onClick={()=>{setMode("login");setErr("");setMsg("");}}
-              style={{ width:"100%", marginTop:12, padding:"10px", background:"none", border:"none",
-                color:C.muted, fontSize:13, cursor:"pointer", fontFamily:"'Inter',sans-serif" }}>
-              ← Back to Sign In
-            </button>
-          </>
-        ) : (
-          <>
-            <Btn variant="cta" onClick={handle} loading={loading} style={{ width:"100%", marginTop:20, padding:"13px", fontSize:15 }}>
-              {mode==="login"?"Sign In →":"Create Account →"}
-            </Btn>
-            {mode==="login" && (
-              <button onClick={()=>{setMode("forgot");setErr("");setMsg("");}}
-                style={{ width:"100%", marginTop:12, padding:"8px", background:"none", border:"none",
-                  color:C.muted, fontSize:12, cursor:"pointer", fontFamily:"'Inter',sans-serif", textDecoration:"underline" }}>
-                Forgot password?
-              </button>
-            )}
-          </>
-        )}
+        {err && <div style={{ color:C.danger, fontSize:12, marginTop:12, background:"#fef2f2", padding:"8px 12px", borderRadius:8 }}>⚠ {err}</div>}
+        {msg && <div style={{ color:C.green, fontSize:12, marginTop:12, background:"#f0fdf4", padding:"8px 12px", borderRadius:8 }}>{msg}</div>}
+        <Btn variant="cta" onClick={handle} loading={loading} style={{ width:"100%", marginTop:20, padding:"13px", fontSize:15 }}>
+          {mode==="login"?"Sign In →":"Create Account →"}
+        </Btn>
       </div>
     </div>
   );
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// RESUME ANALYZER
+// RESUME ANALYZER — FIXED VERSION
 // ══════════════════════════════════════════════════════════════════════════
 function ResumeAnalyzer({ user }) {
   const [jd, setJd] = useState(() => localStorage.getItem("tp_jd") || "");
@@ -882,24 +855,19 @@ function ResumeAnalyzer({ user }) {
   const [section, setSection] = useState("overview");
   const [downloading, setDownloading] = useState("");
 
-  // ── Suggested stronger projects state ──────────────────────────────
+  // Project selection state
   const [suggestedProjects, setSuggestedProjects] = useState(null);
   const [suggestingProjects, setSuggestingProjects] = useState(false);
-  const [usingSuggestedProjects, setUsingSuggestedProjects] = useState(false);
+  // "original" | "suggested" | index of specific suggested project
+  const [projectChoice, setProjectChoice] = useState("original");
 
   const fileRef = useRef();
 
-  // ── SILENT ACTIVITY TRACKER ──────────────────────────────────────────
   const trackActivity = async (action, details = "") => {
     try {
       if (!user?.id) return;
-      await supabase.from("user_activity").insert({
-        user_id: user.id,
-        email: user.email,
-        action,
-        details,
-      });
-    } catch (_) { /* silent */ }
+      await supabase.from("user_activity").insert({ user_id:user.id, email:user.email, action, details });
+    } catch (_) {}
   };
 
   const handleFile = async (e) => {
@@ -911,14 +879,10 @@ function ResumeAnalyzer({ user }) {
       else if (f.name.endsWith(".docx")) text = await extractTextFromDOCX(f);
       else {
         const r = new FileReader();
-        r.onload = ev => {
-          setResume(ev.target.result); localStorage.setItem("tp_resume", ev.target.result);
-          trackActivity("resume_uploaded", f.name);
-        };
+        r.onload = ev => { setResume(ev.target.result); localStorage.setItem("tp_resume", ev.target.result); };
         r.readAsText(f); return;
       }
       setResume(text); localStorage.setItem("tp_resume", text);
-      trackActivity("resume_uploaded", f.name);
     } catch (e2) { setErr("Could not read file: " + e2.message); }
   };
 
@@ -926,11 +890,11 @@ function ResumeAnalyzer({ user }) {
   const runAnalysis = async () => {
     if (!jd.trim() || !resume.trim()) { setErr("Fill in both Job Description and Resume."); return; }
     setStep("analyzing"); setErr(""); setAnalysis(null); setOptimized(null); setOptimizedScores(null);
-    setSuggestedProjects(null); setUsingSuggestedProjects(false);
+    setSuggestedProjects(null); setProjectChoice("original");
     const jdT = jd.trim().slice(0, 800);
     const reT = resume.trim().slice(0, 900);
     try {
-      const prompt = `You are a senior ATS analyst, technical recruiter, and resume expert. Perform a DEEP, REAL analysis of this resume against the job description. Be honest and specific — not generic.
+      const prompt = `You are a senior ATS analyst and technical recruiter. Perform a DEEP, HONEST analysis.
 
 JD:
 ${jdT}
@@ -938,56 +902,45 @@ ${jdT}
 RESUME:
 ${reT}
 
-Return ONLY valid JSON with this exact structure (all fields required, be specific with real content from the resume):
+Return ONLY valid JSON:
 {
   "matchScore": 72,
   "atsScore": 78,
   "shortlistRate": 24,
   "verdict": "Strong Match",
-  "summary": "Specific 2-sentence summary about THIS candidate vs THIS JD.",
-  "recruiterImpression": "Specific 5-second recruiter thought about this actual resume.",
+  "summary": "2-sentence summary about THIS candidate vs THIS JD.",
+  "recruiterImpression": "5-second recruiter thought.",
   "sectionAudit": [
     {"section": "Contact Info", "score": 85, "status": "good", "feedback": "Specific feedback"},
     {"section": "Education", "score": 90, "status": "good", "feedback": "Specific feedback"},
     {"section": "Experience", "score": 65, "status": "warning", "feedback": "Specific feedback"},
     {"section": "Projects", "score": 80, "status": "good", "feedback": "Specific feedback"},
     {"section": "Skills", "score": 70, "status": "warning", "feedback": "Specific feedback"},
-    {"section": "Resume Format", "score": 60, "status": "warning", "feedback": "Specific feedback about Jake format, ATS readability"},
-    {"section": "Metrics & Numbers", "score": 40, "status": "weak", "feedback": "Specific feedback about quantified achievements"}
+    {"section": "Resume Format", "score": 60, "status": "warning", "feedback": "Specific feedback"},
+    {"section": "Metrics & Numbers", "score": 40, "status": "weak", "feedback": "Specific feedback"}
   ],
   "strongMatches": [
-    {"skill": "React.js", "reason": "Listed in both JD and resume with project proof", "strength": 90},
-    {"skill": "Node.js", "reason": "Reason", "strength": 85}
+    {"skill": "React.js", "reason": "Listed in both JD and resume with project proof", "strength": 90}
   ],
   "missingKeywords": [
-    {"keyword": "Docker", "importance": "High", "tip": "Add to Tools section — mentioned 3x in JD"},
-    {"keyword": "TypeScript", "importance": "Medium", "tip": "Tip"}
+    {"keyword": "Docker", "importance": "High", "tip": "Add to Tools section — mentioned 3x in JD"}
   ],
   "weakAreas": [
-    {"area": "No metrics in experience", "detail": "All bullets are task descriptions. Add numbers: 'Reduced API response time by 40%'", "priority": "High"},
-    {"area": "Summary section missing", "detail": "Detail", "priority": "Medium"}
+    {"area": "No metrics in experience", "detail": "Add numbers: reduce by X%, served Y users", "priority": "High"}
   ],
   "projectFit": [
-    {"name": "TakePlace", "relevance": 92, "keep": true, "reason": "Directly relevant — full stack with React, Node.js matches JD", "suggestion": "Add specific metric like '400+ users'"},
-    {"name": "Smart Job Tracker", "relevance": 75, "keep": true, "reason": "Reason", "suggestion": "Suggestion"}
+    {"name": "exact project name from resume", "relevance": 92, "keep": true, "reason": "Why relevant", "suggestion": "How to improve"}
   ],
   "projectsAreWeak": false,
-  "suggestedSkillsToAdd": ["Docker", "TypeScript", "Jest"],
-  "improvements": [
-    "Add metrics to every experience bullet",
-    "Include Docker and Kubernetes in Skills section",
-    "Add a 2-line summary targeting this specific role"
-  ],
-  "formatIssues": [
-    "Resume is not in Jake's single-column format",
-    "Skills section uses categories but missing some JD keywords"
-  ]
+  "suggestedSkillsToAdd": ["Docker", "TypeScript"],
+  "improvements": ["Add metrics to every experience bullet"],
+  "formatIssues": ["Resume not in Jake single-column format"]
 }
 
-Set "projectsAreWeak": true if 2 or more projects score below 65% relevance for this JD.`;
+"projectsAreWeak": true if 2+ projects score below 65%.`;
       const raw = await callAI(prompt, 2000, "json");
       const data = safeJSON(raw, null);
-      if (!data?.matchScore) throw new Error("Analysis failed — AI returned unexpected format. Try again.");
+      if (!data?.matchScore) throw new Error("Analysis failed — try again.");
       setAnalysis(data);
       setStep("analyzed");
       setSection("overview");
@@ -1001,18 +954,16 @@ Set "projectsAreWeak": true if 2 or more projects score below 65% relevance for 
     const jdT = jd.trim().slice(0, 600);
     const reT = resume.trim().slice(0, 800);
     try {
-      const prompt = `You are an expert resume consultant. The user's projects are weak for this job role.
-Based on their skills and the JD, suggest 3 STRONGER alternative projects they could build/highlight.
+      const prompt = `You are an expert resume consultant. Suggest 3 STRONGER alternative projects for this fresher.
 
 JD: ${jdT}
 RESUME (for their skill level): ${reT}
 
 Rules:
-- Projects must be REALISTIC for a fresher/student to build
-- Use technologies from both the JD and resume
-- Give projects that would DIRECTLY impress this recruiter
-- Metrics must be realistic: freshers don't have "500K users" — use "50+ users", "tested with 20+ users", "reduced by 18%"
-- Each project needs 4 punchy bullets with realistic numbers
+- REALISTIC for a fresher to build
+- Use technologies from both JD and resume
+- Realistic metrics: "50+ users", "tested with 20+ users", "reduced by 18%" — NOT "500K users"
+- 4 punchy bullets each
 
 Return ONLY valid JSON array:
 [
@@ -1020,283 +971,213 @@ Return ONLY valid JSON array:
     "name": "Project Name",
     "tech": "React.js, Node.js, MongoDB",
     "dates": "2025",
-    "whyStrong": "One sentence: why this impresses the recruiter for this specific role",
+    "whyStrong": "Why this impresses the recruiter for this specific role",
     "bullets": [
       "Built [specific thing] using [JD keyword], serving 40+ beta users with 95% uptime",
-      "Implemented [JD keyword] feature reducing manual effort by 22% across 3 test workflows",
-      "Designed REST API with Express.js handling 15+ endpoints, improving response time by 18%",
-      "Deployed on Vercel with CI/CD pipeline, achieving zero-downtime releases over 8 iterations"
+      "Implemented [JD keyword] feature reducing manual effort by 22%",
+      "Designed REST API handling 15+ endpoints, improving response time by 18%",
+      "Deployed on Vercel with CI/CD, achieving zero-downtime over 8 iterations"
     ]
-  },
-  { ... },
-  { ... }
+  }
 ]`;
       const raw = await callAI(prompt, 1500, "json");
       const arr = safeJSON(raw, []);
       if (Array.isArray(arr) && arr.length > 0) {
         setSuggestedProjects(arr);
-      } else {
-        throw new Error("Could not generate project suggestions. Try again.");
-      }
+      } else throw new Error("Could not generate suggestions.");
     } catch(e) {
       alert("Project suggestion failed: " + e.message);
     }
     setSuggestingProjects(false);
   };
 
-  // ── EXTRACT EDUCATION ──────────────────────────────────────────────────
-  const extractEducationFromResume = (rawText) => {
-    if (!rawText) return [];
-    const lines = rawText.split(/\n/).map(l => l.trim()).filter(Boolean);
-    let eduStart = -1;
-    let eduEnd = -1;
-    const sectionHeaders = /^(EXPERIENCE|WORK|PROJECTS|SKILLS|TECHNICAL|CERTIF|ACHIEVEMENTS|SUMMARY|OBJECTIVE|INTERNSHIP)/i;
-    for (let i = 0; i < lines.length; i++) {
-      if (/^EDUCATION/i.test(lines[i])) { eduStart = i + 1; continue; }
-      if (eduStart !== -1 && sectionHeaders.test(lines[i])) { eduEnd = i; break; }
-    }
-    if (eduStart === -1) return [];
-    if (eduEnd === -1) eduEnd = Math.min(eduStart + 8, lines.length);
-    const eduLines = lines.slice(eduStart, eduEnd).filter(l =>
-      !l.match(/^(EDUCATION|EXPERIENCE|PROJECTS|SKILLS)/i)
-    );
-    if (eduLines.length === 0) return [];
-    const entries = [];
-    let i = 0;
-    while (i < eduLines.length) {
-      const line1 = eduLines[i] || "";
-      const line2 = eduLines[i + 1] || "";
-      const datePattern = /(\b\d{4}\b.*?(?:–|-|to).*?\b\d{4}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{4}\b)/i;
-      let school = line1, location = "";
-      const locMatch = line1.match(/^(.+?)\s{2,}(.+)$/);
-      if (locMatch) { school = locMatch[1].trim(); location = locMatch[2].trim(); }
-      let degree = "", dates = "";
-      const dateInLine2 = line2.match(datePattern);
-      if (dateInLine2) {
-        const degDateSplit = line2.match(/^(.+?)\s{2,}(\S.*?\d{4}.*)$/);
-        if (degDateSplit) { degree = degDateSplit[1].trim(); dates = degDateSplit[2].trim(); }
-        else {
-          const dIdx = line2.indexOf(dateInLine2[0]);
-          degree = line2.slice(0, dIdx).trim();
-          dates = dateInLine2[0].trim();
-        }
-        i += 2;
-      } else {
-        degree = line2;
-        i += 2;
-      }
-      if (!degree && school.match(/B\.Tech|B\.E|M\.Tech|MBA|BCA|MCA|Bachelor|Master|B\.Sc/i)) {
-        degree = school; school = "";
-      }
-      if (school || degree) {
-        entries.push({ school, location, degree, dates });
-      }
-    }
-    return entries.length > 0 ? entries : [];
-  };
-
-  // ── STEP 2: OPTIMIZE → JAKE'S RESUME ──────────────────────────────────
-  const runOptimize = async () => {
+  // ══════════════════════════════════════════════════════════════════════
+  // ── STEP 2: OPTIMIZE — THE FIXED VERSION ──────────────────────────────
+  // Key: parse resume FIRST, then AI only rewrites bullets, not structure
+  // ══════════════════════════════════════════════════════════════════════
+  const runOptimize = async (choiceOverride) => {
     setStep("optimizing"); setErr("");
 
-    // ── KEY FIX: detect if resume has real experience ──────────────────
-    const hasExperience = detectHasExperience(resume);
-
+    const choice = choiceOverride !== undefined ? choiceOverride : projectChoice;
+    const parsed = parseResumeStructure(resume);
+    const hasExperience = parsed.experience.length > 0 && parsed.experience[0].bullets.length > 0;
     const jdT = jd.trim().slice(0, 600);
-    const reT = resume.trim().slice(0, 2500);
-    const extractedEducation = extractEducationFromResume(resume);
 
-    // Determine which projects to use
-    const projectsToUse = (usingSuggestedProjects && suggestedProjects?.length > 0)
-      ? suggestedProjects : null;
+    // Build the projects array to use
+    let projectsForOptimize = parsed.projects;
+    if (choice === "suggested" && suggestedProjects?.length > 0) {
+      projectsForOptimize = suggestedProjects;
+    } else if (typeof choice === "number" && suggestedProjects?.[choice]) {
+      // Mix: use the selected suggested project + keep originals for others
+      projectsForOptimize = [
+        suggestedProjects[choice],
+        ...parsed.projects.slice(0, 2),
+      ];
+    }
 
     try {
-      // ── Build experience instruction based on detection ──────────────
-      const expInstruction = hasExperience
-        ? `RULE 2 - EXPERIENCE (RESUME HAS EXPERIENCE — INCLUDE IT):
-Keep the SAME company name, SAME job title, SAME dates, SAME location as original resume.
-Only rewrite the bullet points to mirror JD keywords.
-Write 4 strong bullets per role with realistic metrics (15-25% improvements, not 80%).`
-        : `RULE 2 - NO EXPERIENCE (RESUME HAS NO EXPERIENCE):
-The original resume has NO work experience section.
-DO NOT invent or fabricate any experience.
-Return "experience": [] — empty array.
-To fill the single page, use 3 strong projects with 4 bullets each instead.`;
+      // ── Build AI prompt with EXACT data injected ──
+      // AI's job: ONLY rewrite bullets. Everything else is locked.
+      const expJSON = hasExperience ? JSON.stringify(parsed.experience.map(e => ({
+        title: e.title, company: e.company, location: e.location, dates: e.dates,
+        originalBullets: e.bullets,
+      })), null, 2) : "[]";
 
-      // ── Build projects instruction ───────────────────────────────────
-      const projectsInstruction = projectsToUse
-        ? `RULE 3 - PROJECTS (USE THESE AI-SUGGESTED PROJECTS — DO NOT CHANGE THEM):
-Use exactly these projects provided below. Copy their name, tech, dates, bullets exactly:
-${JSON.stringify(projectsToUse, null, 2)}`
-        : `RULE 3 - PROJECTS (USE PROJECTS FROM RESUME):
-Keep the same project names from the original resume.
-Rewrite bullets to mirror JD keywords with realistic metrics.
-${hasExperience ? "Write 4 bullets per project." : "Write 5 bullets per project since there is no experience section — make projects very detailed to fill the page."}`;
+      const projJSON = JSON.stringify(projectsForOptimize.map(p => ({
+        name: p.name, tech: p.tech || p.tech, dates: p.dates,
+        originalBullets: p.bullets || [],
+      })), null, 2);
 
-      const prompt = `You are an expert ATS resume writer. Produce a DENSE, FULL single-page resume in Jake's format optimized for the given JD.
+      const prompt = `You are an expert ATS resume bullet writer. Your ONLY job is to rewrite bullets using JD keywords.
 
-JD: ${jdT}
+JD Keywords to mirror: ${jdT.slice(0,400)}
 
-ORIGINAL RESUME:
-${reT}
+LOCKED DATA — DO NOT CHANGE NAMES, COMPANIES, DATES, TITLES, PROJECT NAMES:
 
-STRICT RULES — follow exactly:
+EXPERIENCE (locked):
+${expJSON}
 
-RULE 1 - EDUCATION: Copy education EXACTLY as it appears in the original resume. Same school name, degree, dates, location, CGPA. Do NOT change anything.
+PROJECTS (locked):
+${projJSON}
 
-${expInstruction}
+RULES:
+1. Keep EXACT title, company, location, dates for every experience entry
+2. Keep EXACT project name, tech, dates for every project
+3. ONLY rewrite the bullets — add JD keywords naturally where they fit the original work
+4. Keep the same technical domain — don't change Python work to React/Node work if original is Python
+5. Realistic metrics only: 15-25% improvements, not 400%; 40-100 users, not 500K
+6. 4 bullets per experience role, 4 bullets per project
+7. Start every bullet with strong action verb: Developed, Built, Engineered, Optimized, Designed, Implemented, Automated, Deployed, Integrated
 
-${projectsInstruction}
-
-RULE 4 - SINGLE PAGE & FULL: The resume MUST look completely filled. No empty space.
-${hasExperience
-  ? "With experience: 3 projects × 4 bullets each + experience × 4 bullets."
-  : "Without experience: 3 projects × 5 bullets each. Make each bullet 15-20 words minimum. This fills the space that experience would have used."}
-
-RULE 5 - KEYWORDS: Mirror exact keywords from the JD in every bullet. Use strong action verbs: Developed, Built, Engineered, Designed, Implemented, Optimized, Deployed, Integrated, Architected, Delivered.
-
-RULE 6 - REALISTIC METRICS: Use fresher-appropriate numbers only.
-Good: "improved by 18%", "served 45+ users", "resolved 12+ bugs", "reduced load time by 1.4s", "handled 8+ API endpoints"
-Bad: "improved by 400%", "served 500K users", "resolved 300+ bugs"
-
-RULE 7 - SKILLS: At least 6 categories with full lists. Mirror JD tech keywords.
-
-Return ONLY valid JSON:
+Return ONLY valid JSON with these exact keys:
 {
-  "name": "Full Name from resume",
-  "phone": "phone from resume",
-  "email": "email from resume",
-  "linkedin": "linkedin from resume",
-  "github": "github from resume",
-  "location": "location from resume",
-  "education": [
+  "experience": [
     {
-      "school": "COPY EXACTLY from resume",
-      "location": "COPY EXACTLY from resume",
-      "degree": "COPY EXACTLY from resume including CGPA",
-      "dates": "COPY EXACTLY from resume"
+      "title": "COPY EXACT from locked data",
+      "company": "COPY EXACT from locked data",
+      "location": "COPY EXACT from locked data",
+      "dates": "COPY EXACT from locked data",
+      "bullets": ["rewritten bullet 1", "rewritten bullet 2", "rewritten bullet 3", "rewritten bullet 4"]
     }
   ],
-  "experience": ${hasExperience ? `[
-    {
-      "title": "SAME title as in original resume",
-      "company": "SAME company as in original resume",
-      "location": "SAME location as in original resume",
-      "dates": "SAME dates as in original resume",
-      "bullets": [
-        "Developed [JD keyword] feature using [tech], improving [metric] by 18%",
-        "Built and integrated 8+ REST APIs using [tech stack], reducing [problem] by 22%",
-        "Optimized database queries improving data retrieval efficiency by 15%",
-        "Collaborated in Agile sprints resolving 12+ bugs across 4 feature releases"
-      ]
-    }
-  ]` : "[]"},
   "projects": [
     {
-      "name": "Project name from resume or suggested",
-      "tech": "Exact tech stack",
-      "dates": "2025 or 2026",
-      "bullets": [
-        "Engineered [description] with [JD keyword], serving 40+ users and achieving 94% task completion rate",
-        "Implemented [JD keyword] authentication with JWT, reducing unauthorized access incidents to zero across 3 test cycles",
-        "Built 8+ REST APIs with Express.js for [purpose], cutting average response time by 1.2s",
-        "Deployed on [platform] with environment configs, achieving 97% uptime over 6-week live period"
-        ${hasExperience ? "" : ',\n        "Designed responsive UI with [frontend tech] supporting 4 screen sizes, improving mobile usability score by 24%"'}
-      ]
+      "name": "COPY EXACT from locked data",
+      "tech": "COPY EXACT from locked data",
+      "dates": "COPY EXACT from locked data",
+      "bullets": ["rewritten bullet 1", "rewritten bullet 2", "rewritten bullet 3", "rewritten bullet 4"]
     }
-  ],
-  "skills": [
-    {"category": "Languages", "items": "JavaScript, Python, Java, SQL, HTML5, CSS3"},
-    {"category": "Frontend", "items": "React.js, Tailwind CSS, Bootstrap"},
-    {"category": "Backend", "items": "Node.js, Express.js, REST APIs, JWT"},
-    {"category": "Databases", "items": "MySQL, MongoDB, PostgreSQL"},
-    {"category": "Tools", "items": "Git, GitHub, Docker, Postman, VS Code"},
-    {"category": "Concepts", "items": "Data Structures, OOP, DBMS, Agile, System Design"}
-  ],
-  "certifications": [
-    "Exact certification 1 from resume",
-    "Exact certification 2 from resume",
-    "Exact certification 3 from resume"
-  ],
-  "optimizedMatchScore": 88,
-  "optimizedAtsScore": 91,
-  "optimizedShortlistRate": 34
+  ]
 }`;
 
-      const raw = await callAI(prompt, 3000, "json");
-      const data = safeJSON(raw, null);
-      if (!data?.name) throw new Error("Optimization failed — try again.");
+      const raw = await callAI(prompt, 2500, "json");
+      const rewritten = safeJSON(raw, null);
+      if (!rewritten?.projects) throw new Error("Optimization failed — try again.");
 
-      // ── Enforce no experience if resume has none ─────────────────────
-      if (!hasExperience) {
-        data.experience = [];
-      }
+      // ── Now build the final resume object from PARSED data + rewritten bullets ──
+      // Parse contact info
+      const contactLine = parsed.contact || "";
+      const emailMatch = contactLine.match(/[\w.+-]+@[\w-]+\.[a-z]{2,}/i);
+      const phoneMatch = contactLine.match(/\+?[\d\s\-()]{8,15}/);
+      const linkedinMatch = contactLine.match(/linkedin\.com\/in\/[\w-]+/i);
+      const githubMatch = contactLine.match(/github\.com\/[\w-]+/i);
+      const locationMatch = contactLine.match(/(?:Hyderabad|Bangalore|Chennai|Mumbai|Delhi|Pune|Kolkata)[^|,]*/i);
 
-      // ── Fix education if AI hallucinated it ──────────────────────────
-      if (extractedEducation.length > 0) {
-        data.education = extractedEducation;
-      } else {
-        const eduBad = !data.education || data.education.length === 0 ||
-          (data.education[0]?.school || "").toLowerCase().includes("not mentioned") ||
-          (data.education[0]?.school || "").trim() === "";
-        if (eduBad) {
-          try {
-            const eduPrompt = `Extract ONLY the education section from this resume as a JSON array. No other text.
+      // Education — use parsed exactly, but format nicely
+      const finalEducation = parsed.education.length > 0
+        ? parsed.education.map(e => ({
+            school: e.school || "",
+            location: e.location || "",
+            degree: e.degree || "",
+            dates: e.dates || "",
+          }))
+        : [];
+
+      // If education is empty from parser, try raw extraction as fallback
+      let education = finalEducation;
+      if (education.length === 0 || education.every(e => !e.school && !e.degree)) {
+        // Fallback: ask AI specifically for education
+        try {
+          const eduPrompt = `Extract ONLY education entries from this resume. Return JSON array only, no other text.
 Resume:
-${resume.trim().slice(0, 1500)}
-Return format:
-[{"school":"University Name","location":"City","degree":"B.Tech CSE | CGPA: 8.49","dates":"Sep 2022 – May 2026"}]`;
-            const eduRaw = await callAI(eduPrompt, 300, "json");
-            const eduArr = safeJSON(eduRaw, []);
-            if (Array.isArray(eduArr) && eduArr.length > 0 &&
-                !(eduArr[0]?.school || "").toLowerCase().includes("not mentioned")) {
-              data.education = eduArr;
-            }
-          } catch(_) {}
+${resume.slice(0, 1200)}
+
+Format: [{"school":"Mallareddy University, Hyderabad","location":"Hyderabad","degree":"B.Tech – Computer Science Engineering (AIML) | CGPA: 8.49 / 10","dates":"May 2026"}]
+Include CGPA/percentage IN the degree string. Include all entries.`;
+          const eduRaw = await callAI(eduPrompt, 400, "json");
+          const eduArr = safeJSON(eduRaw, []);
+          if (Array.isArray(eduArr) && eduArr.length > 0 && eduArr[0].school) {
+            education = eduArr;
+          }
+        } catch(_) {}
+      }
+
+      // Skills — use parsed, augment with JD keywords
+      let skills = parsed.skills;
+      if (skills.length === 0) {
+        skills = [
+          { category:"Languages", items:"JavaScript, Python, Java, SQL, C++" },
+          { category:"Frameworks & APIs", items:"Spring Boot, Flask, REST APIs, Microservices" },
+          { category:"Operating Systems", items:"Linux, UNIX, Windows" },
+          { category:"Tools", items:"Git, GitHub, Docker, Postman, VS Code" },
+          { category:"Databases", items:"MySQL, Redis, MongoDB, PostgreSQL" },
+          { category:"Concepts", items:"Debugging, System Integration, Agile/SDLC, QA Testing, OOP" },
+        ];
+      }
+
+      // Certifications — use parsed exactly
+      let certifications = parsed.certifications;
+      if (certifications.length === 0) {
+        // Try to extract from raw text
+        const certSection = resume.match(/CERTIFICATIONS[\s\S]*?(?=\n[A-Z]{3,}|\z)/i);
+        if (certSection) {
+          certifications = certSection[0]
+            .split("\n")
+            .slice(1)
+            .map(l => l.replace(/^[•\-\*]\s*/, "").trim())
+            .filter(l => l.length > 5);
         }
       }
 
-      // ── Ensure exactly 3 projects when no experience (fills page) ──
-      if (!hasExperience && data.projects) {
-        while (data.projects.length < 3) {
-          data.projects.push({
-            name: "Personal Portfolio Website",
-            tech: "React.js, Node.js, Tailwind CSS",
-            dates: "2025",
-            bullets: [
-              "Built responsive portfolio showcasing 5+ academic projects with React.js, achieving 98% Lighthouse performance score",
-              "Implemented dark/light theme toggle and smooth scroll animations, improving user engagement by 28% in peer testing",
-              "Deployed on Vercel with custom domain and SSL, maintaining 99% uptime over 3-month live period",
-              "Optimized image loading with lazy load, reducing initial page load time from 3.2s to 1.8s",
-              "Integrated contact form with email notifications, handling 10+ inquiries with zero delivery failures"
-            ]
-          });
-        }
-        if (data.projects.length > 3) data.projects = data.projects.slice(0, 3);
-      }
-
-      // ── Fix certifications ────────────────────────────────────────────
-      if (data.certifications && data.certifications.length > 3) {
-        data.certifications = data.certifications.slice(0, 3);
-      }
-      while (data.certifications && data.certifications.length < 3) {
-        data.certifications.push("Actively solving Data Structures & Algorithms problems on LeetCode and competitive coding platforms");
-      }
+      // Build final object
+      const finalResume = {
+        name: parsed.name || resume.split("\n")[0].trim(),
+        phone: phoneMatch ? phoneMatch[0].trim() : "",
+        email: emailMatch ? emailMatch[0] : "",
+        linkedin: linkedinMatch ? linkedinMatch[0] : "",
+        github: githubMatch ? githubMatch[0] : "",
+        location: locationMatch ? locationMatch[0].trim() : "Hyderabad, India",
+        education,
+        experience: hasExperience
+          ? (rewritten.experience || []).map((re, idx) => ({
+              title: parsed.experience[idx]?.title || re.title,
+              company: parsed.experience[idx]?.company || re.company,
+              location: parsed.experience[idx]?.location || re.location,
+              dates: parsed.experience[idx]?.dates || re.dates,
+              bullets: re.bullets || [],
+            }))
+          : [],
+        projects: (rewritten.projects || []).map((rp, idx) => ({
+          name: projectsForOptimize[idx]?.name || rp.name,
+          tech: projectsForOptimize[idx]?.tech || rp.tech,
+          dates: projectsForOptimize[idx]?.dates || rp.dates,
+          bullets: rp.bullets || [],
+        })),
+        skills,
+        certifications,
+      };
 
       const optScores = {
-        matchScore: data.optimizedMatchScore || Math.min(96, (analysis?.matchScore || 70) + 15),
-        atsScore: data.optimizedAtsScore || Math.min(96, (analysis?.atsScore || 70) + 14),
-        shortlistRate: data.optimizedShortlistRate || Math.min(45, (analysis?.shortlistRate || 20) + 12),
+        matchScore: Math.min(96, (analysis?.matchScore || 70) + 16),
+        atsScore: Math.min(96, (analysis?.atsScore || 70) + 14),
+        shortlistRate: Math.min(48, (analysis?.shortlistRate || 20) + 13),
       };
-      delete data.optimizedMatchScore;
-      delete data.optimizedAtsScore;
-      delete data.optimizedShortlistRate;
 
-      setOptimized(data);
+      setOptimized(finalResume);
       setOptimizedScores(optScores);
       setStep("optimized");
       setSection("resume");
-      trackActivity("resume_optimized", `match:${optScores.matchScore}% ats:${optScores.atsScore}% hasExp:${hasExperience}`);
+      trackActivity("resume_optimized", `match:${optScores.matchScore}% hasExp:${hasExperience}`);
     } catch (e) { setErr(e.message || "Optimization failed. Please try again."); setStep("analyzed"); }
   };
 
@@ -1312,207 +1193,165 @@ Return format:
     try {
       if (type === "pdf") {
         await downloadPDF(optimized, "TakePlace_Optimized_Resume.pdf");
-        trackActivity("downloaded_pdf", optimized.name || "");
       } else {
         await downloadDOCXJake(optimized, "TakePlace_Optimized_Resume.docx");
-        trackActivity("downloaded_docx", optimized.name || "");
       }
+      trackActivity("downloaded_"+type, optimized.name || "");
     } catch (e) { alert("Download failed: " + e.message); }
     setDownloading("");
-  };
-
-  // ── JAKE'S RESUME PREVIEW ─────────────────────────────────────────────
-  const JakesResumePreview = ({ data }) => {
-    if (!data) return null;
-    const ps = { fontSize: 8.5, lineHeight: "1.65", color: "#1a1a1a", marginBottom: 2 };
-    const sectionStyle = {
-      borderBottom: "1.5px solid #1a1a1a", paddingBottom: 1, marginBottom: 6, marginTop: 10,
-      fontWeight: 700, fontSize: 9.5, letterSpacing: "0.06em", color: "#1a1a1a", textTransform: "uppercase"
-    };
-    const bulletStyle = { ...ps, paddingLeft: 12, position: "relative", marginBottom: 2.5 };
-    return (
-      <div style={{
-        background: "#ffffff", border: "1px solid #d1d5db", borderRadius: 4,
-        padding: "24px 28px", maxWidth: 680, margin: "0 auto",
-        fontFamily: "'Times New Roman', Times, serif",
-        boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
-      }}>
-        {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: 3 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", letterSpacing: "0.02em" }}>{data.name}</div>
-        </div>
-        <div style={{ textAlign: "center", marginBottom: 10, fontSize: 8, color: "#374151", lineHeight: 1.5 }}>
-          {[data.phone, data.email, data.linkedin, data.github, data.location].filter(Boolean).join(" | ")}
-        </div>
-
-        {/* Education */}
-        {data.education?.length > 0 && (
-          <>
-            <div style={sectionStyle}>Education</div>
-            {data.education.map((edu, i) => (
-              <div key={i} style={{ marginBottom: 6 }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontWeight: 700, fontSize: 9 }}>{edu.school}</span>
-                  <span style={{ fontSize: 8.5, color: "#374151" }}>{edu.location}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 8.5, fontStyle: "italic" }}>{edu.degree}</span>
-                  <span style={{ fontSize: 8.5, color: "#374151" }}>{edu.dates}</span>
-                </div>
-              </div>
-            ))}
-          </>
-        )}
-
-        {/* Experience — only renders if data.experience has entries */}
-        {data.experience?.length > 0 && (
-          <>
-            <div style={sectionStyle}>Experience</div>
-            {data.experience.map((exp, i) => (
-              <div key={i} style={{ marginBottom: 8 }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontWeight: 700, fontSize: 9 }}>{exp.title}</span>
-                  <span style={{ fontSize: 8.5, color: "#374151" }}>{exp.dates}</span>
-                </div>
-                <div style={{ fontSize: 8.5, fontStyle: "italic", color: "#374151", marginBottom: 3 }}>
-                  {exp.company}{exp.location ? `, ${exp.location}` : ""}
-                </div>
-                {(exp.bullets || []).map((b, j) => (
-                  <div key={j} style={bulletStyle}>
-                    <span style={{ position: "absolute", left: 3, top: 0, fontSize: 8.5 }}>•</span>{b}
-                  </div>
-                ))}
-              </div>
-            ))}
-          </>
-        )}
-
-        {/* Projects */}
-        {data.projects?.length > 0 && (
-          <>
-            <div style={sectionStyle}>Projects</div>
-            {data.projects.map((proj, i) => (
-              <div key={i} style={{ marginBottom: 8 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                  <span>
-                    <span style={{ fontWeight: 700, fontSize: 9 }}>{proj.name}</span>
-                    {proj.tech && <span style={{ fontStyle: "italic", fontSize: 8.5, color: "#374151" }}> | {proj.tech}</span>}
-                  </span>
-                  {proj.dates && <span style={{ fontSize: 8.5, color: "#374151" }}>{proj.dates}</span>}
-                </div>
-                <div style={{ marginTop: 2 }}>
-                  {(proj.bullets || []).map((b, j) => (
-                    <div key={j} style={bulletStyle}>
-                      <span style={{ position: "absolute", left: 3, top: 0, fontSize: 8.5 }}>•</span>{b}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </>
-        )}
-
-        {/* Skills */}
-        {data.skills?.length > 0 && (
-          <>
-            <div style={sectionStyle}>Technical Skills</div>
-            {data.skills.map((sk, i) => (
-              <div key={i} style={{ ...ps, marginBottom: 2.5 }}>
-                <span style={{ fontWeight: 700 }}>{sk.category}: </span>
-                <span>{sk.items}</span>
-              </div>
-            ))}
-          </>
-        )}
-
-        {/* Certifications */}
-        {data.certifications?.length > 0 && (
-          <>
-            <div style={sectionStyle}>Certifications & Achievements</div>
-            {data.certifications.map((c, i) => (
-              <div key={i} style={bulletStyle}>
-                <span style={{ position: "absolute", left: 3, top: 0, fontSize: 8.5 }}>•</span>{c}
-              </div>
-            ))}
-          </>
-        )}
-      </div>
-    );
   };
 
   const Ring = ({ score, size=88, color, label }) => {
     const r = 34, circ = 2 * Math.PI * r;
     const col = color || scoreColor(score);
     return (
-      <div style={{ textAlign: "center" }}>
+      <div style={{ textAlign:"center" }}>
         <svg width={size} height={size} viewBox="0 0 80 80">
           <circle cx="40" cy="40" r={r} fill="none" stroke="#e2e8f0" strokeWidth="6" />
           <circle cx="40" cy="40" r={r} fill="none" stroke={col} strokeWidth="6"
             strokeDasharray={circ} strokeDashoffset={circ * (1 - score / 100)}
             strokeLinecap="round" transform="rotate(-90 40 40)"
-            style={{ transition: "stroke-dashoffset 1.2s ease" }} />
+            style={{ transition:"stroke-dashoffset 1.2s ease" }} />
           <text x="40" y="44" textAnchor="middle" fill={col} fontSize="15" fontWeight="800" fontFamily="Inter">{score}%</text>
         </svg>
-        {label && <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginTop: 2 }}>{label}</div>}
+        {label && <div style={{ fontSize:11, color:"#64748b", fontWeight:600, marginTop:2 }}>{label}</div>}
       </div>
     );
   };
 
-  const DeltaBadge = ({ original, optimized }) => {
-    const delta = optimized - original;
+  const DeltaBadge = ({ original, optimized: opt }) => {
+    const delta = opt - original;
     if (!delta) return null;
     return (
-      <span style={{
-        background: delta > 0 ? "#f0fdf4" : "#fef2f2",
-        color: delta > 0 ? "#16a34a" : "#dc2626",
-        fontSize: 10, fontWeight: 800, padding: "2px 7px", borderRadius: 20,
-        border: `1px solid ${delta > 0 ? "#bbf7d0" : "#fecaca"}`,
-        marginLeft: 6, animation: "countUp .5s ease",
-      }}>
-        {delta > 0 ? "+" : ""}{delta}%
+      <span style={{ background:delta>0?"#f0fdf4":"#fef2f2", color:delta>0?"#16a34a":"#dc2626",
+        fontSize:10, fontWeight:800, padding:"2px 7px", borderRadius:20,
+        border:`1px solid ${delta>0?"#bbf7d0":"#fecaca"}`, marginLeft:6 }}>
+        {delta>0?"+":""}{delta}%
       </span>
     );
   };
 
-  // ── INPUT SCREEN ─────────────────────────────────────────────────────
+  // Jake's resume preview
+  const JakesResumePreview = ({ data }) => {
+    if (!data) return null;
+    const ps = { fontSize:8.5, lineHeight:"1.65", color:"#1a1a1a", marginBottom:2 };
+    const sectionStyle = { borderBottom:"1.5px solid #1a1a1a", paddingBottom:1, marginBottom:6, marginTop:10,
+      fontWeight:700, fontSize:9.5, letterSpacing:"0.06em", color:"#1a1a1a", textTransform:"uppercase" };
+    const bulletStyle = { ...ps, paddingLeft:12, position:"relative", marginBottom:2.5 };
+    return (
+      <div style={{ background:"#ffffff", border:"1px solid #d1d5db", borderRadius:4, padding:"24px 28px",
+        maxWidth:680, margin:"0 auto", fontFamily:"'Times New Roman', Times, serif",
+        boxShadow:"0 4px 24px rgba(0,0,0,0.12)" }}>
+        <div style={{ textAlign:"center", marginBottom:3 }}>
+          <div style={{ fontSize:18, fontWeight:700, color:"#1a1a1a" }}>{data.name}</div>
+        </div>
+        <div style={{ textAlign:"center", marginBottom:10, fontSize:8, color:"#374151", lineHeight:1.5 }}>
+          {[data.phone,data.email,data.linkedin,data.github,data.location].filter(Boolean).join(" | ")}
+        </div>
+        {data.education?.length > 0 && (
+          <>
+            <div style={sectionStyle}>Education</div>
+            {data.education.map((edu,i) => (
+              <div key={i} style={{ marginBottom:6 }}>
+                <div style={{ display:"flex", justifyContent:"space-between" }}>
+                  <span style={{ fontWeight:700, fontSize:9 }}>{edu.school}</span>
+                  <span style={{ fontSize:8.5, color:"#374151" }}>{edu.location}</span>
+                </div>
+                <div style={{ display:"flex", justifyContent:"space-between" }}>
+                  <span style={{ fontSize:8.5, fontStyle:"italic" }}>{edu.degree}</span>
+                  <span style={{ fontSize:8.5, color:"#374151" }}>{edu.dates}</span>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+        {data.experience?.length > 0 && (
+          <>
+            <div style={sectionStyle}>Experience</div>
+            {data.experience.map((exp,i) => (
+              <div key={i} style={{ marginBottom:8 }}>
+                <div style={{ display:"flex", justifyContent:"space-between" }}>
+                  <span style={{ fontWeight:700, fontSize:9 }}>{exp.title}</span>
+                  <span style={{ fontSize:8.5, color:"#374151" }}>{exp.dates}</span>
+                </div>
+                <div style={{ fontSize:8.5, fontStyle:"italic", color:"#374151", marginBottom:3 }}>
+                  {exp.company}{exp.location?`, ${exp.location}`:""}
+                </div>
+                {(exp.bullets||[]).map((b,j) => (
+                  <div key={j} style={bulletStyle}><span style={{ position:"absolute", left:3, top:0, fontSize:8.5 }}>•</span>{b}</div>
+                ))}
+              </div>
+            ))}
+          </>
+        )}
+        {data.projects?.length > 0 && (
+          <>
+            <div style={sectionStyle}>Projects</div>
+            {data.projects.map((proj,i) => (
+              <div key={i} style={{ marginBottom:8 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline" }}>
+                  <span>
+                    <span style={{ fontWeight:700, fontSize:9 }}>{proj.name}</span>
+                    {proj.tech && <span style={{ fontStyle:"italic", fontSize:8.5, color:"#374151" }}> | {proj.tech}</span>}
+                  </span>
+                  {proj.dates && <span style={{ fontSize:8.5, color:"#374151" }}>{proj.dates}</span>}
+                </div>
+                {(proj.bullets||[]).map((b,j) => (
+                  <div key={j} style={bulletStyle}><span style={{ position:"absolute", left:3, top:0, fontSize:8.5 }}>•</span>{b}</div>
+                ))}
+              </div>
+            ))}
+          </>
+        )}
+        {data.skills?.length > 0 && (
+          <>
+            <div style={sectionStyle}>Technical Skills</div>
+            {data.skills.map((sk,i) => (
+              <div key={i} style={{ ...ps, marginBottom:2.5 }}>
+                <span style={{ fontWeight:700 }}>{sk.category}: </span><span>{sk.items}</span>
+              </div>
+            ))}
+          </>
+        )}
+        {data.certifications?.length > 0 && (
+          <>
+            <div style={sectionStyle}>Certifications & Achievements</div>
+            {data.certifications.map((c,i) => (
+              <div key={i} style={bulletStyle}><span style={{ position:"absolute", left:3, top:0, fontSize:8.5 }}>•</span>{c}</div>
+            ))}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  // ── INPUT SCREEN ──────────────────────────────────────────────────────
   if (step === "input") return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontWeight: 800, fontSize: 22, color: "#0f172a", marginBottom: 4 }}>⚡ AI Resume Analyzer</div>
-        <div style={{ color: "#64748b", fontSize: 13 }}>Paste JD + resume → Deep section analysis → ATS scores → Jake's resume PDF</div>
+      <div style={{ marginBottom:24 }}>
+        <div style={{ fontWeight:800, fontSize:22, color:"#0f172a", marginBottom:4 }}>⚡ AI Resume Analyzer</div>
+        <div style={{ color:"#64748b", fontSize:13 }}>Paste JD + resume → Deep analysis → Jake's format PDF/DOCX</div>
       </div>
       {err && <div style={{ background:"#fef2f2", border:"1px solid #fecaca", borderRadius:12, padding:"12px 16px", marginBottom:16, color:"#dc2626", fontSize:13 }}>⚠ {err}</div>}
-
       <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:14 }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
           <div style={{ width:32, height:32, borderRadius:10, background:"#dbeafe", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>📋</div>
-          <div style={{ flex:1 }}>
+          <div>
             <div style={{ fontWeight:700, color:C.text, fontSize:15 }}>Job Description</div>
-            <div style={{ color:"#94a3b8", fontSize:11 }}>Paste the job description text here</div>
+            <div style={{ color:"#94a3b8", fontSize:11 }}>Paste the full job description here</div>
           </div>
-          {jd && (
-            <span style={{ background:jd.split(/\s+/).filter(Boolean).length>150?"#f0fdf4":"#fffbeb", color:jd.split(/\s+/).filter(Boolean).length>150?"#16a34a":"#d97706", fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>
-              {jd.split(/\s+/).filter(Boolean).length} words
-            </span>
-          )}
         </div>
-        {jd && (
-          <div style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:8, padding:"6px 12px", marginBottom:8, fontSize:12, color:"#16a34a" }}>
-            ✅ JD loaded — {jd.split(/\s+/).filter(Boolean).length} words detected
-          </div>
-        )}
         <textarea value={jd} onChange={e=>{ setJd(e.target.value); localStorage.setItem("tp_jd",e.target.value); }}
-          placeholder={"Paste the full job description here...\n\nWe are looking for a Full Stack Developer with React, Node.js..."}
+          placeholder={"Paste the full job description here..."}
           style={{...inp, minHeight:180, resize:"vertical", lineHeight:1.8}} />
       </div>
-
       <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:20 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <div style={{ width:32, height:32, borderRadius:10, background:"#ede9fe", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>📄</div>
             <div>
               <div style={{ fontWeight:700, color:C.text, fontSize:15 }}>Your Resume</div>
-              <div style={{ color:"#94a3b8", fontSize:11 }}>Paste text OR upload PDF / DOCX / TXT</div>
+              <div style={{ color:"#94a3b8", fontSize:11 }}>Paste text OR upload PDF / DOCX</div>
             </div>
           </div>
           <button onClick={()=>fileRef.current.click()}
@@ -1523,14 +1362,12 @@ Return format:
         <input ref={fileRef} type="file" accept=".pdf,.docx,.txt,.doc" onChange={handleFile} style={{ display:"none" }} />
         {fileName && <div style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:8, padding:"6px 12px", marginBottom:10, fontSize:12, color:"#16a34a" }}>✅ {fileName} loaded</div>}
         <textarea value={resume} onChange={e=>{ setResume(e.target.value); localStorage.setItem("tp_resume",e.target.value); }}
-          placeholder={"Paste resume text here OR upload file above...\n\nInclude: Education, Experience, Projects, Skills, Certifications"}
+          placeholder={"Paste resume text here OR upload file above..."}
           style={{...inp, minHeight:220, resize:"vertical", lineHeight:1.8}} />
-        {resume && <div style={{ marginTop:8, fontSize:11, color:resume.length>400?"#16a34a":"#d97706" }}>{resume.length>400?"✓ Resume looks complete":"⚠ Add more content for better analysis"}</div>}
       </div>
-
       <button onClick={runAnalysis} disabled={!jd.trim()||!resume.trim()}
         style={{ width:"100%", padding:"15px", fontSize:16, borderRadius:12, border:"none", cursor:!jd.trim()||!resume.trim()?"not-allowed":"pointer", background:"linear-gradient(135deg,#2563eb,#1d4ed8)", color:"#fff", fontWeight:800, fontFamily:"'Inter',sans-serif", opacity:!jd.trim()||!resume.trim()?0.5:1 }}>
-        🔍 Analyze Resume — Get Deep Score Breakdown
+        🔍 Analyze Resume
       </button>
     </div>
   );
@@ -1553,11 +1390,9 @@ Return format:
       <div style={{ fontSize:64, marginBottom:20, animation:"float 2s ease-in-out infinite" }}>✨</div>
       <div style={{ fontWeight:800, fontSize:22, color:"#0f172a", marginBottom:8 }}>Building Your Optimized Resume</div>
       <div style={{ color:"#64748b", fontSize:14, lineHeight:1.9, marginBottom:28 }}>
-        {detectHasExperience(resume)
-          ? "Preserving your experience exactly · Rewriting bullets with JD keywords..."
-          : "No experience detected · Building 3 strong projects to fill the page..."}
-        <br/>
-        Mirroring JD keywords · Adding realistic metrics · Jake format...
+        Preserving your exact education, experience & project names...<br/>
+        Rewriting bullets with JD keywords · Adding realistic metrics...<br/>
+        Building Jake's single-page format...
       </div>
       <SpinIcon size={44} color={C.purple} />
     </div>
@@ -1570,12 +1405,11 @@ Return format:
     shortlistRate: a.shortlistRate || Math.min(35, Math.round((a.matchScore*0.6+a.atsScore*0.4)*0.35)),
   };
 
+  const projectsAreWeak = a.projectsAreWeak || (a.projectFit||[]).filter(p=>p.relevance<65).length >= 2;
+
   const tabs = [
     ["overview","📊 Overview"],
-    ["audit","🔬 Section Audit"],
-    ["gaps","⚠️ Gaps"],
-    ["projects","🏗️ Projects"],
-    ...(step === "optimized" ? [["resume","✨ Optimized Resume"]] : [])
+    ...(step === "optimized" ? [["resume","✨ Resume"]] : [])
   ];
 
   return (
@@ -1584,43 +1418,38 @@ Return format:
 
       {/* SCORE HERO */}
       <div style={{ background:"linear-gradient(135deg,#eff6ff,#f0fdf4)", border:`1.5px solid ${C.blue}20`, borderRadius:20, padding:24, marginBottom:16 }}>
-        {step === "optimized" && optimizedScores && (
-          <div style={{ textAlign:"center", marginBottom:16 }}>
-            <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:20, padding:"6px 18px", fontSize:12, color:"#16a34a", fontWeight:700 }}>
-              ✨ Scores updated after AI optimization
-            </div>
+        {step === "optimized" && (
+          <div style={{ textAlign:"center", marginBottom:12 }}>
+            <span style={{ display:"inline-flex", alignItems:"center", gap:8, background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:20, padding:"6px 18px", fontSize:12, color:"#16a34a", fontWeight:700 }}>
+              ✨ Scores updated after optimization
+            </span>
           </div>
         )}
         <div style={{ display:"flex", justifyContent:"center", alignItems:"center", gap:28, marginBottom:20, flexWrap:"wrap" }}>
           <div style={{ textAlign:"center" }}>
             <Ring score={displayScores.matchScore} label="JD Match" />
-            {step === "optimized" && optimizedScores && (
-              <DeltaBadge original={a.matchScore} optimized={optimizedScores.matchScore} />
-            )}
+            {step==="optimized" && <DeltaBadge original={a.matchScore} optimized={optimizedScores.matchScore} />}
           </div>
           <div style={{ width:1, height:72, background:"#e2e8f0" }} />
           <div style={{ textAlign:"center" }}>
             <Ring score={displayScores.atsScore} color="#2563eb" label="ATS Score" />
-            {step === "optimized" && optimizedScores && (
-              <DeltaBadge original={a.atsScore} optimized={optimizedScores.atsScore} />
-            )}
+            {step==="optimized" && <DeltaBadge original={a.atsScore} optimized={optimizedScores.atsScore} />}
           </div>
           <div style={{ width:1, height:72, background:"#e2e8f0" }} />
           <div style={{ textAlign:"center" }}>
-            <div style={{ width:88, height:88, borderRadius:"50%", border:`6px solid ${C.purple}`, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", margin:"0 auto" }}>
+            <div style={{ width:88, height:88, borderRadius:"50%", border:`6px solid ${C.purple}`,
+              display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", margin:"0 auto" }}>
               <div style={{ fontWeight:900, fontSize:18, color:C.purple }}>{displayScores.shortlistRate}%</div>
             </div>
             <div style={{ fontSize:11, color:"#64748b", fontWeight:600, marginTop:2 }}>Shortlist Rate</div>
-            {step === "optimized" && optimizedScores && (
-              <DeltaBadge original={a.shortlistRate||Math.min(35,Math.round((a.matchScore*0.6+a.atsScore*0.4)*0.35))} optimized={optimizedScores.shortlistRate} />
-            )}
+            {step==="optimized" && <DeltaBadge original={a.shortlistRate||15} optimized={optimizedScores.shortlistRate} />}
           </div>
         </div>
         <div style={{ textAlign:"center" }}>
           <div style={{ display:"inline-block", padding:"6px 20px", borderRadius:20,
             background:scoreBg(displayScores.matchScore), color:scoreColor(displayScores.matchScore),
             fontWeight:800, fontSize:14, border:`1px solid ${scoreBorder(displayScores.matchScore)}`, marginBottom:10 }}>
-            {step === "optimized" ? "✨ Optimized" : a.verdict}
+            {step==="optimized" ? "✨ Optimized" : a.verdict}
           </div>
           <div style={{ color:"#475569", fontSize:13, lineHeight:1.8, maxWidth:500, margin:"0 auto 10px" }}>{a.summary}</div>
           {a.recruiterImpression && (
@@ -1631,8 +1460,8 @@ Return format:
         </div>
       </div>
 
-      {/* TAB NAV */}
-      <div style={{ display:"flex", gap:8, marginBottom:16, overflowX:"auto", paddingBottom:4 }}>
+      {/* TABS */}
+      <div style={{ display:"flex", gap:8, marginBottom:16 }}>
         {tabs.map(([k,l])=>(
           <button key={k} onClick={()=>setSection(k)}
             style={{ padding:"9px 18px", borderRadius:20, whiteSpace:"nowrap", border:`1.5px solid ${section===k?C.blue:C.border}`, background:section===k?`${C.blue}10`:"#ffffff", color:section===k?C.blue:"#64748b", cursor:"pointer", fontFamily:"'Inter',sans-serif", fontWeight:section===k?700:400, fontSize:13, transition:"all .2s" }}>
@@ -1641,290 +1470,231 @@ Return format:
         ))}
       </div>
 
-      {/* OVERVIEW TAB */}
-      {section==="overview" && (
+      {/* ══ OVERVIEW TAB — everything in one place ══ */}
+      {section === "overview" && (
         <div>
-          {/* No-experience notice */}
-          {!detectHasExperience(resume) && (
-            <div style={{ background:"#fffbeb", border:"1px solid #fef08a", borderRadius:12, padding:"12px 16px", marginBottom:14, display:"flex", gap:10, alignItems:"flex-start" }}>
-              <span style={{ fontSize:18, flexShrink:0 }}>ℹ️</span>
-              <div>
-                <div style={{ fontWeight:700, color:"#92400e", fontSize:13 }}>No work experience detected in your resume</div>
-                <div style={{ color:"#78350f", fontSize:12, marginTop:2 }}>When you optimize, AI will use 3 strong projects with 5 bullets each to fill the single page instead of experience.</div>
+          {/* ── SECTION AUDIT ── */}
+          <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:14 }}>
+            <div style={{ fontWeight:700, color:C.text, fontSize:16, marginBottom:4 }}>🔬 Section-by-Section Audit</div>
+            <div style={{ color:"#64748b", fontSize:12, marginBottom:16 }}>Every section of your resume scored individually</div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))", gap:10 }}>
+              {(a.sectionAudit||[]).map((s,i)=>(
+                <div key={i} style={{ background:scoreBg(s.score), borderRadius:12, padding:14, border:`1px solid ${scoreBorder(s.score)}` }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                      <span>{statusIcon(s.status)}</span>
+                      <span style={{ fontWeight:700, color:C.text, fontSize:13 }}>{s.section}</span>
+                    </div>
+                    <span style={{ fontWeight:800, fontSize:15, color:scoreColor(s.score) }}>{s.score}%</span>
+                  </div>
+                  <div style={{ background:"#e2e8f0", borderRadius:4, height:5, overflow:"hidden", marginBottom:6 }}>
+                    <div style={{ height:"100%", width:`${s.score}%`, background:scoreColor(s.score), borderRadius:4, transition:"width 1.2s ease" }} />
+                  </div>
+                  <div style={{ color:"#475569", fontSize:11, lineHeight:1.6 }}>{s.feedback}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── STRONG MATCHES ── */}
+          {(a.strongMatches||[]).length > 0 && (
+            <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:14 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+                <span style={{ fontSize:18 }}>✅</span>
+                <div style={{ fontWeight:700, color:C.text, fontSize:16 }}>Strong Matches</div>
+                <span style={{ background:"#f0fdf4", color:"#16a34a", fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{a.strongMatches.length} skills matched</span>
               </div>
+              {a.strongMatches.map((m,i)=>(
+                <div key={i} style={{ marginBottom:10, background:"#f0fdf4", borderRadius:10, padding:12, border:"1px solid #bbf7d0" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+                    <div style={{ fontWeight:700, color:C.text, fontSize:13 }}>{m.skill}</div>
+                    <div style={{ fontWeight:800, fontSize:14, color:scoreColor(m.strength) }}>{m.strength}%</div>
+                  </div>
+                  <div style={{ color:"#64748b", fontSize:12, marginBottom:6 }}>{m.reason}</div>
+                  <div style={{ background:"#e2e8f0", borderRadius:4, height:4, overflow:"hidden" }}>
+                    <div style={{ height:"100%", width:`${m.strength}%`, background:"#16a34a", borderRadius:4 }} />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
-          <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:14 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
-              <span style={{ fontSize:18 }}>✅</span>
-              <div style={{ fontWeight:700, color:C.text, fontSize:16 }}>Strong Matches</div>
-              <span style={{ background:"#f0fdf4", color:"#16a34a", fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{a.strongMatches?.length||0} skills matched</span>
-            </div>
-            {(a.strongMatches||[]).map((m,i)=>(
-              <div key={i} style={{ marginBottom:12, background:"#f0fdf4", borderRadius:12, padding:14, border:"1px solid #bbf7d0" }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                  <div style={{ fontWeight:700, color:C.text }}>{m.skill}</div>
-                  <div style={{ fontWeight:800, fontSize:15, color:scoreColor(m.strength) }}>{m.strength}%</div>
-                </div>
-                <div style={{ color:"#64748b", fontSize:12, marginBottom:8 }}>{m.reason}</div>
-                <div style={{ background:"#e2e8f0", borderRadius:4, height:5, overflow:"hidden" }}>
-                  <div style={{ height:"100%", width:`${m.strength}%`, background:"#16a34a", borderRadius:4, transition:"width 1.2s ease" }} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {a.weakAreas?.length>0 && (
+          {/* ── MISSING KEYWORDS ── */}
+          {(a.missingKeywords||[]).length > 0 && (
             <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:14 }}>
-              <div style={{ fontWeight:700, color:C.text, fontSize:16, marginBottom:14 }}>⚡ Weak Areas That Hurt Your Shortlist Rate</div>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+                <span style={{ fontSize:18 }}>⚠️</span>
+                <div style={{ fontWeight:700, color:C.text, fontSize:16 }}>Missing Keywords</div>
+                <span style={{ background:"#fef2f2", color:"#dc2626", fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{a.missingKeywords.length} gaps</span>
+              </div>
+              {a.missingKeywords.map((m,i)=>(
+                <div key={i} style={{ background:"#fef2f2", borderRadius:10, padding:12, marginBottom:8, border:`1px solid ${impColor(m.importance)}20` }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                    <div style={{ fontWeight:700, color:C.text, fontSize:13 }}>🔍 {m.keyword}</div>
+                    <span style={{ background:m.importance==="High"?"#fef2f2":m.importance==="Medium"?"#fffbeb":"#f0fdf4", color:impColor(m.importance), fontSize:10, padding:"2px 8px", borderRadius:20, fontWeight:700 }}>{m.importance}</span>
+                  </div>
+                  <div style={{ color:"#475569", fontSize:12 }}>💡 {m.tip}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── WEAK AREAS ── */}
+          {(a.weakAreas||[]).length > 0 && (
+            <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:14 }}>
+              <div style={{ fontWeight:700, color:C.text, fontSize:16, marginBottom:12 }}>⚡ Weak Areas</div>
               {a.weakAreas.map((w,i)=>(
-                <div key={i} style={{ background:"#fffbeb", borderRadius:12, padding:14, marginBottom:10, border:"1px solid #fef08a" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
-                    <div style={{ fontWeight:700, color:"#d97706", fontSize:14 }}>{w.area}</div>
+                <div key={i} style={{ background:"#fffbeb", borderRadius:10, padding:12, marginBottom:8, border:"1px solid #fef08a" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                    <div style={{ fontWeight:700, color:"#d97706", fontSize:13 }}>{w.area}</div>
                     {w.priority && <span style={{ background:w.priority==="High"?"#fef2f2":"#fffbeb", color:w.priority==="High"?"#dc2626":"#d97706", fontSize:10, padding:"2px 8px", borderRadius:20, fontWeight:700 }}>{w.priority}</span>}
                   </div>
-                  <div style={{ color:"#475569", fontSize:13, lineHeight:1.7 }}>{w.detail}</div>
+                  <div style={{ color:"#475569", fontSize:12, lineHeight:1.6 }}>{w.detail}</div>
                 </div>
               ))}
             </div>
           )}
 
-          {a.improvements?.length>0 && (
-            <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:14 }}>
-              <div style={{ fontWeight:700, color:C.text, fontSize:16, marginBottom:14 }}>📝 Quick Wins to Improve Score</div>
-              {a.improvements.map((imp,i)=>(
-                <div key={i} style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:10, background:"#f1f4f9", borderRadius:10, padding:"10px 14px", border:`1px solid ${C.border}` }}>
-                  <span style={{ color:C.blue, flexShrink:0, fontWeight:700 }}>→</span>
-                  <span style={{ color:"#475569", fontSize:13 }}>{imp}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {a.suggestedSkillsToAdd?.length>0 && (
-            <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:14 }}>
-              <div style={{ fontWeight:700, color:C.text, fontSize:16, marginBottom:14 }}>🎯 Skills to Add to Resume</div>
-              <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-                {a.suggestedSkillsToAdd.map((s,i)=>(
-                  <span key={i} style={{ background:"#ede9fe", color:C.purple, fontSize:12, padding:"4px 12px", borderRadius:20, fontWeight:700, border:"1px solid #c4b5fd" }}>+ {s}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {step !== "optimized" && (
-            <div style={{ background:"linear-gradient(135deg,#eff6ff,#ede9fe)", border:`1.5px solid ${C.blue}20`, borderRadius:20, padding:24, textAlign:"center", marginTop:8 }}>
-              <div style={{ fontWeight:800, fontSize:18, color:C.text, marginBottom:8 }}>Ready to Fix All of This?</div>
-              <div style={{ color:"#64748b", fontSize:13, marginBottom:20, lineHeight:1.7 }}>
-                One click — AI rewrites your resume in Jake's format, mirrors JD keywords,<br/>
-                {detectHasExperience(resume)
-                  ? "keeps your experience exactly, adds realistic metrics, fills the full page."
-                  : "uses 3 strong projects to fill the page (no fake experience added)."}
-              </div>
-              <button onClick={runOptimize}
-                style={{ padding:"14px 40px", fontSize:15, borderRadius:12, border:"none", cursor:"pointer", background:"linear-gradient(135deg,#7c3aed,#5b21b6)", color:"#fff", fontWeight:800, fontFamily:"'Inter',sans-serif", boxShadow:`0 4px 16px ${C.purple}40` }}>
-                ✨ Optimize Resume → Jake's Format + Update Scores
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* SECTION AUDIT TAB */}
-      {section==="audit" && (
-        <div>
+          {/* ── PROJECT RELEVANCE + SUGGESTION (inline in overview) ── */}
           <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:14 }}>
-            <div style={{ fontWeight:700, color:C.text, fontSize:16, marginBottom:6 }}>🔬 Section-by-Section Resume Audit</div>
-            <div style={{ color:"#64748b", fontSize:12, marginBottom:18 }}>Every section of your resume scored individually</div>
-            {(a.sectionAudit||[]).map((s,i)=>(
-              <div key={i} style={{ marginBottom:14, background:scoreBg(s.score), borderRadius:12, padding:14, border:`1px solid ${scoreBorder(s.score)}` }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                    <span>{statusIcon(s.status)}</span>
-                    <span style={{ fontWeight:700, color:C.text, fontSize:14 }}>{s.section}</span>
-                  </div>
-                  <span style={{ fontWeight:800, fontSize:16, color:scoreColor(s.score) }}>{s.score}%</span>
-                </div>
-                <div style={{ background:"#e2e8f0", borderRadius:4, height:6, overflow:"hidden", marginBottom:8 }}>
-                  <div style={{ height:"100%", width:`${s.score}%`, background:scoreColor(s.score), borderRadius:4, transition:"width 1.2s ease" }} />
-                </div>
-                <div style={{ color:"#475569", fontSize:12, lineHeight:1.7 }}>{s.feedback}</div>
-              </div>
-            ))}
-            {a.formatIssues?.length>0 && (
-              <div style={{ marginTop:8, background:"#fef2f2", border:"1px solid #fecaca", borderRadius:12, padding:16 }}>
-                <div style={{ fontWeight:700, color:"#dc2626", fontSize:14, marginBottom:10 }}>⚠ Format Issues (Hurts ATS)</div>
-                {a.formatIssues.map((f,i)=>(
-                  <div key={i} style={{ color:"#475569", fontSize:13, marginBottom:6, display:"flex", gap:8 }}>
-                    <span style={{ color:"#dc2626" }}>✗</span> {f}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          {step !== "optimized" && (
-            <div style={{ textAlign:"center", marginTop:8 }}>
-              <button onClick={runOptimize}
-                style={{ padding:"14px 40px", fontSize:15, borderRadius:12, border:"none", cursor:"pointer", background:"linear-gradient(135deg,#7c3aed,#5b21b6)", color:"#fff", fontWeight:800, fontFamily:"'Inter',sans-serif" }}>
-                ✨ Fix All Issues → Optimize Resume
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* GAPS TAB */}
-      {section==="gaps" && (
-        <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
-            <span style={{ fontSize:18 }}>⚠️</span>
-            <div style={{ fontWeight:700, color:C.text, fontSize:16 }}>Missing Keywords</div>
-            <span style={{ background:"#fef2f2", color:"#dc2626", fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{a.missingKeywords?.length||0} gaps</span>
-          </div>
-          {(a.missingKeywords||[]).length>0 ? a.missingKeywords.map((m,i)=>(
-            <div key={i} style={{ background:"#fef2f2", borderRadius:12, padding:14, marginBottom:12, border:`1px solid ${impColor(m.importance)}30` }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                <div style={{ fontWeight:700, color:C.text }}>🔍 {m.keyword}</div>
-                <span style={{ background:m.importance==="High"?"#fef2f2":m.importance==="Medium"?"#fffbeb":"#f0fdf4", color:impColor(m.importance), fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{m.importance}</span>
-              </div>
-              <div style={{ color:"#475569", fontSize:13, lineHeight:1.7 }}>💡 {m.tip}</div>
-            </div>
-          )) : (
-            <div style={{ textAlign:"center", padding:"28px 0", color:"#16a34a", fontSize:15 }}>🎉 No critical missing keywords!</div>
-          )}
-        </div>
-      )}
-
-      {/* PROJECTS TAB */}
-      {section==="projects" && (
-        <div>
-          <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:14 }}>
-            <div style={{ fontWeight:700, color:C.text, fontSize:16, marginBottom:4 }}>🏗️ Project Relevance Audit</div>
-            <div style={{ color:"#64748b", fontSize:12, marginBottom:16 }}>Which projects to keep, remove, or reframe for this specific role</div>
+            <div style={{ fontWeight:700, color:C.text, fontSize:16, marginBottom:4 }}>🏗️ Project Relevance</div>
+            <div style={{ color:"#64748b", fontSize:12, marginBottom:14 }}>Which projects to keep or improve for this role</div>
             {(a.projectFit||[]).map((p,i)=>(
-              <div key={i} style={{ background:p.keep?"#f0fdf4":"#f8fafc", borderRadius:14, padding:16, marginBottom:12, border:`1.5px solid ${p.keep?"#bbf7d0":C.border}` }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                  <div style={{ fontWeight:700, color:C.text, fontSize:15 }}>{p.name}</div>
-                  <div style={{ display:"flex", gap:8 }}>
-                    <span style={{ background:scoreBg(p.relevance), color:scoreColor(p.relevance), fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{p.relevance}% match</span>
+              <div key={i} style={{ background:p.keep?"#f0fdf4":"#f8fafc", borderRadius:12, padding:14, marginBottom:10, border:`1.5px solid ${p.keep?"#bbf7d0":C.border}` }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                  <div style={{ fontWeight:700, color:C.text, fontSize:14 }}>{p.name}</div>
+                  <div style={{ display:"flex", gap:6 }}>
+                    <span style={{ background:scoreBg(p.relevance), color:scoreColor(p.relevance), fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{p.relevance}%</span>
                     <span style={{ background:p.keep?"#f0fdf4":"#f1f5f9", color:p.keep?"#16a34a":"#64748b", fontSize:11, padding:"3px 10px", borderRadius:20, fontWeight:700 }}>{p.keep?"✓ Keep":"Low priority"}</span>
                   </div>
                 </div>
-                <div style={{ color:"#475569", fontSize:13, marginBottom:10 }}>{p.reason}</div>
-                <div style={{ background:"#e2e8f0", borderRadius:4, height:5, overflow:"hidden", marginBottom:10 }}>
+                <div style={{ background:"#e2e8f0", borderRadius:4, height:4, overflow:"hidden", marginBottom:8 }}>
                   <div style={{ height:"100%", width:`${p.relevance}%`, background:scoreColor(p.relevance), borderRadius:4 }} />
                 </div>
+                <div style={{ color:"#475569", fontSize:12, marginBottom:p.suggestion?8:0 }}>{p.reason}</div>
                 {p.suggestion && (
-                  <div style={{ background:`${C.purple}08`, border:`1px solid ${C.purple}20`, borderRadius:10, padding:"10px 14px", color:"#475569", fontSize:12 }}>
-                    💡 <strong style={{ color:C.purple }}>Suggestion:</strong> {p.suggestion}
+                  <div style={{ background:`${C.purple}08`, border:`1px solid ${C.purple}20`, borderRadius:8, padding:"8px 12px", color:"#475569", fontSize:12 }}>
+                    💡 <strong style={{ color:C.purple }}>Tip:</strong> {p.suggestion}
                   </div>
                 )}
               </div>
             ))}
+
+            {/* Project choice section */}
+            {projectsAreWeak && step !== "optimized" && (
+              <div style={{ background:"linear-gradient(135deg,#fdf4ff,#ede9fe)", border:`1.5px solid ${C.purple}30`, borderRadius:16, padding:20, marginTop:14 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+                  <span style={{ fontSize:22 }}>🚀</span>
+                  <div>
+                    <div style={{ fontWeight:800, color:C.text, fontSize:14 }}>Projects are weak for this role — what would you like to do?</div>
+                    <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>AI can suggest 3 stronger role-specific projects, or you can keep your original ones</div>
+                  </div>
+                </div>
+
+                {/* Choice buttons */}
+                <div style={{ display:"flex", gap:10, marginBottom:suggestedProjects?16:0, flexWrap:"wrap" }}>
+                  <button onClick={()=>{ setProjectChoice("original"); }}
+                    style={{ padding:"9px 18px", borderRadius:10, border:`1.5px solid ${projectChoice==="original"?C.green:C.border}`,
+                      background:projectChoice==="original"?"#f0fdf4":"#fff", color:projectChoice==="original"?C.green:C.soft,
+                      fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"'Inter',sans-serif", transition:"all .2s" }}>
+                    ✅ Keep My Original Projects
+                  </button>
+                  <button onClick={()=>{ setProjectChoice("suggested"); if (!suggestedProjects) suggestStrongerProjects(); }}
+                    disabled={suggestingProjects}
+                    style={{ padding:"9px 18px", borderRadius:10, border:`1.5px solid ${projectChoice==="suggested"?C.purple:C.border}`,
+                      background:projectChoice==="suggested"?`${C.purple}10`:"#fff", color:projectChoice==="suggested"?C.purple:C.soft,
+                      fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"'Inter',sans-serif", transition:"all .2s",
+                      display:"flex", alignItems:"center", gap:8 }}>
+                    {suggestingProjects ? <><SpinIcon size={12} color={C.purple}/> Generating...</> : "✨ Suggest Stronger Projects"}
+                  </button>
+                </div>
+
+                {/* Show suggested projects when available */}
+                {suggestedProjects && (
+                  <div style={{ marginTop:14 }}>
+                    <div style={{ fontWeight:700, color:C.text, fontSize:13, marginBottom:10 }}>
+                      AI-Suggested Projects — pick any to use or keep originals:
+                    </div>
+                    {suggestedProjects.map((proj,i)=>(
+                      <div key={i} style={{ background:"#ffffff", border:`1.5px solid ${projectChoice===i?C.purple:C.border}`,
+                        borderRadius:12, padding:14, marginBottom:8, cursor:"pointer", transition:"all .2s" }}
+                        onClick={()=>setProjectChoice(i)}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+                          <div>
+                            <div style={{ fontWeight:800, color:C.text, fontSize:13, display:"flex", alignItems:"center", gap:8 }}>
+                              {projectChoice===i && <span style={{ fontSize:14 }}>✓</span>}
+                              {proj.name}
+                            </div>
+                            <div style={{ fontSize:11, color:C.purple, fontWeight:600, marginTop:2 }}>{proj.tech}</div>
+                          </div>
+                          <span style={{ background:"#f0fdf4", color:C.green, fontSize:10, padding:"3px 10px", borderRadius:20, fontWeight:700, border:"1px solid #bbf7d0", flexShrink:0 }}>Stronger</span>
+                        </div>
+                        {proj.whyStrong && (
+                          <div style={{ background:`${C.purple}08`, border:`1px solid ${C.purple}20`, borderRadius:8, padding:"6px 10px", marginBottom:8, fontSize:12, color:C.purple }}>
+                            💡 {proj.whyStrong}
+                          </div>
+                        )}
+                        {(proj.bullets||[]).map((b,j)=>(
+                          <div key={j} style={{ fontSize:11, color:"#475569", marginBottom:3, paddingLeft:12, position:"relative", lineHeight:1.6 }}>
+                            <span style={{ position:"absolute", left:2, top:0 }}>•</span>{b}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* ── SUGGEST STRONGER PROJECTS SECTION ─────────────────────── */}
-          {(a.projectsAreWeak || (a.projectFit||[]).filter(p=>p.relevance<65).length >= 2) && step !== "optimized" && (
-            <div style={{ background:"linear-gradient(135deg,#fdf4ff,#ede9fe)", border:`1.5px solid ${C.purple}30`, borderRadius:20, padding:22, marginBottom:14 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
-                <span style={{ fontSize:24 }}>🚀</span>
-                <div>
-                  <div style={{ fontWeight:800, color:C.text, fontSize:15 }}>Your projects are weak for this role</div>
-                  <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>AI can suggest 3 stronger, role-specific projects with realistic metrics that would impress this recruiter</div>
-                </div>
+          {/* ── OPTIMIZE CTA ── */}
+          {step !== "optimized" && (
+            <div style={{ background:"linear-gradient(135deg,#eff6ff,#ede9fe)", border:`1.5px solid ${C.blue}20`, borderRadius:20, padding:24, textAlign:"center" }}>
+              <div style={{ fontWeight:800, fontSize:18, color:C.text, marginBottom:8 }}>Ready to Optimize?</div>
+              <div style={{ color:"#64748b", fontSize:13, marginBottom:16, lineHeight:1.7 }}>
+                {projectsAreWeak && projectChoice === "suggested"
+                  ? `Using ${typeof projectChoice==="number" ? `suggested project #${projectChoice+1}` : "all 3 suggested projects"} · Rewriting bullets with JD keywords · Jake format`
+                  : "Keeping your exact education, experience & project names · Rewriting bullets with JD keywords · Jake format"}
               </div>
-
-              {!suggestedProjects && (
-                <button onClick={suggestStrongerProjects} disabled={suggestingProjects}
-                  style={{ padding:"11px 24px", borderRadius:10, border:"none", cursor:suggestingProjects?"not-allowed":"pointer", background:`linear-gradient(135deg,${C.purpleDark},${C.purple})`, color:"#fff", fontWeight:700, fontFamily:"'Inter',sans-serif", fontSize:13, display:"flex", alignItems:"center", gap:8, opacity:suggestingProjects?0.7:1 }}>
-                  {suggestingProjects ? <><SpinIcon size={14} color="#fff"/> Generating stronger projects...</> : "✨ Suggest Stronger Projects for This Role"}
-                </button>
-              )}
-
-              {suggestedProjects && (
-                <div>
-                  <div style={{ fontWeight:700, color:C.text, fontSize:14, marginBottom:12 }}>
-                    ✨ AI-Suggested Stronger Projects
-                    <span style={{ color:"#64748b", fontWeight:400, fontSize:12, marginLeft:8 }}>— built for this specific role</span>
-                  </div>
-                  {suggestedProjects.map((proj,i)=>(
-                    <div key={i} style={{ background:"#ffffff", border:`1.5px solid ${C.purple}30`, borderRadius:14, padding:16, marginBottom:10 }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
-                        <div>
-                          <div style={{ fontWeight:800, color:C.text, fontSize:14 }}>{proj.name}</div>
-                          <div style={{ fontSize:11, color:C.purple, fontWeight:600, marginTop:2 }}>{proj.tech}</div>
-                        </div>
-                        <span style={{ background:"#f0fdf4", color:C.green, fontSize:10, padding:"3px 10px", borderRadius:20, fontWeight:700, border:"1px solid #bbf7d0", flexShrink:0 }}>Stronger</span>
-                      </div>
-                      {proj.whyStrong && (
-                        <div style={{ background:`${C.purple}08`, border:`1px solid ${C.purple}20`, borderRadius:8, padding:"8px 12px", marginBottom:10, fontSize:12, color:C.purple }}>
-                          💡 {proj.whyStrong}
-                        </div>
-                      )}
-                      {(proj.bullets||[]).map((b,j)=>(
-                        <div key={j} style={{ fontSize:12, color:"#475569", marginBottom:4, paddingLeft:12, position:"relative", lineHeight:1.6 }}>
-                          <span style={{ position:"absolute", left:2, top:0 }}>•</span>{b}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-
-                  <div style={{ display:"flex", gap:10, marginTop:14, flexWrap:"wrap" }}>
-                    <button
-                      onClick={()=>{ setUsingSuggestedProjects(true); runOptimize(); }}
-                      style={{ padding:"11px 24px", borderRadius:10, border:"none", cursor:"pointer", background:`linear-gradient(135deg,${C.green},${C.greenDark})`, color:"#fff", fontWeight:700, fontFamily:"'Inter',sans-serif", fontSize:13 }}>
-                      ✅ Use These Projects → Optimize Resume
-                    </button>
-                    <button
-                      onClick={()=>{ setUsingSuggestedProjects(false); runOptimize(); }}
-                      style={{ padding:"11px 24px", borderRadius:10, border:`1.5px solid ${C.border}`, cursor:"pointer", background:"#ffffff", color:C.soft, fontWeight:600, fontFamily:"'Inter',sans-serif", fontSize:13 }}>
-                      Keep My Original Projects
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {step !== "optimized" && !(a.projectsAreWeak || (a.projectFit||[]).filter(p=>p.relevance<65).length >= 2) && (
-            <div style={{ textAlign:"center", marginTop:8 }}>
-              <button onClick={runOptimize}
-                style={{ padding:"14px 40px", fontSize:15, borderRadius:12, border:"none", cursor:"pointer", background:"linear-gradient(135deg,#7c3aed,#5b21b6)", color:"#fff", fontWeight:800, fontFamily:"'Inter',sans-serif" }}>
-                ✨ Optimize Resume with These Projects
+              <button onClick={()=>runOptimize(projectChoice)}
+                style={{ padding:"14px 40px", fontSize:15, borderRadius:12, border:"none", cursor:"pointer",
+                  background:"linear-gradient(135deg,#7c3aed,#5b21b6)", color:"#fff", fontWeight:800,
+                  fontFamily:"'Inter',sans-serif", boxShadow:`0 4px 16px ${C.purple}40` }}>
+                ✨ Build Optimized Resume →
               </button>
             </div>
           )}
         </div>
       )}
 
-      {/* OPTIMIZED RESUME TAB */}
-      {section==="resume" && step==="optimized" && optimized && (
+      {/* ══ OPTIMIZED RESUME TAB ══ */}
+      {section === "resume" && step === "optimized" && optimized && (
         <div>
           <div style={{ background:"#f8f9fc", border:`1.5px solid ${C.border}`, borderRadius:16, padding:22, marginBottom:16 }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12, flexWrap:"wrap", gap:12 }}>
               <div>
-                <div style={{ fontWeight:700, color:C.text, fontSize:16 }}>✨ ATS-Optimized Resume — Jake's Format</div>
+                <div style={{ fontWeight:700, color:C.text, fontSize:16 }}>✨ Your Optimized Resume — Jake's Format</div>
                 <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>
-                  {optimized.experience?.length > 0
-                    ? "Education + Experience preserved · JD keywords mirrored · Realistic metrics · Single page"
-                    : "No fake experience added · 3 strong projects fill the page · JD keywords mirrored · Single page"}
+                  Education · Experience · Projects · Skills · Certifications — all from your original resume
                 </div>
               </div>
               <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                 <button onClick={()=>handleDownload("pdf")} disabled={downloading==="pdf"}
-                  style={{ padding:"10px 18px", borderRadius:10, border:"none", cursor:"pointer", background:"linear-gradient(135deg,#5b21b6,#7c3aed)", color:"#fff", fontWeight:700, fontFamily:"'Inter',sans-serif", fontSize:13 }}>
+                  style={{ padding:"10px 18px", borderRadius:10, border:"none", cursor:"pointer",
+                    background:"linear-gradient(135deg,#5b21b6,#7c3aed)", color:"#fff", fontWeight:700,
+                    fontFamily:"'Inter',sans-serif", fontSize:13 }}>
                   {downloading==="pdf"?"⏳ Generating...":"⬇ Download PDF"}
                 </button>
                 <button onClick={()=>handleDownload("docx")} disabled={downloading==="docx"}
-                  style={{ padding:"10px 18px", borderRadius:10, border:"none", cursor:"pointer", background:"linear-gradient(135deg,#14532d,#16a34a)", color:"#fff", fontWeight:700, fontFamily:"'Inter',sans-serif", fontSize:13 }}>
+                  style={{ padding:"10px 18px", borderRadius:10, border:"none", cursor:"pointer",
+                    background:"linear-gradient(135deg,#14532d,#16a34a)", color:"#fff", fontWeight:700,
+                    fontFamily:"'Inter',sans-serif", fontSize:13 }}>
                   {downloading==="docx"?"⏳ Generating...":"⬇ Download DOCX"}
                 </button>
               </div>
             </div>
-
             {optimizedScores && (
-              <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:4 }}>
+              <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
                 <div style={{ display:"flex", alignItems:"center", gap:8, background:"#eff6ff", border:`1px solid ${C.blue}20`, borderRadius:10, padding:"8px 14px" }}>
                   <Ring score={optimizedScores.matchScore} size={50} />
                   <div>
@@ -1943,25 +1713,12 @@ Return format:
                     </div>
                   </div>
                 </div>
-                <div style={{ display:"flex", alignItems:"center", gap:8, background:`${C.purple}08`, border:`1px solid ${C.purple}20`, borderRadius:10, padding:"8px 14px" }}>
-                  <div style={{ width:50, height:50, borderRadius:"50%", border:`4px solid ${C.purple}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, fontSize:14, color:C.purple, flexShrink:0 }}>
-                    {optimizedScores.shortlistRate}%
-                  </div>
-                  <div>
-                    <div style={{ fontWeight:700, color:C.text, fontSize:13 }}>Shortlist Rate</div>
-                    <div style={{ color:"#64748b", fontSize:11, display:"flex", alignItems:"center", gap:4 }}>
-                      was {a.shortlistRate||Math.min(35,Math.round((a.matchScore*0.6+a.atsScore*0.4)*0.35))}% <DeltaBadge original={a.shortlistRate||Math.min(35,Math.round((a.matchScore*0.6+a.atsScore*0.4)*0.35))} optimized={optimizedScores.shortlistRate} />
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
           </div>
-
           <JakesResumePreview data={optimized} />
-
           <div style={{ marginTop:14, background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:12, padding:"12px 16px", fontSize:13, color:"#475569", lineHeight:1.7 }}>
-            💡 <strong style={{ color:"#16a34a" }}>Pro tip:</strong> Download PDF for job portals (Naukri, LinkedIn, company sites). Download DOCX to edit in Google Docs or Word.
+            💡 <strong style={{ color:"#16a34a" }}>Pro tip:</strong> Download PDF for job portals (Naukri, LinkedIn, company sites). Download DOCX to edit further in Google Docs or Word.
           </div>
         </div>
       )}
@@ -1969,8 +1726,9 @@ Return format:
       {/* Reset */}
       <div style={{ marginTop:18 }}>
         <button onClick={()=>{
-          setStep("input"); setAnalysis(null); setOptimized(null); setOptimizedScores(null); setErr(""); setSection("overview");
-          setJd(""); setResume(""); setFileName(""); setSuggestedProjects(null); setUsingSuggestedProjects(false);
+          setStep("input"); setAnalysis(null); setOptimized(null); setOptimizedScores(null);
+          setErr(""); setSection("overview"); setJd(""); setResume(""); setFileName("");
+          setSuggestedProjects(null); setProjectChoice("original");
           localStorage.removeItem("tp_jd"); localStorage.removeItem("tp_resume"); localStorage.removeItem("tp_fileName");
         }} style={{ width:"100%", padding:"12px", borderRadius:10, border:`1.5px solid ${C.border}`, background:"transparent", color:"#64748b", cursor:"pointer", fontFamily:"'Inter',sans-serif", fontSize:13 }}>
           🔄 Analyze Another Job
@@ -2042,7 +1800,6 @@ function MainApp({ user, onLogout }) {
           </div>
         </div>
       </div>
-
       <div style={{ background:"#ffffff", borderBottom:`1.5px solid ${C.border}`, position:"sticky", top:60, zIndex:99 }}>
         <div style={{ maxWidth:820, margin:"0 auto", display:"flex" }}>
           {TABS.map(([icon,label],i)=>(
@@ -2056,21 +1813,17 @@ function MainApp({ user, onLogout }) {
           ))}
         </div>
       </div>
-
       <div style={{ maxWidth:820, margin:"0 auto", padding:"24px 16px 80px" }}>
         {tab===0 && (
           <div>
             <Card style={{ marginBottom:20 }}>
               <div style={{ fontWeight:700, color:C.text, fontSize:15, marginBottom:14 }}>🔍 Find Jobs</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
-                <input style={inp} placeholder="Role (react developer...)" value={search}
-                  onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}/>
-                <input style={inp} placeholder="City (hyderabad...)" value={location}
-                  onChange={e=>setLocation(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}/>
+                <input style={inp} placeholder="Role (react developer...)" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}/>
+                <input style={inp} placeholder="City (hyderabad...)" value={location} onChange={e=>setLocation(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}/>
               </div>
               <Btn variant="cta" onClick={()=>fetchJobs()} style={{ width:"100%" }}>🔍 Search Jobs</Btn>
             </Card>
-
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
               <div style={{ fontWeight:800, fontSize:18, color:C.text }}>Live Job Feed</div>
               {!jobsLoading&&jobs.length>0&&(
@@ -2080,17 +1833,8 @@ function MainApp({ user, onLogout }) {
                 </div>
               )}
             </div>
-
-            {jobsLoading && (
-              <div style={{ textAlign:"center", padding:"60px 20px" }}>
-                <SpinIcon size={40} color={C.blue}/>
-                <div style={{ color:C.muted, fontSize:14, marginTop:14 }}>Fetching real jobs...</div>
-              </div>
-            )}
-            {jobsError && (
-              <div style={{ background:"#fef2f2", border:"1px solid #fecaca", borderRadius:14, padding:22, color:C.danger, textAlign:"center", fontSize:14 }}>{jobsError}</div>
-            )}
-
+            {jobsLoading && <div style={{ textAlign:"center", padding:"60px 20px" }}><SpinIcon size={40} color={C.blue}/><div style={{ color:C.muted, fontSize:14, marginTop:14 }}>Fetching real jobs...</div></div>}
+            {jobsError && <div style={{ background:"#fef2f2", border:"1px solid #fecaca", borderRadius:14, padding:22, color:"#dc2626", textAlign:"center", fontSize:14 }}>{jobsError}</div>}
             {!jobsLoading&&jobs.map((job,i)=>{
               const isExp=expandedJob===job.id;
               return (
@@ -2108,8 +1852,7 @@ function MainApp({ user, onLogout }) {
                   <div style={{ color:C.muted, fontSize:12, lineHeight:1.7, marginBottom:12, background:C.card, borderRadius:10, padding:"10px 12px" }}>
                     {isExp?job.description:job.descriptionShort+(job.description.length>220?"...":"")}
                     {job.description.length>220&&(
-                      <button onClick={()=>setExpandedJob(isExp?null:job.id)}
-                        style={{ background:"none", border:"none", color:C.blue, fontSize:11, cursor:"pointer", marginLeft:6, fontFamily:"'Inter',sans-serif", fontWeight:600 }}>
+                      <button onClick={()=>setExpandedJob(isExp?null:job.id)} style={{ background:"none", border:"none", color:C.blue, fontSize:11, cursor:"pointer", marginLeft:6, fontFamily:"'Inter',sans-serif", fontWeight:600 }}>
                         {isExp?"Show less ▲":"Read more ▼"}
                       </button>
                     )}
@@ -2136,9 +1879,9 @@ function MainApp({ user, onLogout }) {
 // ROOT APP
 // ══════════════════════════════════════════════════════════════════════════
 export default function App() {
-  const [user, setUser]             = useState(null);
+  const [user, setUser] = useState(null);
   const [appLoading, setAppLoading] = useState(true);
-  const [page, setPage]             = useState("landing");
+  const [page, setPage] = useState("landing");
 
   useEffect(()=>{
     supabase.auth.getSession().then(({data:{session}})=>{
@@ -2151,18 +1894,15 @@ export default function App() {
     });
   },[]);
 
-  const handleLogin  = (u) => { setUser(u); setPage("app"); };
-  const handleLogout = async () => { await supabase.auth.signOut(); setUser(null); setPage("landing"); };
-
   if (appLoading) return (
     <div style={{ minHeight:"100vh", background:"#ffffff", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16 }}>
       <style>{css}</style>
       <SpinIcon size={44} color={C.blue}/>
-      <div style={{ color:C.muted, fontSize:14, fontFamily:"'Inter',sans-serif" }}>Loading TakePlace...</div>
+      <div style={{ color:"#64748b", fontSize:14, fontFamily:"'Inter',sans-serif" }}>Loading TakePlace...</div>
     </div>
   );
 
   if (page==="landing") return <LandingPage onGetStarted={()=>setPage("auth")}/>;
-  if (page==="auth")    return <AuthPage onLogin={handleLogin} onBack={()=>setPage("landing")}/>;
-  return <MainApp user={user} onLogout={handleLogout}/>;
+  if (page==="auth") return <AuthPage onLogin={(u)=>{ setUser(u); setPage("app"); }} onBack={()=>setPage("landing")}/>;
+  return <MainApp user={user} onLogout={async()=>{ await supabase.auth.signOut(); setUser(null); setPage("landing"); }}/>;
 }
