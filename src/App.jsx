@@ -228,10 +228,10 @@ function saveTestScore(companyKey, testId, score, total, correct) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// MOCK TEST ENGINE — FULL OVERHAUL
+// MOCK TEST ENGINE
 // ══════════════════════════════════════════════════════════════════════════
 function MockTestEngine({ user }) {
-  const [view, setView] = useState("home"); // home | company | tests | test | result
+  const [view, setView] = useState("home");
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [selectedTest, setSelectedTest] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -241,7 +241,7 @@ function MockTestEngine({ user }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [err, setErr] = useState("");
-  const [filter, setFilter] = useState("all"); // all | service | product
+  const [filter, setFilter] = useState("all");
   const [scores, setScores] = useState({});
   const timerRef = useRef(null);
 
@@ -352,20 +352,20 @@ Test #${testNum}: use UNIQUE questions not repeated across tests. Vary topics wi
       setQuestions(qs);
       setAnswers({});
       setCurrentQ(0);
-      setTimeLeft(isProduct ? 60*60 : 45*60); // 60min product, 45min service
+      setTimeLeft(isProduct ? 60*60 : 45*60);
       setView("test");
       trackActivity("mock_test_started", `${company} test#${test.id}`);
     } catch(e) { setErr(e.message); }
     setLoading(false);
   };
 
-  // Timer
   useEffect(()=>{
     if (view!=="test") return;
     timerRef.current = setInterval(()=>{
       setTimeLeft(t=>{ if(t<=1){clearInterval(timerRef.current);submitTest();return 0;} return t-1; });
     },1000);
     return ()=>clearInterval(timerRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   },[view]);
 
   const submitTest = () => {
@@ -389,6 +389,8 @@ Test #${testNum}: use UNIQUE questions not repeated across tests. Vary topics wi
   const co = selectedCompany ? ALL_COMPANIES[selectedCompany] : null;
 
   const filtered = Object.entries(ALL_COMPANIES).filter(([,p])=>filter==="all"||p.type===filter);
+  // suppress unused warning
+  void filtered;
 
   // ── HOME VIEW ──────────────────────────────────────────────────────────
   if (view==="home") return (
@@ -500,12 +502,11 @@ Test #${testNum}: use UNIQUE questions not repeated across tests. Vary topics wi
     </div>
   );
 
-  // ── COMPANY VIEW (40 tests grid) ────────────────────────────────────────
+  // ── COMPANY VIEW ────────────────────────────────────────────────────────
   if (view==="company" && co) {
     const tests = getMockTests(selectedCompany);
     const coScores = scores[selectedCompany]||{};
     const stats = getCompanyStats(selectedCompany);
-    const completedTests = Object.keys(coScores).map(Number);
 
     return (
       <div>
@@ -521,7 +522,6 @@ Test #${testNum}: use UNIQUE questions not repeated across tests. Vary topics wi
             </div>
           </div>
 
-          {/* Performance Dashboard */}
           {stats.completed>0 ? (
             <div>
               <div style={{fontWeight:700,fontSize:14,color:C.text,marginBottom:12}}>📊 Your Performance</div>
@@ -569,9 +569,8 @@ Test #${testNum}: use UNIQUE questions not repeated across tests. Vary topics wi
             const scoreColor = done ? (s.score>=70?C.green:s.score>=50?C.warn:C.danger) : co.color;
             return (
               <div key={test.id} className="hover-lift" onClick={()=>!loading&&startTest(selectedCompany,test)}
-                style={{background:"#ffffff",border:`1.5px solid ${done?scoreColor:C.border}`,borderRadius:12,padding:14,cursor:"pointer",
-                  boxShadow:done?`0 2px 8px ${scoreColor}20`:"0 1px 4px rgba(0,0,0,0.04)",
-                  background:done?`${scoreColor}06`:"#ffffff"}}>
+                style={{background:done?`${scoreColor}06`:"#ffffff",border:`1.5px solid ${done?scoreColor:C.border}`,borderRadius:12,padding:14,cursor:"pointer",
+                  boxShadow:done?`0 2px 8px ${scoreColor}20`:"0 1px 4px rgba(0,0,0,0.04)"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
                   <div style={{fontWeight:800,fontSize:13,color:C.text}}>#{test.id}</div>
                   <div style={{background:test.difficulty==="Easy"?`${C.green}15`:test.difficulty==="Medium"?`${C.warn}15`:`${C.danger}15`,color:test.difficulty==="Easy"?C.green:test.difficulty==="Medium"?C.warn:C.danger,fontSize:9,padding:"2px 7px",borderRadius:10,fontWeight:700}}>{test.difficulty}</div>
@@ -671,7 +670,6 @@ Test #${testNum}: use UNIQUE questions not repeated across tests. Vary topics wi
               <div style={{fontWeight:700,fontSize:17,color:C.text,marginBottom:10}}>{q.title}</div>
               <div style={{color:C.soft,fontSize:13,lineHeight:1.9,marginBottom:14,background:C.card,borderRadius:12,padding:14}}>{q.description}</div>
 
-              {/* Examples */}
               {q.examples?.length>0 && (
                 <div style={{marginBottom:14}}>
                   <div style={{fontWeight:700,color:C.text,fontSize:13,marginBottom:8}}>Examples:</div>
@@ -685,7 +683,6 @@ Test #${testNum}: use UNIQUE questions not repeated across tests. Vary topics wi
                 </div>
               )}
 
-              {/* Test Cases */}
               {q.testCases?.length>0 && (
                 <div style={{marginBottom:14}}>
                   <div style={{fontWeight:700,color:C.text,fontSize:13,marginBottom:8}}>🧪 Test Cases:</div>
@@ -833,6 +830,8 @@ function LinkedInSuite({ user }) {
   const [copied, setCopied] = useState("");
   const [err, setErr] = useState("");
   const fileRef = useRef();
+  // suppress unused warning
+  void user;
 
   const handleFile = async (e) => {
     const f=e.target.files[0]; if(!f) return;
@@ -1004,6 +1003,8 @@ function ResumeAnalyzer({ user }) {
   const [section,setSection]=useState("overview");
   const [downloading,setDownloading]=useState("");
   const fileRef=useRef(); const jdImageRef=useRef(); const [jdImageLoading,setJdImageLoading]=useState(false);
+  // suppress unused warning
+  void user;
 
   const handleFile=async(e)=>{
     const f=e.target.files[0];if(!f)return;setFileName(f.name);localStorage.setItem("tp_fileName",f.name);setErr("");
@@ -1104,7 +1105,9 @@ function ResumeAnalyzer({ user }) {
 
   const a=analysis;
   const displayScores=(step==="optimized"&&optimizedScores)?optimizedScores:{matchScore:a.matchScore,atsScore:a.atsScore,shortlistRate:a.shortlistRate||Math.min(35,Math.round((a.matchScore*0.6+a.atsScore*0.4)*0.35))};
-  const tabs=[["overview","📊 Overview"],["audit","🔬 Audit"],["gaps","⚠️ Gaps"],["projects","🏗️ Projects"],...(step==="optimized"?[["resume","✨ Optimized"]]:[])];;
+
+  // ── FIX: removed double semicolon here ──
+  const tabs=[["overview","📊 Overview"],["audit","🔬 Audit"],["gaps","⚠️ Gaps"],["projects","🏗️ Projects"],...(step==="optimized"?[["resume","✨ Optimized"]]:[])];
 
   return(
     <div>
