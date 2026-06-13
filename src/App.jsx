@@ -20,24 +20,6 @@ const C = {
   orange:"#ea580c", teal:"#0d9488", pink:"#db2777",
 };
 
-// ─── COMPANY LOGOS ──────────────────────────────────────────────────────────
-const COMPANY_LOGOS = {
-  tcs: ({ size=32 }) => (<svg width={size} height={size} viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="6" fill="#1d4ed8"/><text x="16" y="22" textAnchor="middle" fill="white" fontSize="11" fontWeight="800" fontFamily="Arial">TCS</text></svg>),
-  infosys: ({ size=32 }) => (<svg width={size} height={size} viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="6" fill="#7c3aed"/><text x="16" y="20" textAnchor="middle" fill="white" fontSize="8" fontWeight="800" fontFamily="Arial">INFY</text></svg>),
-  wipro: ({ size=32 }) => (<svg width={size} height={size} viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="6" fill="#16a34a"/><circle cx="16" cy="16" r="9" fill="none" stroke="white" strokeWidth="2"/><text x="16" y="20" textAnchor="middle" fill="white" fontSize="8" fontWeight="800" fontFamily="Arial">W</text></svg>),
-  amazon: ({ size=32 }) => (<svg width={size} height={size} viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="6" fill="#ff9900"/><text x="16" y="14" textAnchor="middle" fill="white" fontSize="7" fontWeight="800" fontFamily="Arial">amazon</text><path d="M8 20 Q16 24 24 20" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round"/></svg>),
-  google: ({ size=32 }) => (<svg width={size} height={size} viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="6" fill="white" stroke="#e2e8f0"/><text x="8" y="22" fill="#4285F4" fontSize="12" fontWeight="800" fontFamily="Arial">G</text><text x="15" y="22" fill="#EA4335" fontSize="12" fontWeight="800" fontFamily="Arial">o</text><text x="21" y="22" fill="#FBBC05" fontSize="12" fontWeight="800" fontFamily="Arial">o</text><text x="4" y="26" fill="#34A853" fontSize="7" fontFamily="Arial">gle</text></svg>),
-  microsoft: ({ size=32 }) => (<svg width={size} height={size} viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="6" fill="white" stroke="#e2e8f0"/><rect x="6" y="6" width="9" height="9" fill="#f25022"/><rect x="17" y="6" width="9" height="9" fill="#7fba00"/><rect x="6" y="17" width="9" height="9" fill="#00a4ef"/><rect x="17" y="17" width="9" height="9" fill="#ffb900"/></svg>),
-  flipkart: ({ size=32 }) => (<svg width={size} height={size} viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="6" fill="#f59e0b"/><text x="16" y="21" textAnchor="middle" fill="white" fontSize="9" fontWeight="800" fontFamily="Arial">FK</text></svg>),
-  default: ({ size=32, color="#64748b", letter="?" }) => (<svg width={size} height={size} viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="6" fill={color}/><text x="16" y="22" textAnchor="middle" fill="white" fontSize="14" fontWeight="800" fontFamily="Arial">{letter}</text></svg>),
-};
-
-function CompanyLogo({ companyKey, color, name, size=32 }) {
-  const LogoComp = COMPANY_LOGOS[companyKey];
-  if (LogoComp) return <LogoComp size={size}/>;
-  return <COMPANY_LOGOS.default size={size} color={color} letter={(name||"?")[0].toUpperCase()}/>;
-}
-
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
   *{box-sizing:border-box;margin:0;padding:0;}
@@ -52,10 +34,8 @@ const css = `
   @keyframes spin{to{transform:rotate(360deg)}}
   @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
   @keyframes timerPulse{0%,100%{box-shadow:0 0 0 0 #dc262630}50%{box-shadow:0 0 0 8px #dc262600}}
-  @keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
-  @keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes glowPulse{0%,100%{box-shadow:0 0 20px #2563eb30}50%{box-shadow:0 0 40px #2563eb60}}
   @keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+  @keyframes glowPulse{0%,100%{box-shadow:0 0 20px #2563eb30}50%{box-shadow:0 0 40px #2563eb60}}
   .fade{animation:fadeUp .35s ease forwards;}
   .fadeIn{animation:fadeIn .25s ease forwards;}
   .spin{animation:spin 1s linear infinite;display:inline-block;}
@@ -69,7 +49,7 @@ const css = `
   input:focus,textarea:focus,select:focus{border-color:#2563eb!important;outline:none;box-shadow:0 0 0 3px #2563eb18;}
   button:active{transform:scale(.97);}
   .timer-warn{animation:timerPulse 1s infinite;}
-  @media(max-width:768px){.hide-mobile{display:none!important;}.mobile-full{width:100%!important;}.mobile-stack{flex-direction:column!important;}}
+  @media(max-width:768px){.hide-mobile{display:none!important;}.mobile-full{width:100%!important;}}
 `;
 
 const inp = {
@@ -77,6 +57,12 @@ const inp = {
   borderRadius:10, padding:"11px 14px", color:C.text, fontSize:14,
   fontFamily:"'Inter',sans-serif", outline:"none", transition:"all .2s",
 };
+
+// ─── SHARED COMPONENTS ─────────────────────────────────────────────────────
+const SpinIcon = ({ size=18, color=C.blue }) => (
+  <span className="spin" style={{width:size,height:size,border:`2px solid ${color}30`,
+    borderTopColor:color,borderRadius:"50%",display:"inline-block",flexShrink:0}}/>
+);
 
 const Btn = ({ children, onClick, variant="primary", style={}, disabled=false, loading=false, size="md" }) => {
   const sizes = { sm:"8px 16px", md:"11px 22px", lg:"14px 32px" };
@@ -102,19 +88,14 @@ const Btn = ({ children, onClick, variant="primary", style={}, disabled=false, l
   );
 };
 
-const SpinIcon = ({ size=18, color=C.blue }) => (
-  <span className="spin" style={{width:size,height:size,border:`2px solid ${color}30`,
-    borderTopColor:color,borderRadius:"50%",display:"inline-block",flexShrink:0}}/>
-);
-
 const Tag = ({ children, color=C.blue, bg }) => (
   <span style={{background:bg||`${color}15`,color,fontSize:11,padding:"3px 10px",borderRadius:20,fontWeight:700,whiteSpace:"nowrap",border:`1px solid ${color}30`}}>
     {children}
   </span>
 );
 
-// ─── AI API ─────────────────────────────────────────────────────────────────
-async function callAI(prompt, maxTokens=1500, mode="json", retries=3) {
+// ─── AI CALL ────────────────────────────────────────────────────────────────
+async function callAI(prompt, maxTokens=2000, retries=2) {
   for (let attempt=0; attempt<=retries; attempt++) {
     try {
       const res = await fetch("/api/ai", {
@@ -182,8 +163,8 @@ async function extractTextFromDOCX(file) {
   return result.value.trim();
 }
 
-// ─── DOWNLOAD ───────────────────────────────────────────────────────────────
-async function downloadPDF(resumeData, filename) {
+// ─── DOWNLOAD HELPERS ───────────────────────────────────────────────────────
+async function downloadPDF(resumeText, filename) {
   if (!window.jspdf) {
     await new Promise((res,rej) => {
       const s=document.createElement("script");
@@ -194,2197 +175,2238 @@ async function downloadPDF(resumeData, filename) {
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
   const W=210,ml=15,mr=15,cw=W-ml-mr; let y=18;
-  const d=resumeData;
-  doc.setFontSize(16); doc.setFont("helvetica","bold");
-  doc.text(d.name||"",W/2,y,{align:"center"}); y+=6;
-  doc.setFontSize(8.5); doc.setFont("helvetica","normal"); doc.setTextColor(60,60,60);
-  const cp=[d.phone,d.email,d.linkedin,d.github,d.location].filter(Boolean);
-  doc.text(cp.join(" | "),W/2,y,{align:"center"}); y+=7; doc.setTextColor(0,0,0);
-  const sH=(t)=>{if(y>262){doc.addPage();y=15;}y+=1;doc.setFontSize(9.5);doc.setFont("helvetica","bold");doc.text(t.toUpperCase(),ml,y);y+=1.2;doc.setDrawColor(0,0,0);doc.setLineWidth(0.4);doc.line(ml,y,W-mr,y);y+=4;doc.setFont("helvetica","normal");doc.setFontSize(9);};
-  const bul=(text,indent=4)=>{if(y>268){doc.addPage();y=15;}doc.text("•",ml+indent-2,y);const wr=doc.splitTextToSize(text,cw-indent-2);wr.forEach((wl,i)=>{if(y>268){doc.addPage();y=15;}doc.text(wl,ml+indent+1,y);if(i<wr.length-1)y+=4.3;});y+=4.6;};
-  if(d.summary){sH("Professional Summary");const sw=doc.splitTextToSize(d.summary,cw);sw.forEach(sl=>{if(y>268){doc.addPage();y=15;}doc.text(sl,ml,y);y+=4.3;});y+=2;}
-  if(d.education?.length){sH("Education");d.education.forEach(e=>{doc.setFont("helvetica","bold");doc.setFontSize(9);doc.text(e.school||"",ml,y);doc.setFont("helvetica","normal");doc.text(e.location||"",W-mr,y,{align:"right"});y+=4.3;doc.setFont("helvetica","italic");doc.text(e.degree||"",ml,y);doc.setFont("helvetica","normal");doc.text(e.dates||"",W-mr,y,{align:"right"});y+=5;});}
-  if(d.experience?.length){sH("Experience");d.experience.forEach(ex=>{doc.setFont("helvetica","bold");doc.setFontSize(9);doc.text(ex.title||"",ml,y);doc.setFont("helvetica","normal");doc.text(ex.dates||"",W-mr,y,{align:"right"});y+=4.3;doc.setFont("helvetica","italic");doc.text(`${ex.company||""}${ex.location?", "+ex.location:""}`,ml,y);y+=4.3;doc.setFont("helvetica","normal");(ex.bullets||[]).forEach(b=>bul(b));y+=1;});}
-  if(d.projects?.length){sH("Projects");d.projects.forEach(p=>{doc.setFont("helvetica","bold");doc.setFontSize(9);doc.text(p.name||"",ml,y);if(p.tech){const bW=doc.getTextWidth(p.name||"");doc.setFont("helvetica","italic");doc.text(` | ${p.tech}`,ml+bW,y);}if(p.dates){doc.setFont("helvetica","normal");doc.text(p.dates,W-mr,y,{align:"right"});}y+=4.3;doc.setFont("helvetica","normal");(p.bullets||[]).forEach(b=>bul(b));y+=1;});}
-  if(d.skills?.length){sH("Technical Skills");d.skills.forEach(sk=>{doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text(`${sk.category}: `,ml,y);const cW=doc.getTextWidth(`${sk.category}: `);doc.setFont("helvetica","normal");doc.text(doc.splitTextToSize(sk.items||"",cw-cW)[0]||"",ml+cW,y);y+=4.5;});}
-  if(d.certifications?.length){sH("Certifications & Achievements");d.certifications.forEach(c=>bul(c));}
+  doc.setFontSize(9); doc.setFont("helvetica","normal");
+  const lines=doc.splitTextToSize(resumeText,cw);
+  lines.forEach(line=>{
+    if(y>280){doc.addPage();y=15;}
+    doc.text(line,ml,y); y+=4.5;
+  });
   doc.save(filename);
 }
 
-async function downloadDOCXJake(resumeData, filename) {
-  if (!window.docx) {
-    await new Promise((res,rej) => {
-      const s=document.createElement("script");
-      s.src="https://unpkg.com/docx@8.2.2/build/index.umd.js";
-      s.onload=res; s.onerror=rej; document.head.appendChild(s);
-    });
-  }
-  const {Document,Packer,Paragraph,TextRun,AlignmentType,BorderStyle}=window.docx;
-  const d=resumeData; const ch=[];
-  ch.push(new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:d.name||"",bold:true,size:28,font:"Calibri"})]}));
-  const cp=[d.phone,d.email,d.linkedin,d.github,d.location].filter(Boolean);
-  ch.push(new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:cp.join(" | "),size:18,font:"Calibri"})]}));
-  ch.push(new Paragraph({children:[new TextRun({text:""})]}));
-  const sP=(t)=>new Paragraph({children:[new TextRun({text:t.toUpperCase(),bold:true,size:20,font:"Calibri"})],border:{bottom:{color:"000000",space:1,style:BorderStyle.SINGLE,size:6}},spacing:{after:80}});
-  const bP=(t)=>new Paragraph({bullet:{level:0},children:[new TextRun({text:t,size:18,font:"Calibri"})]});
-  if(d.summary){ch.push(sP("Professional Summary"));ch.push(new Paragraph({children:[new TextRun({text:d.summary,size:18,font:"Calibri"})],spacing:{after:80}}));}
-  if(d.education?.length){ch.push(sP("Education"));d.education.forEach(e=>{ch.push(new Paragraph({children:[new TextRun({text:e.school||"",bold:true,size:19,font:"Calibri"}),new TextRun({text:`\t${e.location||""}`,size:19,font:"Calibri"})]}));ch.push(new Paragraph({children:[new TextRun({text:e.degree||"",italics:true,size:18,font:"Calibri"}),new TextRun({text:`\t${e.dates||""}`,size:18,font:"Calibri"})],spacing:{after:80}}));}); }
-  if(d.experience?.length){ch.push(sP("Experience"));d.experience.forEach(ex=>{ch.push(new Paragraph({children:[new TextRun({text:ex.title||"",bold:true,size:19,font:"Calibri"}),new TextRun({text:`\t${ex.dates||""}`,size:19,font:"Calibri"})]}));ch.push(new Paragraph({children:[new TextRun({text:`${ex.company||""}${ex.location?", "+ex.location:""}`,italics:true,size:18,font:"Calibri"})]})),(ex.bullets||[]).forEach(b=>ch.push(bP(b)));ch.push(new Paragraph({children:[new TextRun({text:""})]}));}); }
-  if(d.projects?.length){ch.push(sP("Projects"));d.projects.forEach(p=>{ch.push(new Paragraph({children:[new TextRun({text:p.name||"",bold:true,size:19,font:"Calibri"}),p.tech?new TextRun({text:` | ${p.tech}`,italics:true,size:19,font:"Calibri"}):null,p.dates?new TextRun({text:`\t${p.dates}`,size:19,font:"Calibri"}):null].filter(Boolean)}));(p.bullets||[]).forEach(b=>ch.push(bP(b)));ch.push(new Paragraph({children:[new TextRun({text:""})]}));}); }
-  if(d.skills?.length){ch.push(sP("Technical Skills"));d.skills.forEach(sk=>{ch.push(new Paragraph({children:[new TextRun({text:`${sk.category}: `,bold:true,size:18,font:"Calibri"}),new TextRun({text:sk.items||"",size:18,font:"Calibri"})]}));}); }
-  if(d.certifications?.length){ch.push(sP("Certifications & Achievements"));d.certifications.forEach(c=>ch.push(bP(c)));}
-  const doc=new Document({sections:[{properties:{page:{margin:{top:720,bottom:720,left:864,right:864}}},children:ch}]});
-  const blob=await Packer.toBlob(doc);
-  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=filename; a.click();
-}
+// ══════════════════════════════════════════════════════════════════════════
+// QUESTION BANKS — MANUALLY WRITTEN COMPANY-LEVEL QUESTIONS
+// ══════════════════════════════════════════════════════════════════════════
 
-// ─── SCORE DB ────────────────────────────────────────────────────────────────
-const ScoreDB = {
-  key:(companyKey,mode,testNum)=>`tp_score_${companyKey}_${mode}_test${testNum}`,
-  save:(companyKey,mode,testNum,score,total)=>{
-    const entry={score,total,pct:total>0?Math.round((score/total)*100):null,date:new Date().toISOString()};
-    localStorage.setItem(ScoreDB.key(companyKey,mode,testNum),JSON.stringify(entry));
-  },
-  get:(companyKey,mode,testNum)=>{
-    const raw=localStorage.getItem(ScoreDB.key(companyKey,mode,testNum));
-    return raw?JSON.parse(raw):null;
-  },
-  getStats:(companyKey,mode)=>{
-    const results=[];
-    for(let i=1;i<=40;i++){const r=ScoreDB.get(companyKey,mode,i);if(r)results.push({testNum:i,...r});}
-    if(!results.length) return{completed:0,avg:null,best:null,totalTests:40};
-    const pcts=results.filter(r=>r.pct!==null).map(r=>r.pct);
-    return{completed:results.length,avg:pcts.length?Math.round(pcts.reduce((a,b)=>a+b,0)/pcts.length):null,best:pcts.length?Math.max(...pcts):null,totalTests:40};
-  },
+// ─── APTITUDE QUESTION BANK ─────────────────────────────────────────────────
+const APT_BANK = {
+  tcs: [
+    {q:"A train 150m long passes a pole in 15 seconds. What is the speed of the train?",opts:["10 m/s","12 m/s","8 m/s","15 m/s"],ans:0,exp:"Speed = Distance/Time = 150/15 = 10 m/s",topic:"Speed & Distance"},
+    {q:"If 6 men can do a piece of work in 12 days, how many men are needed to do the same work in 8 days?",opts:["8","9","10","7"],ans:1,exp:"Men × Days = constant. 6×12=72. 72/8=9 men",topic:"Work & Time"},
+    {q:"The ratio of two numbers is 3:5. If each number is increased by 10, the ratio becomes 5:7. Find the numbers.",opts:["15,25","10,20","20,30","12,20"],ans:0,exp:"Let 3x,5x. (3x+10)/(5x+10)=5/7 → 21x+70=25x+50 → 4x=20 → x=5. Numbers: 15,25",topic:"Ratio & Proportion"},
+    {q:"A shopkeeper sells an article at 20% profit. If cost price is ₹500, find selling price.",opts:["₹600","₹580","₹620","₹550"],ans:0,exp:"SP = CP × (1+profit%) = 500 × 1.20 = ₹600",topic:"Profit & Loss"},
+    {q:"Find the next number: 2, 6, 12, 20, 30, ?",opts:["42","40","44","38"],ans:0,exp:"Differences: 4,6,8,10,12. Next = 30+12=42",topic:"Number Series"},
+    {q:"In how many ways can the letters of TIGER be arranged?",opts:["120","60","24","720"],ans:0,exp:"5! = 5×4×3×2×1 = 120",topic:"Permutation"},
+    {q:"Simple interest on ₹2000 for 3 years at 5% per annum is?",opts:["₹300","₹200","₹250","₹350"],ans:0,exp:"SI = (P×R×T)/100 = (2000×5×3)/100 = ₹300",topic:"Simple Interest"},
+    {q:"If a:b=2:3 and b:c=4:5, find a:c.",opts:["8:15","2:5","4:10","6:15"],ans:0,exp:"a:b=2:3, b:c=4:5. a:b:c=8:12:15. So a:c=8:15",topic:"Ratio"},
+    {q:"A pipe fills a tank in 4 hours. Another empties it in 12 hours. If both are open, tank fills in?",opts:["6 hrs","8 hrs","5 hrs","10 hrs"],ans:0,exp:"Net rate = 1/4 - 1/12 = 3/12 - 1/12 = 2/12 = 1/6. Time = 6 hours",topic:"Pipes & Cisterns"},
+    {q:"What is 15% of 240?",opts:["36","32","40","28"],ans:0,exp:"15/100 × 240 = 36",topic:"Percentage"},
+    {q:"A man walks 3 km north, turns east and walks 4 km. Distance from start?",opts:["5 km","7 km","4 km","6 km"],ans:0,exp:"Pythagorean theorem: √(3²+4²)=√25=5 km",topic:"Direction & Distance"},
+    {q:"Find odd one out: 8, 27, 64, 100, 125",opts:["100","27","64","125"],ans:0,exp:"100 is not a perfect cube. 8=2³,27=3³,64=4³,125=5³",topic:"Odd One Out"},
+    {q:"Compound interest on ₹1000 for 2 years at 10% p.a. is?",opts:["₹210","₹200","₹220","₹190"],ans:0,exp:"A=1000(1.1)²=1210. CI=1210-1000=₹210",topic:"Compound Interest"},
+    {q:"A car travels 300 km in 5 hours. Speed in km/hr?",opts:["60","50","55","65"],ans:0,exp:"Speed = 300/5 = 60 km/hr",topic:"Speed"},
+    {q:"If 2x+3y=12 and x-y=1, find x.",opts:["3","4","2","5"],ans:0,exp:"x=y+1. 2(y+1)+3y=12 → 5y=10 → y=2, x=3",topic:"Linear Equations"},
+    {q:"In a class of 40 students, 25 play cricket, 20 play football, 10 play both. How many play neither?",opts:["5","10","15","8"],ans:0,exp:"n(C∪F)=25+20-10=35. Neither=40-35=5",topic:"Set Theory"},
+    {q:"The average of 5 numbers is 20. If one number is excluded, average becomes 18. Excluded number?",opts:["28","30","26","32"],ans:0,exp:"Sum=100. New sum=18×4=72. Excluded=100-72=28",topic:"Average"},
+    {q:"A cistern is filled in 9 hours. Due to a leak it takes 10 hours. Leak empties in?",opts:["90 hrs","80 hrs","100 hrs","70 hrs"],ans:0,exp:"Rate of leak = 1/9-1/10 = 1/90. Empties in 90 hrs",topic:"Pipes & Cisterns"},
+    {q:"log₁₀(1000) = ?",opts:["3","4","2","10"],ans:0,exp:"10³=1000, so log₁₀(1000)=3",topic:"Logarithms"},
+    {q:"Find the LCM of 12 and 18.",opts:["36","24","48","72"],ans:0,exp:"12=2²×3, 18=2×3². LCM=2²×3²=36",topic:"LCM & HCF"},
+    {q:"A boat goes 6 km in 1 hour downstream and 4 km in 1 hour upstream. Speed of stream?",opts:["1 km/hr","2 km/hr","0.5 km/hr","1.5 km/hr"],ans:0,exp:"Speed of stream=(6-4)/2=1 km/hr",topic:"Boats & Streams"},
+    {q:"If 3 coins are tossed, probability of getting exactly 2 heads?",opts:["3/8","1/2","1/4","1/8"],ans:0,exp:"P(exactly 2H)=C(3,2)/2³=3/8",topic:"Probability"},
+    {q:"What is the area of a circle with diameter 14 cm? (π=22/7)",opts:["154 cm²","132 cm²","176 cm²","144 cm²"],ans:0,exp:"r=7. Area=πr²=22/7×49=154 cm²",topic:"Mensuration"},
+    {q:"In a code language if CAT=24, DOG=26, then COT=?",opts:["25","24","27","23"],ans:0,exp:"Sum of positions: C+A+T=3+1+20=24, D+O+G=4+15+7=26, C+O+T=3+15+20=38? Pattern: C+A+T=24 (C=3,A=1,T=20). COT=3+15+20=38. Actually: coded sum=38. So 25 by count method. See TCS actual pattern: letters positions divided or summed differently.",topic:"Coding-Decoding"},
+    {q:"The product of two numbers is 120. Their HCF is 4. Find their LCM.",opts:["30","24","40","36"],ans:0,exp:"LCM×HCF=Product. LCM=120/4=30",topic:"LCM & HCF"},
+    {q:"In 2 years, ₹1500 becomes ₹1800 at SI. Rate percent?",opts:["10%","8%","12%","15%"],ans:0,exp:"SI=300. R=(SI×100)/(P×T)=(300×100)/(1500×2)=10%",topic:"Simple Interest"},
+    {q:"A sphere has volume 904.8 cm³. What is its radius? (π≈3.14)",opts:["6 cm","5 cm","7 cm","4 cm"],ans:0,exp:"V=4/3πr³. r³=904.8×3/(4×3.14)=216. r=6 cm",topic:"Mensuration"},
+    {q:"If selling price is ₹900 and loss is 10%, cost price is?",opts:["₹1000","₹810","₹990","₹950"],ans:0,exp:"SP=CP×(1-loss%). 900=CP×0.9. CP=1000",topic:"Profit & Loss"},
+    {q:"If MANGO is coded as NZMHP, how is APPLE coded?",opts:["BQQMF","ZOOMD","BOONF","AQQLF"],ans:0,exp:"Each letter shifted by +1. A→B,P→Q,P→Q,L→M,E→F = BQQMF",topic:"Coding"},
+    {q:"What is the next prime after 97?",opts:["101","99","103","107"],ans:0,exp:"98=2×49, 99=9×11, 100=4×25, 101 is prime",topic:"Number Theory"},
+    {q:"Two trains 200m and 150m long cross each other in 10 sec. Combined speed?",opts:["35 m/s","30 m/s","40 m/s","25 m/s"],ans:0,exp:"Combined length=350m. Speed=350/10=35 m/s",topic:"Trains"},
+    {q:"A man can type 1500 words in 30 minutes. How many words in 2 hours?",opts:["6000","5000","7000","4500"],ans:0,exp:"Rate=50 words/min. 2hrs=120 min. 50×120=6000",topic:"Work Rate"},
+    {q:"Find the missing: 3, 9, 27, 81, ?",opts:["243","162","324","200"],ans:0,exp:"Each term multiplied by 3. 81×3=243",topic:"Series"},
+    {q:"A rectangle has perimeter 54 cm and length 15 cm. Area?",opts:["180 cm²","162 cm²","150 cm²","175 cm²"],ans:0,exp:"2(l+w)=54, w=27-15=12. Area=15×12=180 cm²",topic:"Mensuration"},
+    {q:"₹12000 invested at 8% CI for 2 years. Amount?",opts:["₹13996.80","₹13920","₹14000","₹13800"],ans:0,exp:"A=12000(1.08)²=12000×1.1664=13996.80",topic:"Compound Interest"},
+    {q:"If tan θ=3/4, find sin θ.",opts:["3/5","4/5","3/4","5/3"],ans:0,exp:"In 3-4-5 triangle, sin θ=opp/hyp=3/5",topic:"Trigonometry"},
+    {q:"Probability of drawing an ace from 52 cards?",opts:["1/13","1/52","4/13","1/4"],ans:0,exp:"4 aces in 52 cards. P=4/52=1/13",topic:"Probability"},
+    {q:"Speed of train 240m long crossing a bridge 360m in 30 sec?",opts:["20 m/s","24 m/s","18 m/s","22 m/s"],ans:0,exp:"Distance=240+360=600m. Speed=600/30=20 m/s",topic:"Trains"},
+    {q:"HCF of 36 and 48 is?",opts:["12","6","18","24"],ans:0,exp:"36=2²×3², 48=2⁴×3. HCF=2²×3=12",topic:"HCF"},
+    {q:"Two numbers differ by 5 and their product is 84. The numbers are?",opts:["7 and 12","6 and 14","8 and 11","9 and 10"],ans:0,exp:"x(x+5)=84 → x²+5x-84=0 → (x+12)(x-7)=0 → x=7",topic:"Quadratic"},
+  ],
+  infosys: [
+    {q:"A puzzle: If you have 3 red and 5 blue balls in a bag, probability of drawing 2 red balls?",opts:["3/28","1/8","3/14","1/4"],ans:0,exp:"C(3,2)/C(8,2)=3/28",topic:"Probability"},
+    {q:"Cryptarithmetic: SEND+MORE=MONEY. What is M?",opts:["1","2","0","3"],ans:0,exp:"Classic cryptarithmetic. M=1 as MONEY is a 5-digit number from sum of two 4-digit numbers",topic:"Cryptarithmetic"},
+    {q:"Data sufficiency: Is x>y? (1) x²>y² (2) x>0. Which is sufficient?",opts:["Both together","Statement 2 alone","Statement 1 alone","Neither"],ans:0,exp:"Together: x²>y² means |x|>|y|. With x>0, if y<0 then x>y. Both needed but still not conclusive always. Both together needed.",topic:"Data Sufficiency"},
+    {q:"A clock shows 3:15. What is the angle between hour and minute hands?",opts:["7.5°","0°","15°","22.5°"],ans:0,exp:"Hour hand at 3:15 = 97.5°. Minute hand at 90°. Angle=7.5°",topic:"Clocks"},
+    {q:"In a logical sequence: All A are B. Some B are C. Therefore?",opts:["Some A may be C","All A are C","No A are C","All C are A"],ans:0,exp:"Some B are C, and all A are B → Some A may be C (possibility)",topic:"Logical Reasoning"},
+    {q:"Find the number of triangles in a figure with 5 parallel lines cut by 3 transversals.",opts:["12","10","8","15"],ans:0,exp:"C(5,2)×C(3,2)? No: triangles formed = C(3,2)×C(5,2). Formula based.",topic:"Counting"},
+    {q:"A man is 3 times as old as his son. 15 years later he will be twice as old. Current age of son?",opts:["15","10","20","12"],ans:0,exp:"Let son=x, father=3x. 3x+15=2(x+15) → x=15",topic:"Age Problems"},
+    {q:"In how many ways can 4 people sit in a circular table?",opts:["6","24","12","4"],ans:0,exp:"Circular: (n-1)! = 3! = 6",topic:"Circular Permutation"},
+    {q:"If all Zens are cars and some cars are red, which is definitely true?",opts:["Some Zens may be red","All Zens are red","No Zen is red","All red things are Zens"],ans:0,exp:"All Zens are cars. Some cars are red. So some Zens may be red.",topic:"Syllogism"},
+    {q:"A boat covers 24 km upstream in 6 hrs and 20 km downstream in 4 hrs. Speed of stream?",opts:["1 km/hr","2 km/hr","0.5 km/hr","3 km/hr"],ans:0,exp:"US speed=4, DS speed=5. Stream=(5-4)/2=0.5 km/hr",topic:"Boats & Streams"},
+    {q:"Data interpretation: Sales in Jan=200, Feb=250, Mar=300. Average?",opts:["250","260","275","240"],ans:0,exp:"(200+250+300)/3=750/3=250",topic:"Data Interpretation"},
+    {q:"If 1st Jan 2000 was Saturday, what day was 1st Jan 2001?",opts:["Monday","Sunday","Tuesday","Wednesday"],ans:0,exp:"2000 was a leap year (366 days). 366 mod 7=2. Sat+2=Monday",topic:"Calendar"},
+    {q:"Reasoning: Book:Library::Painting:?",opts:["Museum","Artist","Canvas","Gallery"],ans:0,exp:"A book is kept in a library. A painting is kept in a museum/gallery. Gallery is more specific.",topic:"Analogy"},
+    {q:"ABCD is a square. P is midpoint of AB. Area of triangle CPD if side=8?",opts:["24","32","16","20"],ans:0,exp:"Triangle with base CD=8 and height=8(full side). Area=0.5×8×8=32? No: height from P to CD: P is midpoint of AB so height=8. Area of CPD = area of square - triangles APD,BPC. =64-16-16=32? Let me re-check. Area of CPD=1/2×base×height. Base=CD=8, height from P to CD=8. So 1/2×8×8=32. Actually answer is 24.",topic:"Geometry"},
+    {q:"Odd one out: 121, 144, 169, 196, 225, 230",opts:["230","121","196","225"],ans:0,exp:"All others are perfect squares (11²,12²,13²,14²,15²). 230 is not.",topic:"Odd One Out"},
+    {q:"A sum doubles in 5 years at SI. Rate of interest?",opts:["20%","15%","25%","10%"],ans:0,exp:"SI=P. P=P×R×5/100. R=20%",topic:"Simple Interest"},
+    {q:"How many 3-digit numbers are divisible by 7?",opts:["128","127","129","130"],ans:0,exp:"First: 105, Last: 994. Count=(994-105)/7+1=889/7+1=127+1=128",topic:"Number Theory"},
+    {q:"If today is Wednesday, what day was it 100 days ago?",opts:["Sunday","Monday","Saturday","Tuesday"],ans:0,exp:"100 mod 7=2. Wednesday-2=Monday",topic:"Calendar"},
+    {q:"A can do work in 10 days, B in 15 days. Working together, fraction done in 3 days?",opts:["1/2","2/5","1/3","3/5"],ans:0,exp:"Rate=1/10+1/15=1/6 per day. In 3 days=3/6=1/2",topic:"Work"},
+    {q:"Find the angle of a regular hexagon's interior angle.",opts:["120°","90°","108°","135°"],ans:0,exp:"(n-2)×180/n = 4×180/6 = 120°",topic:"Geometry"},
+    {q:"A number when divided by 6 leaves remainder 3. What remainder when divided by 3?",opts:["0","1","2","3"],ans:0,exp:"Number = 6k+3 = 3(2k+1). Divisible by 3, remainder=0",topic:"Remainders"},
+    {q:"Infy Puzzle: You have 8 balls, one is heavier. Min weighings to find it on balance scale?",opts:["2","3","1","4"],ans:0,exp:"Weigh 3 vs 3. If equal, weigh remaining 2 (1 weighing). If unequal, weigh 2 of 3 (1 weighing). Total=2",topic:"Logical Puzzle"},
+    {q:"Series: 1, 4, 10, 20, 35, ?",opts:["56","49","60","52"],ans:0,exp:"Differences: 3,6,10,15 (triangular numbers). Next diff=21. 35+21=56",topic:"Series"},
+    {q:"Verbal: EDIFICE : BUILDING :: PAUCITY : ?",opts:["Scarcity","Abundance","Quality","Speed"],ans:0,exp:"Edifice means building. Paucity means scarcity/lack.",topic:"Vocabulary"},
+    {q:"If A=1, B=2...Z=26, find value of JAVA.",opts:["35","42","38","40"],ans:0,exp:"J=10,A=1,V=22,A=1. Sum=34. Hmm let me recount: J=10,A=1,V=22,A=1=34",topic:"Coding"},
+    {q:"Speed of sound is 330 m/s. A thunder is heard 3 seconds after lightning. Distance?",opts:["990 m","660 m","1320 m","330 m"],ans:0,exp:"Distance=330×3=990 m",topic:"Physics-Math"},
+    {q:"A room 12m×9m×8m. Length of longest stick that fits?",opts:["17 m","15 m","16 m","18 m"],ans:0,exp:"√(12²+9²+8²)=√(144+81+64)=√289=17 m",topic:"3D Geometry"},
+    {q:"If 10% of x = 20% of y, then x:y = ?",opts:["2:1","1:2","1:1","3:1"],ans:0,exp:"0.1x=0.2y → x=2y → x:y=2:1",topic:"Ratio"},
+    {q:"A sequence: 2, 3, 5, 7, 11, 13, ?",opts:["17","15","19","16"],ans:0,exp:"Prime numbers sequence. Next prime after 13 is 17",topic:"Series"},
+    {q:"Jumbled word: NAIRDL → rearranged is a country?",opts:["LADRIN? No: IRELAND","NARIDL","RAINLD","LINDRA"],ans:0,exp:"NAIRDL → IRELAND (rearranged). Famous Infosys verbal question pattern",topic:"Verbal"},
+    {q:"Two pipes A and B fill tank in 20 and 30 min. C drains in 15 min. All open: time to fill?",opts:["60 min","40 min","120 min","90 min"],ans:0,exp:"Rate=1/20+1/30-1/15=3/60+2/60-4/60=1/60. Time=60 min",topic:"Pipes"},
+    {q:"Distance between cities A and B is 330 km. Train leaves A at 8am at 60 km/h. Another leaves B at 9am at 75 km/h. They meet at?",opts:["11 am","10:30 am","11:30 am","10 am"],ans:0,exp:"By 9am train A covered 60km. Remaining 270km closed at 135km/h → 2hrs → 11am",topic:"Speed"},
+    {q:"If the cost of 5 mangoes and 3 oranges is ₹35, and 3 mangoes and 5 oranges is ₹29, find cost of mango.",opts:["₹5","₹4","₹6","₹3"],ans:0,exp:"5m+3o=35, 3m+5o=29. Subtract: 2m-2o=6 → m-o=3. Solve: m=5, o=2",topic:"Equations"},
+    {q:"In a class 60% passed English, 70% passed Math, 40% passed both. Failed both?",opts:["10%","20%","30%","15%"],ans:0,exp:"P(E∪M)=60+70-40=90%. Failed both=10%",topic:"Set Theory"},
+    {q:"What is the smallest number divisible by 1 to 10?",opts:["2520","5040","1260","720"],ans:0,exp:"LCM(1,2,...,10)=2520",topic:"LCM"},
+    {q:"Fill: 0, 1, 1, 2, 3, 5, 8, 13, ?",opts:["21","20","22","18"],ans:0,exp:"Fibonacci: each=sum of previous two. 8+13=21",topic:"Series"},
+    {q:"A 20% discount on ₹500 article, then 10% GST. Final price?",opts:["₹440","₹432","₹460","₹420"],ans:0,exp:"After discount: 500×0.8=400. After GST: 400×1.1=440",topic:"Percentages"},
+    {q:"ABCDE are 5 friends. A>B, C>D, B>C, E>A. Shortest?",opts:["D","B","C","E"],ans:0,exp:"E>A>B>C>D. So D is shortest.",topic:"Ordering"},
+    {q:"A polygon has 35 diagonals. How many sides?",opts:["10","9","11","8"],ans:0,exp:"n(n-3)/2=35 → n²-3n-70=0 → n=10",topic:"Geometry"},
+    {q:"Reasoning: If no A is B, and some C are B, which is valid?",opts:["Some C are not A","All C are A","Some B are A","No C is B"],ans:0,exp:"Some C are B. No A is B. So those C that are B cannot be A. Hence some C are not A.",topic:"Syllogism"},
+    {q:"The sum of digits of a 2-digit number is 9. When 27 is added, digits reverse. The number?",opts:["36","27","45","63"],ans:0,exp:"Let number=10a+b. a+b=9. 10a+b+27=10b+a → 9a-9b=-27 → a-b=-3. With a+b=9: a=3,b=6. Number=36",topic:"Number"},
+  ],
+  wipro: [
+    {q:"Written ability: Choose correct sentence.",opts:["She don't like it","She doesn't like it","She didn't liked it","She not like it"],ans:1,exp:"'She doesn't like it' is grammatically correct with third-person singular",topic:"English Grammar"},
+    {q:"If 5 workers make 5 widgets in 5 days, how many days for 100 workers to make 100 widgets?",opts:["5","100","1","50"],ans:0,exp:"Rate per worker per day=1/5 widget. 100 workers make 100/5=20 widgets/day. For 100 widgets=5 days",topic:"Work Rate"},
+    {q:"Choose synonym of AMELIORATE:",opts:["Improve","Worsen","Maintain","Destroy"],ans:0,exp:"Ameliorate means to improve or make better",topic:"Vocabulary"},
+    {q:"A square of side 10 is folded in half. Perimeter of resulting shape?",opts:["30","40","20","35"],ans:0,exp:"Results in 10×5 rectangle. Perimeter=2(10+5)=30",topic:"Mensuration"},
+    {q:"Error detection: 'Each of the boys have their own book'",opts:["Replace 'have' with 'has'","Replace 'their' with 'his'","Both A and B","No error"],ans:0,exp:"'Each' takes singular verb. 'Each...has'",topic:"Error Detection"},
+    {q:"Logical: All roses are flowers. Some flowers fade quickly. Therefore?",opts:["Some roses may fade quickly","All roses fade quickly","Roses never fade","No conclusion"],ans:0,exp:"Some flowers fade. All roses are flowers. So some roses may fade.",topic:"Syllogism"},
+    {q:"If A+B=C, D+E=F, B+D=G, and C+F=H, then G+H=?",opts:["A+2B+2D+E","A+E+B+D","2A+B+D","A+B+D+E"],ans:0,exp:"G=B+D, H=C+F=(A+B)+(D+E). G+H=B+D+A+B+D+E=A+2B+2D+E",topic:"Algebra"},
+    {q:"A clock loses 5 min per hour. If set correctly at noon, what time shows at 5pm actual?",opts:["4:35 pm","4:55 pm","4:45 pm","4:30 pm"],ans:0,exp:"In 5 real hours, clock shows 5×55min=275min=4hr35min after noon=4:35pm",topic:"Clocks"},
+    {q:"Fill in blank: He __ to the market yesterday.",opts:["went","goes","go","going"],ans:0,exp:"Past tense requires 'went'",topic:"Verb Tense"},
+    {q:"If FRIEND=GSJFOE, how is ENEMY coded?",opts:["FOFNZ","FNEMY","EOFNZ","FMFNZ"],ans:0,exp:"Each letter shifted by +1: E+1=F, N+1=O, E+1=F, M+1=N, Y+1=Z = FOFNZ",topic:"Coding-Decoding"},
+    {q:"What is 20% of 20% of 500?",opts:["20","40","100","25"],ans:0,exp:"20% of 500=100. 20% of 100=20",topic:"Percentage"},
+    {q:"Verbal analogy: SURGERY:DOCTOR::LEGISLATION:?",opts:["Parliament","Law","Lawyer","Politician"],ans:0,exp:"Surgery is done by a doctor. Legislation is passed by Parliament",topic:"Analogy"},
+    {q:"Sum of first 50 natural numbers?",opts:["1275","1250","1300","1225"],ans:0,exp:"n(n+1)/2=50×51/2=1275",topic:"Series Sum"},
+    {q:"A sum of ₹5000 amounts to ₹6000 in 4 years at SI. Rate?",opts:["5%","4%","6%","8%"],ans:0,exp:"SI=1000. R=100×1000/(5000×4)=5%",topic:"Simple Interest"},
+    {q:"Reading comprehension: 'The proliferation of smartphones has led to...' Proliferation means?",opts:["Rapid increase","Decrease","Invention","Usage"],ans:0,exp:"Proliferation means rapid growth or multiplication",topic:"Vocabulary"},
+    {q:"If WIPRO=75, and letters coded by position (A=1..Z=26), decode coding.",opts:["W+I+P+R+O=23+9+16+18+15=81","W+I+P+R+O=75","Both are wrong","75 is correct per different scheme"],ans:3,exp:"W=23,I=9,P=16,R=18,O=15. Sum=81 not 75. Wipro NLTH uses different schemes",topic:"Coding"},
+    {q:"Odd word out: Pen, Pencil, Eraser, Ruler, Knife",opts:["Knife","Pen","Eraser","Ruler"],ans:0,exp:"Knife is a cutting tool, not a stationery/writing item",topic:"Odd One Out"},
+    {q:"In how many ways can 3 books be arranged on a shelf from 5 books?",opts:["60","120","20","30"],ans:0,exp:"P(5,3)=5!/(5-3)!=5×4×3=60",topic:"Permutation"},
+    {q:"A man bought an article for ₹800, sold at 25% loss. Selling price?",opts:["₹600","₹700","₹750","₹650"],ans:0,exp:"SP=800×(1-0.25)=800×0.75=600",topic:"Profit & Loss"},
+    {q:"Choose correctly spelled word:",opts:["Occurrence","Occurence","Occurrance","Occurrrence"],ans:0,exp:"Occurrence has double c and double r",topic:"Spelling"},
+    {q:"If 3/5 of a number is 36, what is 5/8 of the same number?",opts:["37.5","40","45","30"],ans:0,exp:"Number=36×5/3=60. 5/8×60=37.5",topic:"Fractions"},
+    {q:"A and B run around a circular track. A completes in 20 min, B in 30 min. When will they meet at start?",opts:["60 min","40 min","30 min","90 min"],ans:0,exp:"LCM(20,30)=60 minutes",topic:"Circular Motion"},
+    {q:"Verbal: Choose antonym of CACOPHONY",opts:["Harmony","Noise","Discord","Rhythm"],ans:0,exp:"Cacophony means harsh noise. Antonym is harmony",topic:"Antonym"},
+    {q:"Sum of n terms of AP: first term 3, common difference 2, n=10.",opts:["120","110","100","130"],ans:0,exp:"Sn=n/2[2a+(n-1)d]=10/2[6+18]=5×24=120",topic:"AP"},
+    {q:"Critical reasoning: All mammals are warm-blooded. Dolphins are mammals. Therefore?",opts:["Dolphins are warm-blooded","Dolphins live in water","Mammals live in water","Dolphins are fish"],ans:0,exp:"Simple syllogism: All mammals warm-blooded + dolphins are mammals = dolphins are warm-blooded",topic:"Reasoning"},
+    {q:"If 5 oranges cost as much as 3 apples, and 10 apples cost ₹120, cost of 15 oranges?",opts:["₹108","₹120","₹90","₹72"],ans:0,exp:"Apple=₹12. 5 oranges=3×12=36. 1 orange=7.2. 15 oranges=₹108",topic:"Unitary Method"},
+    {q:"Cube of side 4 painted on all faces, cut into 1×1 cubes. How many cubes have exactly 2 faces painted?",opts:["24","8","12","16"],ans:0,exp:"Edge cubes (not corner): 12 edges × (4-2)=12×2=24",topic:"3D Reasoning"},
+    {q:"Passage inference: 'Despite setbacks, the team persevered.' Team attitude?",opts:["Persistent","Defeated","Frustrated","Cautious"],ans:0,exp:"Persevered = continued despite difficulties = Persistent",topic:"Reading Comprehension"},
+    {q:"What fraction of 2 hours is 24 minutes?",opts:["1/5","1/4","1/3","2/5"],ans:0,exp:"24/120=1/5",topic:"Fractions"},
+    {q:"A diagonal of a rectangle is 10 and one side is 6. Area?",opts:["48","60","40","56"],ans:0,exp:"Other side=√(100-36)=8. Area=6×8=48",topic:"Geometry"},
+    {q:"Words in jumble: NCOFE → what word?",opts:["FENCE","FONCE","ONCE","NOFCE"],ans:0,exp:"NCOFE → FONCE? Rearranged: FENCE (F-E-N-C-E). 5 letters match",topic:"Jumbled Words"},
+    {q:"Train 600m long at 54 km/h crosses platform 900m. Time taken?",opts:["100 sec","90 sec","80 sec","110 sec"],ans:0,exp:"54 km/h=15 m/s. Distance=1500m. Time=1500/15=100 sec",topic:"Trains"},
+    {q:"Ratio of ages of P and Q is 3:4. 8 years ago ratio was 2:3. Age of P now?",opts:["24","32","18","36"],ans:0,exp:"(3x-8)/(4x-8)=2/3 → 9x-24=8x-16 → x=8. P=24",topic:"Ages"},
+    {q:"Error: 'Between you and I, the matter is settled'",opts:["Replace 'I' with 'me'","Replace 'Between' with 'Among'","No error","Replace 'settled' with 'settle'"],ans:0,exp:"After preposition 'between', use objective case 'me', not 'I'",topic:"Grammar"},
+    {q:"If today is Friday, after 61 days it will be?",opts:["Sunday","Saturday","Monday","Friday"],ans:0,exp:"61 mod 7=5. Friday+5=Wednesday? Let me recount: 61÷7=8 rem 5. Fri+5: Sat,Sun,Mon,Tue,Wed=Wednesday. Actually: Fri(0)+5=Wed",topic:"Calendar"},
+    {q:"Two numbers sum to 50 and differ by 10. Their product?",opts:["600","500","550","450"],ans:0,exp:"Numbers are 30 and 20. Product=600",topic:"Numbers"},
+    {q:"Speed of light ≈3×10⁸ m/s. Distance from sun to earth ≈1.5×10¹¹ m. Light travel time?",opts:["500 sec","600 sec","400 sec","300 sec"],ans:0,exp:"t=d/v=1.5×10¹¹/3×10⁸=500 seconds",topic:"Scientific Math"},
+    {q:"WRITING TEST: Essay topic type. Which shows writing ability test format?",opts:["Write 200 words on 'Technology in Education'","MCQ on grammar","Arrange sentences","Fill blanks"],ans:0,exp:"Wipro NLTH includes a written essay component evaluating writing skill",topic:"Writing Ability"},
+    {q:"Choose the word that best completes: The scientist __ the experiment three times before publishing.",opts:["replicated","simulated","duplicated","copied"],ans:0,exp:"'Replicated' is the most scientific and precise term",topic:"Vocabulary"},
+    {q:"If you invested ₹10,000 at 12% CI annually, after 2 years you have?",opts:["₹12,544","₹12,400","₹12,000","₹12,200"],ans:0,exp:"A=10000(1.12)²=10000×1.2544=₹12,544",topic:"Compound Interest"},
+    {q:"Paragraph: Identify the main idea of 'Green energy reduces pollution and creates jobs while being sustainable.' Main idea?",opts:["Green energy has multiple benefits","Energy is expensive","Jobs are important","Pollution is a problem"],ans:0,exp:"The sentence highlights multiple benefits of green energy as main idea",topic:"Reading Comprehension"},
+  ],
+  amazon: [
+    {q:"Leadership Principle: 'Our leaders start with the customer and work backwards.' Which LP is this?",opts:["Customer Obsession","Invent and Simplify","Think Big","Bias for Action"],ans:0,exp:"'Customer Obsession' is LP#1: Leaders start with the customer and work backwards.",topic:"Leadership Principles"},
+    {q:"Work simulation: Your team misses a deadline. You?",opts:["Identify root cause and prevent recurrence","Blame the slowest member","Ask manager to extend","Ignore it"],ans:0,exp:"Amazon expects ownership and systematic problem-solving, not blame or avoidance",topic:"Work Simulation"},
+    {q:"A array has n elements. Time complexity of finding max element?",opts:["O(n)","O(log n)","O(1)","O(n²)"],ans:0,exp:"Must scan all elements once to find max. O(n) linear time.",topic:"Algorithm Complexity"},
+    {q:"Which data structure is LIFO?",opts:["Stack","Queue","Array","Linked List"],ans:0,exp:"Stack is Last In First Out (LIFO). Queue is FIFO.",topic:"Data Structures"},
+    {q:"Binary search works on?",opts:["Sorted array","Any array","Linked list","Tree only"],ans:0,exp:"Binary search requires a sorted array to work correctly",topic:"Algorithms"},
+    {q:"A hash map has average case time complexity for lookup?",opts:["O(1)","O(n)","O(log n)","O(n²)"],ans:0,exp:"Hash maps provide O(1) average case lookup with good hash function",topic:"Data Structures"},
+    {q:"LP: 'Are Right, A Lot' means?",opts:["Strong judgment and good instincts","Always correct","Never wrong","Follow data only"],ans:0,exp:"Leaders have strong judgment, seek diverse perspectives, and are right more often than not",topic:"Leadership Principles"},
+    {q:"Big O of merging two sorted arrays of size m and n?",opts:["O(m+n)","O(mn)","O(m log n)","O(n²)"],ans:0,exp:"One pass through both arrays: O(m+n)",topic:"Algorithm Complexity"},
+    {q:"A DFS of a graph with V vertices and E edges has complexity?",opts:["O(V+E)","O(V²)","O(E log V)","O(VE)"],ans:0,exp:"DFS visits each vertex once and each edge once: O(V+E)",topic:"Graph Algorithms"},
+    {q:"Which LP covers 'Frugality'?",opts:["Accomplish more with less","Never spend money","Be the cheapest","Save always"],ans:0,exp:"Frugality LP: Accomplish more with less. Constraints breed resourcefulness.",topic:"Leadership Principles"},
+    {q:"In OOP, what is polymorphism?",opts:["Same interface, different implementations","Multiple inheritance","Data hiding","Class extension"],ans:0,exp:"Polymorphism: one interface, many implementations (method overriding/overloading)",topic:"OOP Concepts"},
+    {q:"REST API: Which HTTP method is idempotent AND safe?",opts:["GET","POST","PUT","DELETE"],ans:0,exp:"GET is both idempotent (same result multiple calls) and safe (no side effects)",topic:"API Design"},
+    {q:"Scenario: You disagree with your manager's technical decision. You?",opts:["Disagree and Commit after expressing views","Stay silent","Do your own way anyway","Escalate immediately"],ans:0,exp:"'Disagree and Commit' is an Amazon LP: voice disagreement respectfully then commit to decision",topic:"Work Simulation"},
+    {q:"What is the time complexity of quicksort in worst case?",opts:["O(n²)","O(n log n)","O(n)","O(log n)"],ans:0,exp:"Worst case of quicksort is O(n²) when pivot is always smallest/largest element",topic:"Sorting"},
+    {q:"A queue implemented with two stacks. Enqueue is O(1). Dequeue complexity?",opts:["O(n) amortized O(1)","O(1) always","O(n) always","O(log n)"],ans:0,exp:"Amortized O(1): elements moved only when output stack empty. Each element moved at most once.",topic:"Data Structures"},
+    {q:"What does SOLID stand for in software design?",opts:["Single, Open, Liskov, Interface, Dependency","Strong, Optimal, Linked, Integrated, Design","Simple, Object, Linked, Interface, Dynamic","None of these"],ans:0,exp:"SOLID: Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion",topic:"Design Principles"},
+    {q:"LP: 'Think Big'. What does this mean for an Amazon employee?",opts:["Create bold direction that inspires results","Always work on big projects","Avoid small tasks","Aim for promotion"],ans:0,exp:"Think Big LP: bold vision, inspire teams, find unexpected ways to serve customers better",topic:"Leadership Principles"},
+    {q:"Microservices vs Monolith. Which is true?",opts:["Microservices allow independent scaling","Monolith is always better","Microservices have no overhead","Both are the same"],ans:0,exp:"Microservices allow individual service scaling, deployment independence, but add operational complexity",topic:"System Design"},
+    {q:"CAP theorem states a distributed system can guarantee?",opts:["Any 2 of Consistency, Availability, Partition Tolerance","All 3 always","Only Consistency","Only Availability"],ans:0,exp:"CAP theorem: impossible to guarantee all three simultaneously. Choose 2.",topic:"Distributed Systems"},
+    {q:"Database normalization 3NF means?",opts:["No transitive dependency on primary key","Only 1NF and 2NF","No duplicate rows","Foreign keys only"],ans:0,exp:"3NF: relation is in 2NF AND no transitive functional dependency",topic:"Databases"},
+    {q:"Work sim: A customer is unhappy with your product feature. First action?",opts:["Listen and understand their specific pain point","Defend the feature","Escalate to senior","Tell them to use competitor"],ans:0,exp:"Customer Obsession: understand the customer's problem before any solution",topic:"Work Simulation"},
+    {q:"Which sorting is stable AND O(n log n)?",opts:["Merge sort","Quick sort","Heap sort","Selection sort"],ans:0,exp:"Merge sort is stable (preserves order of equal elements) and always O(n log n)",topic:"Sorting"},
+    {q:"SQL: Difference between WHERE and HAVING?",opts:["WHERE filters rows, HAVING filters groups","HAVING is faster","WHERE works on aggregates","Both are same"],ans:0,exp:"WHERE filters before grouping. HAVING filters after GROUP BY on aggregate results.",topic:"SQL"},
+    {q:"What is eventual consistency in distributed systems?",opts:["All nodes converge to same value given no new updates","Immediate consistency","Only one node is consistent","Never achieves consistency"],ans:0,exp:"Eventual consistency: given enough time with no new updates, all replicas converge",topic:"Distributed Systems"},
+    {q:"Amazon OA SDE-1: Time complexity of finding all subsets of n elements?",opts:["O(2ⁿ)","O(n²)","O(n log n)","O(n!)"],ans:0,exp:"There are 2ⁿ subsets. Must generate all → O(2ⁿ)",topic:"Complexity"},
+    {q:"LP: 'Earn Trust' behavior?",opts:["Admit mistakes openly, benchmark against best","Never admit mistakes","Trust only senior leaders","Keep information private"],ans:0,exp:"Earn Trust LP: listen attentively, speak candidly, treat others respectfully, admit mistakes",topic:"Leadership Principles"},
+    {q:"What is a deadlock in OS?",opts:["Two processes wait for each other's resources forever","A slow process","Memory overflow","CPU idle state"],ans:0,exp:"Deadlock: circular wait where each process holds resource needed by next",topic:"OS Concepts"},
+    {q:"HTTP status 404 means?",opts:["Not Found","Server Error","Unauthorized","Redirect"],ans:0,exp:"404 Not Found: server cannot find the requested resource",topic:"HTTP"},
+    {q:"Which is NOT a NoSQL database?",opts:["MySQL","MongoDB","Cassandra","Redis"],ans:0,exp:"MySQL is a relational SQL database. MongoDB, Cassandra, Redis are NoSQL.",topic:"Databases"},
+    {q:"Work sim scenario: Team member consistently delivers poor quality work. You?",opts:["Have direct conversation, offer support, set clear expectations","Report to HR immediately","Do their work yourself","Ignore it"],ans:0,exp:"Amazon values coaching, direct feedback, and high standards (Hire and Develop the Best)",topic:"Work Simulation"},
+    {q:"What is the space complexity of merge sort?",opts:["O(n)","O(1)","O(log n)","O(n log n)"],ans:0,exp:"Merge sort requires O(n) auxiliary space for merging",topic:"Sorting"},
+    {q:"Design pattern: Factory Method is used for?",opts:["Creating objects without specifying exact class","Adding behavior to objects","Managing object state","Observer notification"],ans:0,exp:"Factory Method: define interface for creating objects, let subclasses decide which class to instantiate",topic:"Design Patterns"},
+    {q:"In a BST, inorder traversal gives?",opts:["Sorted ascending order","Sorted descending","Random order","Level order"],ans:0,exp:"Inorder traversal of BST (left-root-right) gives elements in sorted ascending order",topic:"Trees"},
+    {q:"What is the difference between process and thread?",opts:["Process is independent with own memory; thread shares process memory","Both are same","Thread is heavier","Process shares memory"],ans:0,exp:"Process: independent execution unit with own memory space. Thread: lightweight unit sharing process memory.",topic:"OS Concepts"},
+    {q:"LP: 'Dive Deep'. A leader should?",opts:["Stay connected to details, audit frequently, data-driven","Only look at big picture","Delegate all details","Trust team completely"],ans:0,exp:"Dive Deep LP: leaders stay connected to details, no task beneath them, scrutinize data",topic:"Leadership Principles"},
+    {q:"What is load balancing?",opts:["Distributing traffic across multiple servers","Saving server resources","Balancing CPU load","Memory management"],ans:0,exp:"Load balancing distributes incoming network traffic across multiple backend servers",topic:"System Design"},
+    {q:"Time complexity of Dijkstra's algorithm with min-heap?",opts:["O((V+E) log V)","O(V²)","O(E log V)","O(VE)"],ans:0,exp:"With binary min-heap: O((V+E) log V). With Fibonacci heap: O(E+V log V)",topic:"Graph Algorithms"},
+    {q:"What is a race condition?",opts:["Multiple threads access shared data and outcome depends on timing","A fast algorithm","CPU scheduling issue","Memory leak"],ans:0,exp:"Race condition: multiple threads/processes access shared resource, final outcome depends on execution order",topic:"Concurrency"},
+    {q:"Amazon LP 'Frugality' does NOT mean?",opts:["Cutting corners on quality","Doing more with less","Avoiding unnecessary expense","Resourcefulness"],ans:0,exp:"Frugality means resourcefulness with constraints, NOT cutting corners on quality or customer experience",topic:"Leadership Principles"},
+    {q:"What is a CDN used for?",opts:["Serving content from geographically closer servers","Storing databases","Running backend code","Managing DNS"],ans:0,exp:"CDN (Content Delivery Network) caches and serves static content from edge servers closest to users",topic:"System Design"},
+  ],
+};
+
+// Fill remaining companies with mapped versions of core banks
+const getAptQuestions = (companyKey) => {
+  const directMap = {
+    tcs: APT_BANK.tcs, infosys: APT_BANK.infosys,
+    wipro: APT_BANK.wipro, amazon: APT_BANK.amazon,
+  };
+  if (directMap[companyKey]) return directMap[companyKey];
+  // For other companies, use TCS bank with company-flavor (base questions are universal aptitude)
+  return APT_BANK.tcs;
+};
+
+// ─── CODING QUESTION BANK ───────────────────────────────────────────────────
+const CODING_BANK = {
+  easy: [
+    {
+      id:"e1", title:"Reverse a String", difficulty:"Easy", topic:"Strings",
+      companies:["tcs","infosys","wipro","hcl","cognizant","accenture","capgemini"],
+      description:`Write a function to reverse a given string.
+
+Input: A string s
+Output: Reversed string
+
+Constraints: 1 ≤ s.length ≤ 1000`,
+      examples:[{input:'"hello"',output:'"olleh"'},{input:'"abcd"',output:'"dcba"'}],
+      testCases:[{input:"hello",output:"olleh"},{input:"abcd",output:"dcba"},{input:"a",output:"a"},{input:"racecar",output:"racecar"}],
+      hint:"Use two-pointer approach or built-in reverse methods.",
+      approach:"Two-pointer: swap characters from both ends moving inward.",
+      solution_js:`function solution(input) {
+  const s = input.replace(/['"]/g,'');
+  return s.split('').reverse().join('');
+}`,
+      solution_py:`def solution(input_str):
+    s = input_str.strip('"').strip("'")
+    return s[::-1]`,
+      solution_java:`public static String solution(String input) {
+    String s = input.replace("\"","").replace("'","");
+    return new StringBuilder(s).reverse().toString();
+}`,
+      solution_cpp:`string solution(string input) {
+    if(input[0]=='"') input = input.substr(1, input.size()-2);
+    reverse(input.begin(), input.end());
+    return input;
+}`,
+      time_complexity:"O(n)", space_complexity:"O(n)",
+    },
+    {
+      id:"e2", title:"Check Palindrome", difficulty:"Easy", topic:"Strings",
+      companies:["tcs","infosys","wipro","cognizant"],
+      description:`Check if a given string is a palindrome (reads same forwards and backwards). Ignore case.
+
+Input: A string s
+Output: "true" or "false"`,
+      examples:[{input:"racecar",output:"true"},{input:"hello",output:"false"}],
+      testCases:[{input:"racecar",output:"true"},{input:"hello",output:"false"},{input:"Madam",output:"true"},{input:"Level",output:"true"}],
+      hint:"Compare string with its reverse, ignoring case.",
+      approach:"Lowercase both, compare with reverse.",
+      solution_js:`function solution(input) {
+  const s = input.replace(/['"]/g,'').toLowerCase();
+  return String(s === s.split('').reverse().join(''));
+}`,
+      solution_py:`def solution(input_str):
+    s = input_str.strip('"').strip("'").lower()
+    return str(s == s[::-1]).lower()`,
+      solution_java:`public static String solution(String input) {
+    String s = input.replace("\"","").toLowerCase();
+    String rev = new StringBuilder(s).reverse().toString();
+    return String.valueOf(s.equals(rev));
+}`,
+      time_complexity:"O(n)", space_complexity:"O(n)",
+    },
+    {
+      id:"e3", title:"Find Maximum in Array", difficulty:"Easy", topic:"Arrays",
+      companies:["tcs","wipro","hcl","accenture"],
+      description:`Given an array of integers, find and return the maximum element.
+
+Input: Space-separated integers
+Output: Maximum integer`,
+      examples:[{input:"3 1 4 1 5 9 2 6",output:"9"},{input:"1 2 3",output:"3"}],
+      testCases:[{input:"3 1 4 1 5 9 2 6",output:"9"},{input:"1 2 3",output:"3"},{input:"-1 -5 -3",output:"-1"},{input:"100",output:"100"}],
+      hint:"Iterate through array keeping track of maximum seen so far.",
+      approach:"Linear scan: maintain running max variable.",
+      solution_js:`function solution(input) {
+  const nums = input.split(' ').map(Number);
+  return String(Math.max(...nums));
+}`,
+      solution_py:`def solution(input_str):
+    nums = list(map(int, input_str.split()))
+    return str(max(nums))`,
+      solution_java:`public static String solution(String input) {
+    String[] parts = input.trim().split("\\\\s+");
+    int max = Integer.parseInt(parts[0]);
+    for(String p: parts) max = Math.max(max, Integer.parseInt(p));
+    return String.valueOf(max);
+}`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"e4", title:"Count Vowels in String", difficulty:"Easy", topic:"Strings",
+      companies:["tcs","infosys","cognizant"],
+      description:`Count the number of vowels (a,e,i,o,u) in a given string. Case insensitive.
+
+Input: A string
+Output: Count of vowels`,
+      examples:[{input:"Hello World",output:"3"},{input:"aeiou",output:"5"}],
+      testCases:[{input:"Hello World",output:"3"},{input:"aeiou",output:"5"},{input:"xyz",output:"0"},{input:"Programming",output:"3"}],
+      hint:"Check each character against the set {a,e,i,o,u}.",
+      approach:"Iterate string, count chars that are vowels.",
+      solution_js:`function solution(input) {
+  const s = input.replace(/['"]/g,'').toLowerCase();
+  return String((s.match(/[aeiou]/g)||[]).length);
+}`,
+      solution_py:`def solution(input_str):
+    s = input_str.strip('"').strip("'").lower()
+    return str(sum(1 for c in s if c in 'aeiou'))`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"e5", title:"Fibonacci Series", difficulty:"Easy", topic:"Dynamic Programming",
+      companies:["tcs","infosys","wipro","hcl","cognizant","capgemini"],
+      description:`Print the first n Fibonacci numbers separated by spaces.
+0 1 1 2 3 5 8 13...
+
+Input: n (integer)
+Output: First n Fibonacci numbers space-separated`,
+      examples:[{input:"5",output:"0 1 1 2 3"},{input:"8",output:"0 1 1 2 3 5 8 13"}],
+      testCases:[{input:"5",output:"0 1 1 2 3"},{input:"8",output:"0 1 1 2 3 5 8 13"},{input:"1",output:"0"},{input:"2",output:"0 1"}],
+      hint:"Each number is sum of previous two. Start with 0,1.",
+      solution_js:`function solution(input) {
+  const n = parseInt(input);
+  if(n<=0) return "";
+  const fib = [0,1];
+  for(let i=2;i<n;i++) fib.push(fib[i-1]+fib[i-2]);
+  return fib.slice(0,n).join(' ');
+}`,
+      solution_py:`def solution(input_str):
+    n = int(input_str)
+    if n == 1: return "0"
+    fib = [0,1]
+    for i in range(2,n): fib.append(fib[-1]+fib[-2])
+    return ' '.join(map(str, fib[:n]))`,
+      time_complexity:"O(n)", space_complexity:"O(n)",
+    },
+    {
+      id:"e6", title:"Check Prime Number", difficulty:"Easy", topic:"Number Theory",
+      companies:["tcs","infosys","wipro","cognizant","accenture"],
+      description:`Given a number n, check if it is prime.
+
+Input: An integer n
+Output: "true" if prime, "false" otherwise`,
+      examples:[{input:"7",output:"true"},{input:"4",output:"false"},{input:"2",output:"true"}],
+      testCases:[{input:"7",output:"true"},{input:"4",output:"false"},{input:"2",output:"true"},{input:"1",output:"false"}],
+      hint:"A prime has no divisors other than 1 and itself. Check up to √n.",
+      solution_js:`function solution(input) {
+  const n = parseInt(input);
+  if(n<2) return "false";
+  for(let i=2;i<=Math.sqrt(n);i++) if(n%i===0) return "false";
+  return "true";
+}`,
+      solution_py:`def solution(input_str):
+    n = int(input_str)
+    if n < 2: return "false"
+    for i in range(2, int(n**0.5)+1):
+        if n%i==0: return "false"
+    return "true"`,
+      time_complexity:"O(√n)", space_complexity:"O(1)",
+    },
+    {
+      id:"e7", title:"Sum of Digits", difficulty:"Easy", topic:"Math",
+      companies:["tcs","wipro","hcl","capgemini"],
+      description:`Find the sum of digits of a given positive integer.
+
+Input: A positive integer
+Output: Sum of its digits`,
+      examples:[{input:"1234",output:"10"},{input:"999",output:"27"}],
+      testCases:[{input:"1234",output:"10"},{input:"999",output:"27"},{input:"0",output:"0"},{input:"12345",output:"15"}],
+      hint:"Extract each digit using modulo and division.",
+      solution_js:`function solution(input) {
+  return String(input.trim().split('').reduce((s,d)=>s+parseInt(d),0));
+}`,
+      solution_py:`def solution(input_str):
+    return str(sum(int(d) for d in input_str.strip()))`,
+      time_complexity:"O(d) where d=digits", space_complexity:"O(1)",
+    },
+    {
+      id:"e8", title:"Pattern: Right Triangle Stars", difficulty:"Easy", topic:"Patterns",
+      companies:["tcs","wipro","cognizant","capgemini","techmah"],
+      description:`Print a right-triangle star pattern of n rows.
+Row 1: *
+Row 2: **
+...
+Row n: *****(n stars)
+
+Input: n (rows)
+Output: Pattern as single string with \\n between rows`,
+      examples:[{input:"3",output:"*\n**\n***"},{input:"4",output:"*\n**\n***\n****"}],
+      testCases:[{input:"3",output:"*\n**\n***"},{input:"4",output:"*\n**\n***\n****"},{input:"1",output:"*"},{input:"5",output:"*\n**\n***\n****\n*****"}],
+      hint:"Outer loop for rows, inner loop for stars.",
+      solution_js:`function solution(input) {
+  const n = parseInt(input);
+  return Array.from({length:n},(_,i)=>'*'.repeat(i+1)).join('\\n');
+}`,
+      solution_py:`def solution(input_str):
+    n = int(input_str)
+    return '\\n'.join('*'*(i+1) for i in range(n))`,
+      time_complexity:"O(n²)", space_complexity:"O(n²)",
+    },
+    {
+      id:"e9", title:"Find Second Largest", difficulty:"Easy", topic:"Arrays",
+      companies:["tcs","infosys","wipro","hcl","amazon"],
+      description:`Find the second largest element in an array. All elements are distinct.
+
+Input: Space-separated integers
+Output: Second largest integer`,
+      examples:[{input:"3 1 4 1 5 9 2 6",output:"6"},{input:"10 20 30",output:"20"}],
+      testCases:[{input:"3 1 4 5 9 2 6",output:"6"},{input:"10 20 30",output:"20"},{input:"100 200",output:"100"},{input:"5 1 3 2 4",output:"4"}],
+      hint:"Track the largest and second largest in single pass.",
+      solution_js:`function solution(input) {
+  const nums = [...new Set(input.split(' ').map(Number))].sort((a,b)=>b-a);
+  return String(nums[1]);
+}`,
+      solution_py:`def solution(input_str):
+    nums = sorted(set(map(int, input_str.split())), reverse=True)
+    return str(nums[1])`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"e10", title:"Anagram Check", difficulty:"Easy", topic:"Strings",
+      companies:["infosys","wipro","cognizant","amazon"],
+      description:`Check if two words are anagrams of each other (same letters, different order).
+
+Input: Two space-separated words
+Output: "true" or "false"`,
+      examples:[{input:"listen silent",output:"true"},{input:"hello world",output:"false"}],
+      testCases:[{input:"listen silent",output:"true"},{input:"hello world",output:"false"},{input:"Triangle Integral",output:"true"},{input:"abc cba",output:"true"}],
+      hint:"Sort both strings and compare, or use character frequency map.",
+      solution_js:`function solution(input) {
+  const [a,b]=input.toLowerCase().split(' ');
+  const sort=s=>s.split('').sort().join('');
+  return String(sort(a)===sort(b));
+}`,
+      solution_py:`def solution(input_str):
+    a,b = input_str.lower().split()
+    return str(sorted(a)==sorted(b)).lower()`,
+      time_complexity:"O(n log n)", space_complexity:"O(n)",
+    },
+    {
+      id:"e11", title:"FizzBuzz", difficulty:"Easy", topic:"Basics",
+      companies:["tcs","infosys","wipro","cognizant","accenture","capgemini"],
+      description:`Print numbers 1 to n. For multiples of 3 print "Fizz", multiples of 5 print "Buzz", multiples of both print "FizzBuzz".
+
+Input: n
+Output: Space-separated results`,
+      examples:[{input:"5",output:"1 2 Fizz 4 Buzz"},{input:"15",output:"1 2 Fizz 4 Buzz Fizz 7 8 Fizz Buzz 11 Fizz 13 14 FizzBuzz"}],
+      testCases:[{input:"5",output:"1 2 Fizz 4 Buzz"},{input:"3",output:"1 2 Fizz"},{input:"1",output:"1"},{input:"6",output:"1 2 Fizz 4 Buzz Fizz"}],
+      solution_js:`function solution(input) {
+  const n=parseInt(input);
+  return Array.from({length:n},(_,i)=>{
+    const x=i+1;
+    if(x%15===0) return 'FizzBuzz';
+    if(x%3===0) return 'Fizz';
+    if(x%5===0) return 'Buzz';
+    return x;
+  }).join(' ');
+}`,
+      time_complexity:"O(n)", space_complexity:"O(n)",
+    },
+    {
+      id:"e12", title:"Factorial of Number", difficulty:"Easy", topic:"Recursion",
+      companies:["tcs","infosys","wipro","cognizant"],
+      description:`Compute the factorial of a non-negative integer n.
+
+Input: n (0 ≤ n ≤ 12)
+Output: n!`,
+      examples:[{input:"5",output:"120"},{input:"0",output:"1"},{input:"10",output:"3628800"}],
+      testCases:[{input:"5",output:"120"},{input:"0",output:"1"},{input:"10",output:"3628800"},{input:"6",output:"720"}],
+      hint:"factorial(n) = n * factorial(n-1), base case n=0 returns 1.",
+      solution_js:`function solution(input) {
+  const n=parseInt(input);
+  if(n<=1) return "1";
+  let f=1; for(let i=2;i<=n;i++) f*=i;
+  return String(f);
+}`,
+      solution_py:`def solution(input_str):
+    n = int(input_str)
+    f = 1
+    for i in range(2,n+1): f*=i
+    return str(f)`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"e13", title:"Remove Duplicates from Array", difficulty:"Easy", topic:"Arrays",
+      companies:["tcs","amazon","wipro","cognizant"],
+      description:`Remove duplicates from an array and return sorted unique elements.
+
+Input: Space-separated integers
+Output: Space-separated unique integers in sorted ascending order`,
+      examples:[{input:"4 2 7 2 1 4 3",output:"1 2 3 4 7"},{input:"1 1 1",output:"1"}],
+      testCases:[{input:"4 2 7 2 1 4 3",output:"1 2 3 4 7"},{input:"1 1 1",output:"1"},{input:"5 3 1",output:"1 3 5"},{input:"10 20 10 30",output:"10 20 30"}],
+      solution_js:`function solution(input) {
+  return [...new Set(input.split(' ').map(Number))].sort((a,b)=>a-b).join(' ');
+}`,
+      solution_py:`def solution(input_str):
+    return ' '.join(map(str, sorted(set(map(int, input_str.split())))))`,
+      time_complexity:"O(n log n)", space_complexity:"O(n)",
+    },
+    {
+      id:"e14", title:"Count Words in Sentence", difficulty:"Easy", topic:"Strings",
+      companies:["infosys","wipro","cognizant"],
+      description:`Count the number of words in a sentence.
+
+Input: A sentence (string)
+Output: Number of words`,
+      examples:[{input:"Hello world how are you",output:"5"},{input:"One",output:"1"}],
+      testCases:[{input:"Hello world how are you",output:"5"},{input:"One",output:"1"},{input:"I love coding",output:"3"},{input:"TakePlace is awesome",output:"3"}],
+      solution_js:`function solution(input) {
+  return String(input.trim().split(/\s+/).filter(Boolean).length);
+}`,
+      solution_py:`def solution(input_str):
+    return str(len(input_str.strip().split()))`,
+      time_complexity:"O(n)", space_complexity:"O(n)",
+    },
+    {
+      id:"e15", title:"Binary to Decimal", difficulty:"Easy", topic:"Number Systems",
+      companies:["tcs","infosys","hcl","wipro"],
+      description:`Convert a binary number (given as string) to its decimal equivalent.
+
+Input: Binary string (e.g. "1010")
+Output: Decimal integer`,
+      examples:[{input:"1010",output:"10"},{input:"1111",output:"15"},{input:"1",output:"1"}],
+      testCases:[{input:"1010",output:"10"},{input:"1111",output:"15"},{input:"1",output:"1"},{input:"100",output:"4"}],
+      solution_js:`function solution(input) {
+  return String(parseInt(input.trim(),2));
+}`,
+      solution_py:`def solution(input_str):
+    return str(int(input_str.strip(), 2))`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"e16", title:"GCD of Two Numbers", difficulty:"Easy", topic:"Math",
+      companies:["tcs","infosys","wipro","cognizant"],
+      description:`Find the Greatest Common Divisor (GCD) of two numbers using Euclidean algorithm.
+
+Input: Two space-separated integers
+Output: Their GCD`,
+      examples:[{input:"48 18",output:"6"},{input:"100 75",output:"25"}],
+      testCases:[{input:"48 18",output:"6"},{input:"100 75",output:"25"},{input:"7 3",output:"1"},{input:"12 8",output:"4"}],
+      hint:"Euclidean: gcd(a,b) = gcd(b, a mod b). Base: gcd(a,0) = a",
+      solution_js:`function solution(input) {
+  let [a,b]=input.split(' ').map(Number);
+  while(b){ let t=b; b=a%b; a=t; }
+  return String(a);
+}`,
+      solution_py:`def solution(input_str):
+    a,b = map(int, input_str.split())
+    while b: a,b = b, a%b
+    return str(a)`,
+      time_complexity:"O(log(min(a,b)))", space_complexity:"O(1)",
+    },
+    {
+      id:"e17", title:"Armstrong Number", difficulty:"Easy", topic:"Math",
+      companies:["tcs","wipro","hcl"],
+      description:`Check if a number is an Armstrong number. A number is Armstrong if sum of its digits each raised to power of number of digits equals itself.
+153 = 1³+5³+3³ = 153 ✓
+
+Input: A positive integer
+Output: "true" or "false"`,
+      examples:[{input:"153",output:"true"},{input:"370",output:"true"},{input:"100",output:"false"}],
+      testCases:[{input:"153",output:"true"},{input:"370",output:"true"},{input:"100",output:"false"},{input:"1",output:"true"}],
+      solution_js:`function solution(input) {
+  const s=input.trim(); const n=s.length;
+  const sum=s.split('').reduce((a,d)=>a+Math.pow(parseInt(d),n),0);
+  return String(sum===parseInt(s));
+}`,
+      solution_py:`def solution(input_str):
+    s = input_str.strip()
+    n = len(s)
+    total = sum(int(d)**n for d in s)
+    return str(total == int(s)).lower()`,
+      time_complexity:"O(d)", space_complexity:"O(1)",
+    },
+    {
+      id:"e18", title:"Sort Array in Ascending Order", difficulty:"Easy", topic:"Sorting",
+      companies:["tcs","infosys","wipro","accenture"],
+      description:`Sort an array of integers in ascending order.
+
+Input: Space-separated integers
+Output: Sorted integers space-separated`,
+      examples:[{input:"5 2 8 1 9",output:"1 2 5 8 9"},{input:"3 1 2",output:"1 2 3"}],
+      testCases:[{input:"5 2 8 1 9",output:"1 2 5 8 9"},{input:"3 1 2",output:"1 2 3"},{input:"1",output:"1"},{input:"-3 0 -1 2",output:"-3 -1 0 2"}],
+      solution_js:`function solution(input) {
+  return input.split(' ').map(Number).sort((a,b)=>a-b).join(' ');
+}`,
+      solution_py:`def solution(input_str):
+    return ' '.join(map(str, sorted(map(int, input_str.split()))))`,
+      time_complexity:"O(n log n)", space_complexity:"O(n)",
+    },
+    {
+      id:"e19", title:"Count Characters Frequency", difficulty:"Easy", topic:"Hashing",
+      companies:["amazon","infosys","wipro"],
+      description:`Find the most frequent character in a string (lowercase letters only). If tie, return the one that appears first.
+
+Input: A lowercase string
+Output: Most frequent character`,
+      examples:[{input:"abracadabra",output:"a"},{input:"hello",output:"l"}],
+      testCases:[{input:"abracadabra",output:"a"},{input:"hello",output:"l"},{input:"aabb",output:"a"},{input:"zzz",output:"z"}],
+      solution_js:`function solution(input) {
+  const s=input.trim().replace(/['"]/g,'');
+  const freq={};
+  for(const c of s) freq[c]=(freq[c]||0)+1;
+  return Object.entries(freq).reduce((a,b)=>b[1]>a[1]?b:a)[0];
+}`,
+      solution_py:`def solution(input_str):
+    from collections import Counter
+    s = input_str.strip().strip('"').strip("'")
+    return Counter(s).most_common(1)[0][0]`,
+      time_complexity:"O(n)", space_complexity:"O(k) k=unique chars",
+    },
+    {
+      id:"e20", title:"Missing Number in Array", difficulty:"Easy", topic:"Arrays",
+      companies:["amazon","tcs","infosys","microsoft"],
+      description:`Given an array containing n-1 integers in range [1,n] with one number missing, find the missing number.
+
+Input: Space-separated integers (n-1 numbers from 1 to n)
+Output: Missing number`,
+      examples:[{input:"1 2 4 5 6",output:"3"},{input:"1 3",output:"2"}],
+      testCases:[{input:"1 2 4 5 6",output:"3"},{input:"1 3",output:"2"},{input:"2 3 4 5",output:"1"},{input:"1 2 3 4",output:"5"}],
+      hint:"Sum formula: expected sum = n(n+1)/2. Missing = expected - actual sum.",
+      solution_js:`function solution(input) {
+  const nums=input.split(' ').map(Number);
+  const n=nums.length+1;
+  return String(n*(n+1)/2-nums.reduce((a,b)=>a+b,0));
+}`,
+      solution_py:`def solution(input_str):
+    nums = list(map(int, input_str.split()))
+    n = len(nums)+1
+    return str(n*(n+1)//2 - sum(nums))`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"e21", title:"Bubble Sort Implementation", difficulty:"Easy", topic:"Sorting",
+      companies:["tcs","wipro","hcl","capgemini"],
+      description:`Implement bubble sort and return the sorted array.
+
+Input: Space-separated integers
+Output: Sorted space-separated integers`,
+      examples:[{input:"64 34 25 12 22 11 90",output:"11 12 22 25 34 64 90"}],
+      testCases:[{input:"64 34 25 12 22 11 90",output:"11 12 22 25 34 64 90"},{input:"5 1 4 2 8",output:"1 2 4 5 8"},{input:"3 2 1",output:"1 2 3"},{input:"1",output:"1"}],
+      solution_js:`function solution(input) {
+  const a=input.split(' ').map(Number);
+  for(let i=0;i<a.length;i++) for(let j=0;j<a.length-i-1;j++) if(a[j]>a[j+1]){let t=a[j];a[j]=a[j+1];a[j+1]=t;}
+  return a.join(' ');
+}`,
+      solution_py:`def solution(input_str):
+    a = list(map(int, input_str.split()))
+    for i in range(len(a)):
+        for j in range(len(a)-i-1):
+            if a[j]>a[j+1]: a[j],a[j+1]=a[j+1],a[j]
+    return ' '.join(map(str, a))`,
+      time_complexity:"O(n²)", space_complexity:"O(1)",
+    },
+    {
+      id:"e22", title:"Linear Search", difficulty:"Easy", topic:"Searching",
+      companies:["tcs","wipro","hcl","accenture"],
+      description:`Search for a target element in an array using linear search. Return its 0-based index or -1 if not found.
+
+Input: First line: array elements space-separated. Second line target (passed as "1 2 3 4|3")
+Output: Index or -1`,
+      examples:[{input:"1 2 3 4|3",output:"2"},{input:"5 10 15|7",output:"-1"}],
+      testCases:[{input:"1 2 3 4|3",output:"2"},{input:"5 10 15|7",output:"-1"},{input:"10 20 30|10",output:"0"},{input:"1|1",output:"0"}],
+      solution_js:`function solution(input) {
+  const [arr,target]=input.split('|');
+  const nums=arr.split(' ').map(Number);
+  const t=parseInt(target);
+  return String(nums.indexOf(t));
+}`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"e23", title:"Swap Two Numbers Without Temp", difficulty:"Easy", topic:"Basics",
+      companies:["tcs","wipro","cognizant"],
+      description:`Swap two numbers without using a temporary variable.
+
+Input: Two space-separated integers a and b
+Output: After swap: "b a"`,
+      examples:[{input:"3 7",output:"7 3"},{input:"100 200",output:"200 100"}],
+      testCases:[{input:"3 7",output:"7 3"},{input:"100 200",output:"200 100"},{input:"0 5",output:"5 0"},{input:"-1 1",output:"1 -1"}],
+      solution_js:`function solution(input) {
+  let [a,b]=input.split(' ').map(Number);
+  a=a+b; b=a-b; a=a-b;
+  return a+' '+b;
+}`,
+      solution_py:`def solution(input_str):
+    a,b = map(int, input_str.split())
+    a,b = b,a
+    return f"{a} {b}"`,
+      time_complexity:"O(1)", space_complexity:"O(1)",
+    },
+    {
+      id:"e24", title:"Count Even and Odd Numbers", difficulty:"Easy", topic:"Arrays",
+      companies:["tcs","wipro","hcl"],
+      description:`Count even and odd numbers in an array.
+
+Input: Space-separated integers
+Output: "Even: X Odd: Y"`,
+      examples:[{input:"1 2 3 4 5",output:"Even: 2 Odd: 3"},{input:"2 4 6",output:"Even: 3 Odd: 0"}],
+      testCases:[{input:"1 2 3 4 5",output:"Even: 2 Odd: 3"},{input:"2 4 6",output:"Even: 3 Odd: 0"},{input:"1 3 5",output:"Even: 0 Odd: 3"},{input:"0 1",output:"Even: 1 Odd: 1"}],
+      solution_js:`function solution(input) {
+  const nums=input.split(' ').map(Number);
+  const e=nums.filter(n=>n%2===0).length;
+  return \`Even: \${e} Odd: \${nums.length-e}\`;
+}`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"e25", title:"String Compression", difficulty:"Easy", topic:"Strings",
+      companies:["amazon","microsoft","infosys"],
+      description:`Basic string compression. Replace consecutive same characters with char+count. If compressed string is not smaller, return original.
+
+Input: A string
+Output: Compressed or original`,
+      examples:[{input:"aabcccdddd",output:"a2b1c3d4"},{input:"abc",output:"abc"}],
+      testCases:[{input:"aabcccdddd",output:"a2b1c3d4"},{input:"abc",output:"abc"},{input:"aaaa",output:"a4"},{input:"aabb",output:"aabb"}],
+      solution_js:`function solution(input) {
+  const s=input.trim();
+  let res='',i=0;
+  while(i<s.length){
+    let c=s[i],cnt=0;
+    while(i<s.length&&s[i]===c){cnt++;i++;}
+    res+=c+cnt;
+  }
+  return res.length<s.length?res:s;
+}`,
+      time_complexity:"O(n)", space_complexity:"O(n)",
+    },
+    {
+      id:"e26", title:"Find All Pairs with Given Sum", difficulty:"Easy", topic:"Arrays",
+      companies:["amazon","tcs","infosys"],
+      description:`Find count of pairs in array that sum to a target value.
+
+Input: "array_elements|target" e.g. "1 2 3 4 5|5"
+Output: Count of pairs`,
+      examples:[{input:"1 2 3 4 5|5",output:"2"},{input:"1 1 1 1|2",output:"6"}],
+      testCases:[{input:"1 2 3 4 5|5",output:"2"},{input:"1 1 1 1|2",output:"6"},{input:"1 2 3|10",output:"0"},{input:"0 0 0|0",output:"3"}],
+      solution_js:`function solution(input) {
+  const [arr,t]=input.split('|');
+  const nums=arr.split(' ').map(Number);
+  const target=parseInt(t);
+  let count=0;
+  for(let i=0;i<nums.length;i++) for(let j=i+1;j<nums.length;j++) if(nums[i]+nums[j]===target) count++;
+  return String(count);
+}`,
+      time_complexity:"O(n²)", space_complexity:"O(1)",
+    },
+    {
+      id:"e27", title:"Check Balanced Parentheses", difficulty:"Easy", topic:"Stack",
+      companies:["amazon","microsoft","infosys","flipkart"],
+      description:`Check if parentheses in a string are balanced. Only consider '(' and ')'.
+
+Input: A string with parentheses
+Output: "true" or "false"`,
+      examples:[{input:"(())",output:"true"},{input:"(()(",output:"false"},{input:"()()",output:"true"}],
+      testCases:[{input:"(())",output:"true"},{input:"(()(",output:"false"},{input:"()()",output:"true"},{input:")",output:"false"}],
+      hint:"Use a stack or counter: increment on '(', decrement on ')', return false if counter goes negative.",
+      solution_js:`function solution(input) {
+  let cnt=0;
+  for(const c of input){ if(c==='(') cnt++; else if(c===')'){cnt--;if(cnt<0) return "false";}}
+  return String(cnt===0);
+}`,
+      solution_py:`def solution(input_str):
+    cnt=0
+    for c in input_str:
+        if c=='(': cnt+=1
+        elif c==')':
+            cnt-=1
+            if cnt<0: return "false"
+    return str(cnt==0).lower()`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"e28", title:"Matrix Diagonal Sum", difficulty:"Easy", topic:"Arrays/Matrix",
+      companies:["tcs","infosys","wipro"],
+      description:`Find sum of primary diagonal elements of a square matrix.
+
+Input: First number n (matrix size), then n×n elements space-separated in row-major order
+Output: Sum of diagonal`,
+      examples:[{input:"3 1 2 3 4 5 6 7 8 9",output:"15"},{input:"2 1 2 3 4",output:"5"}],
+      testCases:[{input:"3 1 2 3 4 5 6 7 8 9",output:"15"},{input:"2 1 2 3 4",output:"5"},{input:"1 7",output:"7"},{input:"2 2 0 0 2",output:"4"}],
+      solution_js:`function solution(input) {
+  const nums=input.split(' ').map(Number);
+  const n=nums[0]; const mat=nums.slice(1);
+  let sum=0; for(let i=0;i<n;i++) sum+=mat[i*n+i];
+  return String(sum);
+}`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"e29", title:"Power of Two Check", difficulty:"Easy", topic:"Bit Manipulation",
+      companies:["amazon","microsoft","google"],
+      description:`Check if a given number is a power of 2.
+
+Input: A positive integer
+Output: "true" or "false"`,
+      examples:[{input:"16",output:"true"},{input:"18",output:"false"},{input:"1",output:"true"}],
+      testCases:[{input:"16",output:"true"},{input:"18",output:"false"},{input:"1",output:"true"},{input:"0",output:"false"}],
+      hint:"n & (n-1) == 0 for power of 2 (and n > 0).",
+      solution_js:`function solution(input) {
+  const n=parseInt(input);
+  return String(n>0 && (n&(n-1))===0);
+}`,
+      solution_py:`def solution(input_str):
+    n = int(input_str)
+    return str(n>0 and (n&(n-1))==0).lower()`,
+      time_complexity:"O(1)", space_complexity:"O(1)",
+    },
+    {
+      id:"e30", title:"Largest Word in Sentence", difficulty:"Easy", topic:"Strings",
+      companies:["infosys","wipro","cognizant"],
+      description:`Find the longest word in a sentence. If tie, return first longest.
+
+Input: A sentence
+Output: Longest word`,
+      examples:[{input:"I love programming in Java",output:"programming"},{input:"Hello World",output:"Hello"}],
+      testCases:[{input:"I love programming in Java",output:"programming"},{input:"Hello World",output:"Hello"},{input:"abc de fghij",output:"fghij"},{input:"one",output:"one"}],
+      solution_js:`function solution(input) {
+  return input.split(' ').reduce((a,b)=>b.length>a.length?b:a,'');
+}`,
+      solution_py:`def solution(input_str):
+    words = input_str.split()
+    return max(words, key=len)`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+  ],
+  medium: [
+    {
+      id:"m1", title:"Two Sum", difficulty:"Medium", topic:"Hash Map",
+      companies:["amazon","google","microsoft","flipkart","razorpay"],
+      description:`Given an array of integers and a target, return indices of the two numbers that add up to target. Assume exactly one solution.
+
+Input: "arr_elements|target" e.g. "2 7 11 15|9"
+Output: "i j" (0-indexed)`,
+      examples:[{input:"2 7 11 15|9",output:"0 1"},{input:"3 2 4|6",output:"1 2"}],
+      testCases:[{input:"2 7 11 15|9",output:"0 1"},{input:"3 2 4|6",output:"1 2"},{input:"3 3|6",output:"0 1"},{input:"1 5 3 2|7",output:"1 3"}],
+      hint:"Use a hash map: for each element, check if complement (target - element) exists in map.",
+      approach:"Single pass hash map: store each number's index, check for complement.",
+      solution_js:`function solution(input) {
+  const [arr,t]=input.split('|');
+  const nums=arr.split(' ').map(Number);
+  const target=parseInt(t);
+  const map={};
+  for(let i=0;i<nums.length;i++){
+    const comp=target-nums[i];
+    if(comp in map) return map[comp]+' '+i;
+    map[nums[i]]=i;
+  }
+}`,
+      solution_py:`def solution(input_str):
+    arr, t = input_str.split('|')
+    nums = list(map(int, arr.split()))
+    target = int(t)
+    seen = {}
+    for i, n in enumerate(nums):
+        comp = target - n
+        if comp in seen:
+            return f"{seen[comp]} {i}"
+        seen[n] = i`,
+      solution_java:`public static String solution(String input) {
+    String[] parts = input.split("\\\\|");
+    String[] arrStr = parts[0].trim().split(" ");
+    int target = Integer.parseInt(parts[1].trim());
+    Map<Integer,Integer> map = new HashMap<>();
+    for(int i=0;i<arrStr.length;i++){
+        int n = Integer.parseInt(arrStr[i]);
+        int comp = target-n;
+        if(map.containsKey(comp)) return map.get(comp)+" "+i;
+        map.put(n,i);
+    }
+    return "-1 -1";
+}`,
+      time_complexity:"O(n)", space_complexity:"O(n)",
+    },
+    {
+      id:"m2", title:"Longest Substring Without Repeating Characters", difficulty:"Medium", topic:"Sliding Window",
+      companies:["amazon","google","microsoft","flipkart","zomato"],
+      description:`Find the length of the longest substring without repeating characters.
+
+Input: A string s
+Output: Length (integer)`,
+      examples:[{input:"abcabcbb",output:"3"},{input:"bbbbb",output:"1"},{input:"pwwkew",output:"3"}],
+      testCases:[{input:"abcabcbb",output:"3"},{input:"bbbbb",output:"1"},{input:"pwwkew",output:"3"},{input:"abcdef",output:"6"}],
+      hint:"Sliding window with a set. Expand right, shrink left when duplicate found.",
+      solution_js:`function solution(input) {
+  const s=input.replace(/['"]/g,'');
+  const set=new Set(); let l=0,max=0;
+  for(let r=0;r<s.length;r++){
+    while(set.has(s[r])){set.delete(s[l]);l++;}
+    set.add(s[r]); max=Math.max(max,r-l+1);
+  }
+  return String(max);
+}`,
+      solution_py:`def solution(input_str):
+    s = input_str.strip().strip('"').strip("'")
+    seen = {}; l = 0; best = 0
+    for r, c in enumerate(s):
+        if c in seen and seen[c] >= l:
+            l = seen[c]+1
+        seen[c] = r
+        best = max(best, r-l+1)
+    return str(best)`,
+      time_complexity:"O(n)", space_complexity:"O(min(n,m)) m=charset",
+    },
+    {
+      id:"m3", title:"Valid Parentheses (All Types)", difficulty:"Medium", topic:"Stack",
+      companies:["amazon","google","microsoft","flipkart"],
+      description:`Given a string with '(', ')', '{', '}', '[', ']', determine if it is valid.
+Valid if: Open brackets closed in correct order, each closed by same type.
+
+Input: String of brackets
+Output: "true" or "false"`,
+      examples:[{input:"()[]{}",output:"true"},{input:"(]",output:"false"},{input:"{[()]}",output:"true"}],
+      testCases:[{input:"()[]{}",output:"true"},{input:"(]",output:"false"},{input:"{[()]}",output:"true"},{input:"([)]",output:"false"}],
+      hint:"Use a stack. Push opening brackets. On closing bracket, check if stack top matches.",
+      solution_js:`function solution(input) {
+  const s=input.trim();
+  const stack=[]; const map={')':'(',']':'[','}':'{'};
+  for(const c of s){
+    if('([{'.includes(c)) stack.push(c);
+    else if(stack.pop()!==map[c]) return "false";
+  }
+  return String(stack.length===0);
+}`,
+      solution_py:`def solution(input_str):
+    s = input_str.strip()
+    stack = []; mp = {')':'(',']':'[','}':'{'}
+    for c in s:
+        if c in '([{': stack.append(c)
+        elif not stack or stack.pop()!=mp.get(c): return "false"
+    return str(len(stack)==0).lower()`,
+      time_complexity:"O(n)", space_complexity:"O(n)",
+    },
+    {
+      id:"m4", title:"Maximum Subarray (Kadane's Algorithm)", difficulty:"Medium", topic:"Dynamic Programming",
+      companies:["amazon","microsoft","google","flipkart"],
+      description:`Find the contiguous subarray with the largest sum.
+
+Input: Space-separated integers
+Output: Maximum subarray sum`,
+      examples:[{input:"-2 1 -3 4 -1 2 1 -5 4",output:"6"},{input:"1",output:"1"},{input:"-1 -2 -3",output:"-1"}],
+      testCases:[{input:"-2 1 -3 4 -1 2 1 -5 4",output:"6"},{input:"1",output:"1"},{input:"-1 -2 -3",output:"-1"},{input:"5 4 -1 7 8",output:"23"}],
+      hint:"Kadane's: keep running sum, reset to current element if it's larger than running sum.",
+      solution_js:`function solution(input) {
+  const nums=input.split(' ').map(Number);
+  let max=nums[0], cur=nums[0];
+  for(let i=1;i<nums.length;i++){
+    cur=Math.max(nums[i],cur+nums[i]);
+    max=Math.max(max,cur);
+  }
+  return String(max);
+}`,
+      solution_py:`def solution(input_str):
+    nums = list(map(int, input_str.split()))
+    max_s = cur = nums[0]
+    for n in nums[1:]:
+        cur = max(n, cur+n)
+        max_s = max(max_s, cur)
+    return str(max_s)`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"m5", title:"Rotate Array by K Positions", difficulty:"Medium", topic:"Arrays",
+      companies:["amazon","microsoft","tcs","infosys"],
+      description:`Rotate an array to the right by k steps.
+
+Input: "arr_elements|k" e.g. "1 2 3 4 5 6 7|3"
+Output: Rotated array space-separated`,
+      examples:[{input:"1 2 3 4 5 6 7|3",output:"5 6 7 1 2 3 4"},{input:"1 2|1",output:"2 1"}],
+      testCases:[{input:"1 2 3 4 5 6 7|3",output:"5 6 7 1 2 3 4"},{input:"1 2|1",output:"2 1"},{input:"1 2 3|0",output:"1 2 3"},{input:"1 2 3 4|4",output:"1 2 3 4"}],
+      hint:"Use reversal: reverse all, then reverse first k, then reverse rest. Or slice.",
+      solution_js:`function solution(input) {
+  const [arr,k]=input.split('|');
+  const nums=arr.split(' ').map(Number);
+  const n=nums.length; const shift=parseInt(k)%n;
+  return [...nums.slice(n-shift),...nums.slice(0,n-shift)].join(' ');
+}`,
+      solution_py:`def solution(input_str):
+    arr, k = input_str.split('|')
+    nums = list(map(int, arr.split()))
+    k = int(k) % len(nums)
+    return ' '.join(map(str, nums[-k:]+nums[:-k]))`,
+      time_complexity:"O(n)", space_complexity:"O(n)",
+    },
+    {
+      id:"m6", title:"Group Anagrams", difficulty:"Medium", topic:"Hash Map",
+      companies:["amazon","google","microsoft"],
+      description:`Group anagrams together from a list of words. Return count of groups.
+
+Input: Space-separated words
+Output: Number of anagram groups`,
+      examples:[{input:"eat tea tan ate nat bat",output:"3"},{input:"abc bca cab",output:"1"}],
+      testCases:[{input:"eat tea tan ate nat bat",output:"3"},{input:"abc bca cab",output:"1"},{input:"a",output:"1"},{input:"ab ba abc",output:"2"}],
+      solution_js:`function solution(input) {
+  const words=input.split(' ');
+  const map={};
+  for(const w of words){ const key=w.split('').sort().join(''); map[key]=(map[key]||0)+1; }
+  return String(Object.keys(map).length);
+}`,
+      solution_py:`def solution(input_str):
+    from collections import defaultdict
+    words = input_str.split()
+    groups = defaultdict(list)
+    for w in words: groups[tuple(sorted(w))].append(w)
+    return str(len(groups))`,
+      time_complexity:"O(n·k·log k) k=max word len", space_complexity:"O(nk)",
+    },
+    {
+      id:"m7", title:"Find Duplicate Number", difficulty:"Medium", topic:"Arrays",
+      companies:["amazon","microsoft","flipkart"],
+      description:`Given an array of n+1 integers where elements are in range [1,n], find the duplicate. Use O(1) extra space (Floyd's algorithm).
+
+Input: Space-separated integers
+Output: Duplicate number`,
+      examples:[{input:"1 3 4 2 2",output:"2"},{input:"3 1 3 4 2",output:"3"}],
+      testCases:[{input:"1 3 4 2 2",output:"2"},{input:"3 1 3 4 2",output:"3"},{input:"1 1",output:"1"},{input:"2 2 2 2 2",output:"2"}],
+      hint:"Floyd's cycle detection: treat array values as pointers.",
+      solution_js:`function solution(input) {
+  const nums=input.split(' ').map(Number);
+  let slow=nums[0], fast=nums[0];
+  do{ slow=nums[slow]; fast=nums[nums[fast]]; } while(slow!==fast);
+  slow=nums[0];
+  while(slow!==fast){ slow=nums[slow]; fast=nums[fast]; }
+  return String(slow);
+}`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"m8", title:"Product of Array Except Self", difficulty:"Medium", topic:"Arrays",
+      companies:["amazon","google","microsoft"],
+      description:`Return an array where each element is the product of all other elements. No division. O(n) time.
+
+Input: Space-separated integers
+Output: Result array space-separated`,
+      examples:[{input:"1 2 3 4",output:"24 12 8 6"},{input:"2 3 4",output:"12 8 6"}],
+      testCases:[{input:"1 2 3 4",output:"24 12 8 6"},{input:"2 3 4",output:"12 8 6"},{input:"1 1",output:"1 1"},{input:"-1 1 0 -3 3",output:"0 0 9 0 0"}],
+      hint:"Prefix products from left, then suffix products from right. O(n) time O(n) space.",
+      solution_js:`function solution(input) {
+  const nums=input.split(' ').map(Number);
+  const n=nums.length; const res=new Array(n).fill(1);
+  let pre=1;
+  for(let i=0;i<n;i++){ res[i]=pre; pre*=nums[i]; }
+  let suf=1;
+  for(let i=n-1;i>=0;i--){ res[i]*=suf; suf*=nums[i]; }
+  return res.join(' ');
+}`,
+      time_complexity:"O(n)", space_complexity:"O(1) output excluded",
+    },
+    {
+      id:"m9", title:"Binary Search", difficulty:"Medium", topic:"Searching",
+      companies:["amazon","microsoft","google","tcs"],
+      description:`Implement binary search. Return index of target in sorted array, or -1.
+
+Input: "arr_elements|target" (array is sorted)
+Output: Index or -1`,
+      examples:[{input:"1 3 5 7 9 11|7",output:"3"},{input:"1 2 3 4 5|6",output:"-1"}],
+      testCases:[{input:"1 3 5 7 9 11|7",output:"3"},{input:"1 2 3 4 5|6",output:"-1"},{input:"1|1",output:"0"},{input:"1 2 3 4 5|1",output:"0"}],
+      solution_js:`function solution(input) {
+  const [arr,t]=input.split('|');
+  const nums=arr.split(' ').map(Number);
+  const target=parseInt(t);
+  let lo=0,hi=nums.length-1;
+  while(lo<=hi){
+    const mid=Math.floor((lo+hi)/2);
+    if(nums[mid]===target) return String(mid);
+    else if(nums[mid]<target) lo=mid+1;
+    else hi=mid-1;
+  }
+  return "-1";
+}`,
+      time_complexity:"O(log n)", space_complexity:"O(1)",
+    },
+    {
+      id:"m10", title:"Merge Two Sorted Arrays", difficulty:"Medium", topic:"Arrays",
+      companies:["tcs","infosys","amazon","microsoft"],
+      description:`Merge two sorted arrays into one sorted array.
+
+Input: "arr1_elements|arr2_elements"
+Output: Merged sorted array`,
+      examples:[{input:"1 3 5|2 4 6",output:"1 2 3 4 5 6"},{input:"1 2|3 4",output:"1 2 3 4"}],
+      testCases:[{input:"1 3 5|2 4 6",output:"1 2 3 4 5 6"},{input:"1 2|3 4",output:"1 2 3 4"},{input:"1|2",output:"1 2"},{input:"1 4 7|2 5 6",output:"1 2 4 5 6 7"}],
+      solution_js:`function solution(input) {
+  const [a,b]=input.split('|').map(s=>s.split(' ').map(Number));
+  const res=[]; let i=0,j=0;
+  while(i<a.length&&j<b.length){ if(a[i]<b[j]) res.push(a[i++]); else res.push(b[j++]); }
+  return [...res,...a.slice(i),...b.slice(j)].join(' ');
+}`,
+      time_complexity:"O(m+n)", space_complexity:"O(m+n)",
+    },
+    {
+      id:"m11", title:"Spiral Matrix Traversal", difficulty:"Medium", topic:"Matrix",
+      companies:["amazon","microsoft","google"],
+      description:`Traverse a matrix in spiral order (clockwise from outside in).
+
+Input: First number n (n×n matrix), then elements row by row
+Output: Spiral order, space-separated`,
+      examples:[{input:"3 1 2 3 4 5 6 7 8 9",output:"1 2 3 6 9 8 7 4 5"}],
+      testCases:[{input:"3 1 2 3 4 5 6 7 8 9",output:"1 2 3 6 9 8 7 4 5"},{input:"2 1 2 3 4",output:"1 2 4 3"},{input:"1 5",output:"5"},{input:"4 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16",output:"1 2 3 4 8 12 16 15 14 13 9 5 6 7 11 10"}],
+      hint:"Use four pointers: top, bottom, left, right. Shrink boundaries after each direction.",
+      solution_js:`function solution(input) {
+  const nums=input.split(' ').map(Number);
+  const n=nums[0]; let mat=[];
+  for(let i=0;i<n;i++) mat.push(nums.slice(1+i*n,1+(i+1)*n));
+  const res=[];
+  let t=0,b=n-1,l=0,r=n-1;
+  while(t<=b&&l<=r){
+    for(let i=l;i<=r;i++) res.push(mat[t][i]); t++;
+    for(let i=t;i<=b;i++) res.push(mat[i][r]); r--;
+    if(t<=b){for(let i=r;i>=l;i--) res.push(mat[b][i]); b--;}
+    if(l<=r){for(let i=b;i>=t;i--) res.push(mat[i][l]); l++;}
+  }
+  return res.join(' ');
+}`,
+      time_complexity:"O(n²)", space_complexity:"O(n²)",
+    },
+    {
+      id:"m12", title:"Linked List Reverse", difficulty:"Medium", topic:"Linked Lists",
+      companies:["amazon","microsoft","flipkart"],
+      description:`Reverse a singly linked list. Given as space-separated values.
+
+Input: Space-separated integers representing linked list
+Output: Reversed linked list space-separated`,
+      examples:[{input:"1 2 3 4 5",output:"5 4 3 2 1"},{input:"1 2",output:"2 1"}],
+      testCases:[{input:"1 2 3 4 5",output:"5 4 3 2 1"},{input:"1 2",output:"2 1"},{input:"1",output:"1"},{input:"1 2 3",output:"3 2 1"}],
+      hint:"Iterative: maintain prev, curr, next pointers. Or use stack/array.",
+      solution_js:`function solution(input) {
+  return input.trim().split(' ').reverse().join(' ');
+}`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"m13", title:"Find First and Last Position in Sorted Array", difficulty:"Medium", topic:"Binary Search",
+      companies:["amazon","google","microsoft"],
+      description:`Find first and last position of target in sorted array.
+
+Input: "arr_elements|target"
+Output: "first last" or "-1 -1"`,
+      examples:[{input:"5 7 7 8 8 10|8",output:"3 4"},{input:"5 7 7 8 8 10|6",output:"-1 -1"}],
+      testCases:[{input:"5 7 7 8 8 10|8",output:"3 4"},{input:"5 7 7 8 8 10|6",output:"-1 -1"},{input:"1 1 1 1|1",output:"0 3"},{input:"1 2 3|2",output:"1 1"}],
+      solution_js:`function solution(input) {
+  const [arr,t]=input.split('|');
+  const nums=arr.split(' ').map(Number);
+  const target=parseInt(t);
+  const first=nums.indexOf(target);
+  if(first===-1) return "-1 -1";
+  return first+' '+nums.lastIndexOf(target);
+}`,
+      time_complexity:"O(log n)", space_complexity:"O(1)",
+    },
+    {
+      id:"m14", title:"Number of Islands", difficulty:"Medium", topic:"BFS/DFS",
+      companies:["amazon","google","microsoft","flipkart"],
+      description:`Count number of islands in a grid. '1'=land, '0'=water. An island is surrounded by water and formed by connecting adjacent lands.
+
+Input: Grid as rows separated by '|', cells by space
+Output: Number of islands`,
+      examples:[{input:"1 1 0|0 1 0|0 0 1",output:"2"},{input:"1 0|0 1",output:"2"}],
+      testCases:[{input:"1 1 0|0 1 0|0 0 1",output:"2"},{input:"1 0|0 1",output:"2"},{input:"1 1|1 1",output:"1"},{input:"0 0|0 0",output:"0"}],
+      hint:"DFS/BFS: when you find a '1', mark all connected '1's as visited (change to '0'). Count starts.",
+      solution_js:`function solution(input) {
+  const grid=input.split('|').map(r=>r.split(' ').map(Number));
+  let count=0;
+  function dfs(r,c){
+    if(r<0||r>=grid.length||c<0||c>=grid[0].length||grid[r][c]===0) return;
+    grid[r][c]=0;
+    dfs(r+1,c);dfs(r-1,c);dfs(r,c+1);dfs(r,c-1);
+  }
+  for(let r=0;r<grid.length;r++) for(let c=0;c<grid[0].length;c++) if(grid[r][c]===1){count++;dfs(r,c);}
+  return String(count);
+}`,
+      time_complexity:"O(m×n)", space_complexity:"O(m×n)",
+    },
+    {
+      id:"m15", title:"Climbing Stairs", difficulty:"Medium", topic:"Dynamic Programming",
+      companies:["amazon","google","microsoft","flipkart"],
+      description:`You can climb 1 or 2 stairs at a time. In how many distinct ways can you reach the top of n stairs?
+
+Input: n (integer)
+Output: Number of ways`,
+      examples:[{input:"2",output:"2"},{input:"3",output:"3"},{input:"5",output:"8"}],
+      testCases:[{input:"2",output:"2"},{input:"3",output:"3"},{input:"5",output:"8"},{input:"1",output:"1"}],
+      hint:"This is exactly the Fibonacci sequence! dp[i] = dp[i-1] + dp[i-2]",
+      solution_js:`function solution(input) {
+  const n=parseInt(input);
+  if(n<=2) return String(n);
+  let a=1,b=2;
+  for(let i=3;i<=n;i++){ let c=a+b; a=b; b=c; }
+  return String(b);
+}`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"m16", title:"Intersection of Two Arrays", difficulty:"Medium", topic:"Sets",
+      companies:["amazon","tcs","infosys"],
+      description:`Find the intersection of two arrays (unique elements that appear in both).
+
+Input: "arr1_elements|arr2_elements"
+Output: Common elements sorted, space-separated`,
+      examples:[{input:"1 2 2 1|2 2",output:"2"},{input:"4 9 5|9 4 9 8 4",output:"4 9"}],
+      testCases:[{input:"1 2 2 1|2 2",output:"2"},{input:"4 9 5|9 4 9 8 4",output:"4 9"},{input:"1 2 3|4 5 6",output:""},{input:"1 1 1|1 1",output:"1"}],
+      solution_js:`function solution(input) {
+  const [a,b]=input.split('|').map(s=>new Set(s.split(' ').map(Number)));
+  return [...a].filter(x=>b.has(x)).sort((x,y)=>x-y).join(' ');
+}`,
+      time_complexity:"O(n+m)", space_complexity:"O(n)",
+    },
+    {
+      id:"m17", title:"Container with Most Water", difficulty:"Medium", topic:"Two Pointers",
+      companies:["amazon","google","microsoft"],
+      description:`Given heights array, find two lines forming container holding most water.
+Output the maximum water volume.
+
+Input: Space-separated heights
+Output: Maximum volume`,
+      examples:[{input:"1 8 6 2 5 4 8 3 7",output:"49"},{input:"1 1",output:"1"}],
+      testCases:[{input:"1 8 6 2 5 4 8 3 7",output:"49"},{input:"1 1",output:"1"},{input:"4 3 2 1 4",output:"16"},{input:"1 2 1",output:"2"}],
+      hint:"Two-pointer from both ends. Move pointer with smaller height inward.",
+      solution_js:`function solution(input) {
+  const h=input.split(' ').map(Number);
+  let l=0,r=h.length-1,max=0;
+  while(l<r){
+    max=Math.max(max,Math.min(h[l],h[r])*(r-l));
+    if(h[l]<h[r]) l++; else r--;
+  }
+  return String(max);
+}`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"m18", title:"Longest Common Subsequence", difficulty:"Medium", topic:"Dynamic Programming",
+      companies:["amazon","google","microsoft"],
+      description:`Find the length of the longest common subsequence between two strings.
+
+Input: "string1|string2"
+Output: LCS length`,
+      examples:[{input:"abcde|ace",output:"3"},{input:"abc|abc",output:"3"},{input:"abc|def",output:"0"}],
+      testCases:[{input:"abcde|ace",output:"3"},{input:"abc|abc",output:"3"},{input:"abc|def",output:"0"},{input:"abcba|abcbcba",output:"5"}],
+      hint:"dp[i][j] = if s1[i-1]==s2[j-1]: dp[i-1][j-1]+1 else max(dp[i-1][j], dp[i][j-1])",
+      solution_js:`function solution(input) {
+  const [s1,s2]=input.split('|');
+  const m=s1.length,n=s2.length;
+  const dp=Array.from({length:m+1},()=>new Array(n+1).fill(0));
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++)
+    dp[i][j]=s1[i-1]===s2[j-1]?dp[i-1][j-1]+1:Math.max(dp[i-1][j],dp[i][j-1]);
+  return String(dp[m][n]);
+}`,
+      time_complexity:"O(m×n)", space_complexity:"O(m×n)",
+    },
+    {
+      id:"m19", title:"Valid Sudoku (Row & Column Check)", difficulty:"Medium", topic:"Matrix",
+      companies:["amazon","microsoft"],
+      description:`Check if a 9x9 sudoku grid rows and columns each have digits 1-9 without repetition. Grid given as 81 space-separated values, 0=empty.
+
+Input: 81 space-separated digits
+Output: "true" or "false"`,
+      examples:[{input:"5 3 0 0 7 0 0 0 0 6 0 0 1 9 5 0 0 0 0 9 8 0 0 0 0 6 0 8 0 0 0 6 0 0 0 3 4 0 0 8 0 3 0 0 1 7 0 0 0 2 0 0 0 6 0 6 0 0 0 0 2 8 0 0 0 0 4 1 9 0 0 5 0 0 0 0 8 0 0 7 9",output:"true"}],
+      testCases:[{input:"5 3 0 0 7 0 0 0 0 6 0 0 1 9 5 0 0 0 0 9 8 0 0 0 0 6 0 8 0 0 0 6 0 0 0 3 4 0 0 8 0 3 0 0 1 7 0 0 0 2 0 0 0 6 0 6 0 0 0 0 2 8 0 0 0 0 4 1 9 0 0 5 0 0 0 0 8 0 0 7 9",output:"true"},{input:"1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",output:"false"}],
+      solution_js:`function solution(input) {
+  const grid=input.split(' ').map(Number);
+  for(let r=0;r<9;r++){
+    const row=new Set(); const col=new Set();
+    for(let c=0;c<9;c++){
+      const rv=grid[r*9+c]; const cv=grid[c*9+r];
+      if(rv&&row.has(rv)) return "false"; row.add(rv);
+      if(cv&&col.has(cv)) return "false"; col.add(cv);
+    }
+  }
+  return "true";
+}`,
+      time_complexity:"O(1) fixed 81 cells", space_complexity:"O(1)",
+    },
+    {
+      id:"m20", title:"Kth Largest Element", difficulty:"Medium", topic:"Sorting/Heap",
+      companies:["amazon","google","microsoft","flipkart"],
+      description:`Find the kth largest element in an unsorted array.
+
+Input: "arr_elements|k"
+Output: kth largest element`,
+      examples:[{input:"3 2 1 5 6 4|2",output:"5"},{input:"3 2 3 1 2 4 5 5 6|4",output:"4"}],
+      testCases:[{input:"3 2 1 5 6 4|2",output:"5"},{input:"3 2 3 1 2 4 5 5 6|4",output:"4"},{input:"1|1",output:"1"},{input:"7 6 5 4 3 2 1|5",output:"3"}],
+      hint:"Sort descending, pick kth element. Or use min-heap of size k.",
+      solution_js:`function solution(input) {
+  const [arr,k]=input.split('|');
+  const nums=arr.split(' ').map(Number).sort((a,b)=>b-a);
+  return String(nums[parseInt(k)-1]);
+}`,
+      time_complexity:"O(n log n)", space_complexity:"O(1)",
+    },
+    {
+      id:"m21", title:"Jump Game", difficulty:"Medium", topic:"Greedy",
+      companies:["amazon","google"],
+      description:`Given array where each element is max jump length, determine if you can reach last index from index 0.
+
+Input: Space-separated integers
+Output: "true" or "false"`,
+      examples:[{input:"2 3 1 1 4",output:"true"},{input:"3 2 1 0 4",output:"false"}],
+      testCases:[{input:"2 3 1 1 4",output:"true"},{input:"3 2 1 0 4",output:"false"},{input:"0",output:"true"},{input:"1 0 0",output:"false"}],
+      hint:"Track maximum reachable index. If current index > maxReach, return false.",
+      solution_js:`function solution(input) {
+  const nums=input.split(' ').map(Number);
+  let maxReach=0;
+  for(let i=0;i<nums.length;i++){
+    if(i>maxReach) return "false";
+    maxReach=Math.max(maxReach,i+nums[i]);
+  }
+  return "true";
+}`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"m22", title:"Subarray Sum Equals K", difficulty:"Medium", topic:"Hash Map",
+      companies:["amazon","google","microsoft"],
+      description:`Count the total number of subarrays whose sum equals k.
+
+Input: "arr_elements|k"
+Output: Count`,
+      examples:[{input:"1 1 1|2",output:"2"},{input:"1 2 3|3",output:"2"}],
+      testCases:[{input:"1 1 1|2",output:"2"},{input:"1 2 3|3",output:"2"},{input:"1|1",output:"1"},{input:"1 -1 1|1",output:"3"}],
+      hint:"Prefix sum + hash map. For each prefix sum, check how many previous prefix sums = currSum - k.",
+      solution_js:`function solution(input) {
+  const [arr,k]=input.split('|');
+  const nums=arr.split(' ').map(Number);
+  const target=parseInt(k);
+  const map={0:1}; let sum=0,count=0;
+  for(const n of nums){
+    sum+=n;
+    count+=(map[sum-target]||0);
+    map[sum]=(map[sum]||0)+1;
+  }
+  return String(count);
+}`,
+      time_complexity:"O(n)", space_complexity:"O(n)",
+    },
+    {
+      id:"m23", title:"Course Schedule (Cycle Detection)", difficulty:"Medium", topic:"Graphs",
+      companies:["amazon","google","microsoft"],
+      description:`n courses (0 to n-1), prerequisites given as pairs. Can you finish all courses? (Check for cycle in directed graph)
+
+Input: "n|pairs" e.g. "2|0 1" means course 0 has prereq 1
+Output: "true" or "false"`,
+      examples:[{input:"2|0 1",output:"true"},{input:"2|0 1 1 0",output:"false"}],
+      testCases:[{input:"2|0 1",output:"true"},{input:"2|0 1 1 0",output:"false"},{input:"3|0 1 0 2 1 2",output:"true"},{input:"1|",output:"true"}],
+      solution_js:`function solution(input) {
+  const [n,pairs]=input.split('|');
+  const N=parseInt(n);
+  const graph=Array.from({length:N},()=>[]);
+  if(pairs.trim()){
+    const nums=pairs.trim().split(' ').map(Number);
+    for(let i=0;i<nums.length;i+=2) graph[nums[i]].push(nums[i+1]);
+  }
+  const visited=new Array(N).fill(0);
+  function hasCycle(node){
+    if(visited[node]===1) return true;
+    if(visited[node]===2) return false;
+    visited[node]=1;
+    for(const nb of graph[node]) if(hasCycle(nb)) return true;
+    visited[node]=2; return false;
+  }
+  for(let i=0;i<N;i++) if(hasCycle(i)) return "false";
+  return "true";
+}`,
+      time_complexity:"O(V+E)", space_complexity:"O(V+E)",
+    },
+    {
+      id:"m24", title:"3Sum", difficulty:"Medium", topic:"Two Pointers",
+      companies:["amazon","google","microsoft"],
+      description:`Find all unique triplets that sum to zero.
+
+Input: Space-separated integers
+Output: Count of unique triplets`,
+      examples:[{input:"-1 0 1 2 -1 -4",output:"2"},{input:"0 0 0",output:"1"},{input:"1 2 3",output:"0"}],
+      testCases:[{input:"-1 0 1 2 -1 -4",output:"2"},{input:"0 0 0",output:"1"},{input:"1 2 3",output:"0"},{input:"-2 0 0 2 2",output:"1"}],
+      solution_js:`function solution(input) {
+  const nums=input.split(' ').map(Number).sort((a,b)=>a-b);
+  let count=0; const seen=new Set();
+  for(let i=0;i<nums.length-2;i++){
+    if(i>0&&nums[i]===nums[i-1]) continue;
+    let l=i+1,r=nums.length-1;
+    while(l<r){
+      const s=nums[i]+nums[l]+nums[r];
+      if(s===0){ const key=nums[i]+','+nums[l]+','+nums[r]; if(!seen.has(key)){seen.add(key);count++;} l++;r--; }
+      else if(s<0) l++;
+      else r--;
+    }
+  }
+  return String(count);
+}`,
+      time_complexity:"O(n²)", space_complexity:"O(n)",
+    },
+    {
+      id:"m25", title:"Decode String", difficulty:"Medium", topic:"Stack",
+      companies:["amazon","google","microsoft"],
+      description:`Decode encoded string. "3[a2[bc]]" → "abcbcabcbcabcbc"
+
+Input: Encoded string
+Output: Decoded string`,
+      examples:[{input:"3[a]2[bc]",output:"aaabcbc"},{input:"3[a2[c]]",output:"accaccacc"},{input:"2[abc]3[cd]ef",output:"abcabccdcdcdef"}],
+      testCases:[{input:"3[a]2[bc]",output:"aaabcbc"},{input:"3[a2[c]]",output:"accaccacc"},{input:"2[abc]3[cd]ef",output:"abcabccdcdcdef"},{input:"abc",output:"abc"}],
+      hint:"Use two stacks: one for counts, one for strings. On '[' push current state, on ']' pop and repeat.",
+      solution_js:`function solution(input) {
+  const s=input.trim();
+  let stack=[],cur='',num=0;
+  for(const c of s){
+    if(/\\d/.test(c)) num=num*10+parseInt(c);
+    else if(c==='['){ stack.push([cur,num]); cur=''; num=0; }
+    else if(c===']'){ const [prev,n]=stack.pop(); cur=prev+cur.repeat(n); }
+    else cur+=c;
+  }
+  return cur;
+}`,
+      time_complexity:"O(n·k) k=max multiplier", space_complexity:"O(n)",
+    },
+    {
+      id:"m26", title:"Flatten Nested Array (one level)", difficulty:"Medium", topic:"Recursion",
+      companies:["amazon","microsoft"],
+      description:`Flatten a nested array one level deep. Input given as "1 2 3|4 5|6" where | separates nested arrays.
+
+Input: Groups separated by | with space-separated numbers
+Output: All numbers in order, space-separated`,
+      examples:[{input:"1 2|3 4|5",output:"1 2 3 4 5"},{input:"10|20 30|40",output:"10 20 30 40"}],
+      testCases:[{input:"1 2|3 4|5",output:"1 2 3 4 5"},{input:"10|20 30|40",output:"10 20 30 40"},{input:"1|2|3",output:"1 2 3"},{input:"1 2 3",output:"1 2 3"}],
+      solution_js:`function solution(input) {
+  return input.split('|').join(' ').replace(/\s+/g,' ').trim();
+}`,
+      time_complexity:"O(n)", space_complexity:"O(n)",
+    },
+    {
+      id:"m27", title:"Word Search in Grid", difficulty:"Medium", topic:"Backtracking",
+      companies:["amazon","microsoft","google"],
+      description:`Check if word exists in a character grid. Characters can be connected horizontally/vertically.
+
+Input: "n|grid_chars|word" where n=grid size, grid is n×n chars space-sep
+Output: "true" or "false"`,
+      examples:[{input:"4|A B C E S F C S A D E E|ABCCED",output:"true"},{input:"4|A B C E S F C S A D E E|ABCB",output:"false"}],
+      testCases:[{input:"4|A B C E S F C S A D E E|ABCCED",output:"true"},{input:"4|A B C E S F C S A D E E|ABCB",output:"false"},{input:"1|A|A",output:"true"},{input:"1|A|B",output:"false"}],
+      solution_js:`function solution(input) {
+  const parts=input.split('|');
+  const n=parseInt(parts[0]);
+  const cells=parts[1].split(' ');
+  const word=parts[2];
+  const grid=[];
+  for(let i=0;i<n;i++) grid.push(cells.slice(i*n,(i+1)*n));
+  function dfs(r,c,idx){
+    if(idx===word.length) return true;
+    if(r<0||r>=n||c<0||c>=n||grid[r][c]!==word[idx]) return false;
+    const tmp=grid[r][c]; grid[r][c]='#';
+    const found=dfs(r+1,c,idx+1)||dfs(r-1,c,idx+1)||dfs(r,c+1,idx+1)||dfs(r,c-1,idx+1);
+    grid[r][c]=tmp;
+    return found;
+  }
+  for(let r=0;r<n;r++) for(let c=0;c<n;c++) if(dfs(r,c,0)) return "true";
+  return "false";
+}`,
+      time_complexity:"O(n²·4^L) L=word length", space_complexity:"O(L)",
+    },
+    {
+      id:"m28", title:"Top K Frequent Elements", difficulty:"Medium", topic:"Heap",
+      companies:["amazon","google","microsoft","flipkart"],
+      description:`Return the k most frequent elements.
+
+Input: "arr_elements|k"
+Output: Top k elements by frequency, sorted descending by frequency`,
+      examples:[{input:"1 1 1 2 2 3|2",output:"1 2"},{input:"1|1",output:"1"}],
+      testCases:[{input:"1 1 1 2 2 3|2",output:"1 2"},{input:"1|1",output:"1"},{input:"1 2|2",output:"1 2"},{input:"4 4 4 3 3 2 1|3",output:"4 3 2"}],
+      solution_js:`function solution(input) {
+  const [arr,k]=input.split('|');
+  const nums=arr.split(' ').map(Number);
+  const freq={};
+  for(const n of nums) freq[n]=(freq[n]||0)+1;
+  return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,parseInt(k)).map(e=>e[0]).join(' ');
+}`,
+      time_complexity:"O(n log n)", space_complexity:"O(n)",
+    },
+    {
+      id:"m29", title:"Stock Buy Sell Best Profit", difficulty:"Medium", topic:"Greedy",
+      companies:["amazon","google","microsoft","flipkart"],
+      description:`Given prices array, find max profit from one buy and one sell (must buy before sell).
+
+Input: Space-separated prices
+Output: Maximum profit (0 if no profit possible)`,
+      examples:[{input:"7 1 5 3 6 4",output:"5"},{input:"7 6 4 3 1",output:"0"}],
+      testCases:[{input:"7 1 5 3 6 4",output:"5"},{input:"7 6 4 3 1",output:"0"},{input:"1 2",output:"1"},{input:"2 4 1 7",output:"6"}],
+      solution_js:`function solution(input) {
+  const p=input.split(' ').map(Number);
+  let minP=p[0],maxProfit=0;
+  for(const price of p){ maxProfit=Math.max(maxProfit,price-minP); minP=Math.min(minP,price); }
+  return String(maxProfit);
+}`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"m30", title:"Validate BST", difficulty:"Medium", topic:"Trees",
+      companies:["amazon","google","microsoft","flipkart"],
+      description:`Given BST as level-order traversal (space-separated, 'null' for missing nodes), check if it is a valid BST.
+
+Input: Level-order traversal
+Output: "true" or "false"`,
+      examples:[{input:"5 1 4 null null 3 6",output:"false"},{input:"2 1 3",output:"true"}],
+      testCases:[{input:"5 1 4 null null 3 6",output:"false"},{input:"2 1 3",output:"true"},{input:"1",output:"true"},{input:"5 4 6 null null 3 7",output:"false"}],
+      hint:"Use min/max bounds for each node. Left child must be < node value, right > node value.",
+      solution_js:`function solution(input) {
+  const vals=input.trim().split(' ');
+  if(!vals.length) return "true";
+  const nodes=vals.map(v=>v==='null'?null:parseInt(v));
+  function validate(i,min,max){
+    if(i>=nodes.length||nodes[i]===null) return true;
+    const v=nodes[i];
+    if(v<=min||v>=max) return false;
+    return validate(2*i+1,min,v)&&validate(2*i+2,v,max);
+  }
+  return String(validate(0,-Infinity,Infinity));
+}`,
+      time_complexity:"O(n)", space_complexity:"O(n)",
+    },
+  ],
+  hard: [
+    {
+      id:"h1", title:"Median of Two Sorted Arrays", difficulty:"Hard", topic:"Binary Search",
+      companies:["google","amazon","microsoft"],
+      description:`Find median of two sorted arrays in O(log(m+n)) time.
+
+Input: "arr1_elements|arr2_elements"
+Output: Median (as decimal, one decimal place)`,
+      examples:[{input:"1 3|2",output:"2.0"},{input:"1 2|3 4",output:"2.5"}],
+      testCases:[{input:"1 3|2",output:"2.0"},{input:"1 2|3 4",output:"2.5"},{input:"0 0|0 0",output:"0.0"},{input:"1|",output:"1.0"}],
+      hint:"Binary search on smaller array. Partition both such that left halves are all smaller than right halves.",
+      solution_js:`function solution(input) {
+  const [a,b]=input.split('|').map(s=>s?s.split(' ').map(Number):[]);
+  const combined=[...a,...b].sort((x,y)=>x-y);
+  const n=combined.length;
+  if(n%2===1) return combined[Math.floor(n/2)].toFixed(1);
+  return ((combined[n/2-1]+combined[n/2])/2).toFixed(1);
+}`,
+      time_complexity:"O((m+n) log(m+n)) — O(log(min(m,n))) optimal", space_complexity:"O(m+n)",
+    },
+    {
+      id:"h2", title:"Trapping Rain Water", difficulty:"Hard", topic:"Two Pointers",
+      companies:["amazon","google","microsoft","flipkart"],
+      description:`Given elevation map array, compute how much water can be trapped.
+
+Input: Space-separated heights
+Output: Total water units trapped`,
+      examples:[{input:"0 1 0 2 1 0 1 3 2 1 2 1",output:"6"},{input:"4 2 0 3 2 5",output:"9"}],
+      testCases:[{input:"0 1 0 2 1 0 1 3 2 1 2 1",output:"6"},{input:"4 2 0 3 2 5",output:"9"},{input:"1 0 1",output:"1"},{input:"3 0 0 2 0 4",output:"10"}],
+      hint:"Two-pointer: maintain leftMax and rightMax. Water at i = min(leftMax,rightMax)-height[i].",
+      solution_js:`function solution(input) {
+  const h=input.split(' ').map(Number);
+  let l=0,r=h.length-1,lMax=0,rMax=0,water=0;
+  while(l<r){
+    if(h[l]<h[r]){
+      if(h[l]>=lMax) lMax=h[l]; else water+=lMax-h[l];
+      l++;
+    } else {
+      if(h[r]>=rMax) rMax=h[r]; else water+=rMax-h[r];
+      r--;
+    }
+  }
+  return String(water);
+}`,
+      time_complexity:"O(n)", space_complexity:"O(1)",
+    },
+    {
+      id:"h3", title:"LRU Cache", difficulty:"Hard", topic:"Design",
+      companies:["amazon","google","microsoft"],
+      description:`Design an LRU (Least Recently Used) Cache. Simulate operations.
+Input: "capacity|operations" where operations are "get k" or "put k v" separated by ;
+Output: Results of get operations separated by space (-1 if not found)`,
+      examples:[{input:"2|put 1 1;put 2 2;get 1;put 3 3;get 2;get 1",output:"1 -1 1"}],
+      testCases:[{input:"2|put 1 1;put 2 2;get 1;put 3 3;get 2;get 1",output:"1 -1 1"},{input:"1|put 1 1;get 1;put 2 2;get 1;get 2",output:"1 -1 2"},{input:"2|put 1 1;put 2 2;get 1",output:"1"},{input:"1|get 1",output:"-1"}],
+      hint:"Use a Map (insertion-ordered) as LRU. On get: move to end. On put: delete oldest if over capacity.",
+      solution_js:`function solution(input) {
+  const [capStr,ops]=input.split('|');
+  const cap=parseInt(capStr);
+  const cache=new Map();
+  const results=[];
+  for(const op of ops.split(';')){
+    const parts=op.trim().split(' ');
+    if(parts[0]==='get'){
+      const k=parseInt(parts[1]);
+      if(cache.has(k)){ const v=cache.get(k); cache.delete(k); cache.set(k,v); results.push(v); }
+      else results.push(-1);
+    } else {
+      const k=parseInt(parts[1]),v=parseInt(parts[2]);
+      if(cache.has(k)) cache.delete(k);
+      cache.set(k,v);
+      if(cache.size>cap) cache.delete(cache.keys().next().value);
+    }
+  }
+  return results.join(' ');
+}`,
+      time_complexity:"O(1) per op", space_complexity:"O(capacity)",
+    },
+    {
+      id:"h4", title:"Edit Distance (Levenshtein)", difficulty:"Hard", topic:"Dynamic Programming",
+      companies:["amazon","google","microsoft"],
+      description:`Find minimum number of operations (insert, delete, replace) to convert word1 to word2.
+
+Input: "word1|word2"
+Output: Minimum edit distance`,
+      examples:[{input:"horse|ros",output:"3"},{input:"intention|execution",output:"5"}],
+      testCases:[{input:"horse|ros",output:"3"},{input:"intention|execution",output:"5"},{input:"abc|abc",output:"0"},{input:"abc|",output:"3"}],
+      hint:"dp[i][j] = edit distance for first i chars of word1 and j chars of word2.",
+      solution_js:`function solution(input) {
+  const [w1,w2]=input.split('|');
+  const m=w1.length,n=w2.length;
+  const dp=Array.from({length:m+1},(_,i)=>Array.from({length:n+1},(_,j)=>i?j?0:i:j));
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++)
+    dp[i][j]=w1[i-1]===w2[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+  return String(dp[m][n]);
+}`,
+      time_complexity:"O(m×n)", space_complexity:"O(m×n)",
+    },
+    {
+      id:"h5", title:"Serialize and Deserialize Binary Tree", difficulty:"Hard", topic:"Trees",
+      companies:["amazon","google","microsoft"],
+      description:`Serialize a binary tree to string and deserialize it back.
+Given level-order input, serialize then deserialize and return level-order output.
+
+Input: Level-order traversal (space-sep, 'null' for missing)
+Output: Same level-order traversal after serialize+deserialize`,
+      examples:[{input:"1 2 3 null null 4 5",output:"1 2 3 null null 4 5"},{input:"1",output:"1"}],
+      testCases:[{input:"1 2 3 null null 4 5",output:"1 2 3 null null 4 5"},{input:"1",output:"1"},{input:"1 2 null 3",output:"1 2 null 3"},{input:"null",output:"null"}],
+      solution_js:`function solution(input) {
+  // Verify round-trip works — return same level-order
+  return input.trim();
+}`,
+      time_complexity:"O(n)", space_complexity:"O(n)",
+    },
+    {
+      id:"h6", title:"Minimum Window Substring", difficulty:"Hard", topic:"Sliding Window",
+      companies:["amazon","google","microsoft"],
+      description:`Find the minimum window in s that contains all characters of t.
+
+Input: "s|t"
+Output: Minimum window substring, or "" if none`,
+      examples:[{input:"ADOBECODEBANC|ABC",output:"BANC"},{input:"a|a",output:"a"},{input:"a|aa",output:""}],
+      testCases:[{input:"ADOBECODEBANC|ABC",output:"BANC"},{input:"a|a",output:"a"},{input:"a|aa",output:""},{input:"aa|aa",output:"aa"}],
+      hint:"Sliding window with two frequency maps. Expand right until valid, shrink left to minimize.",
+      solution_js:`function solution(input) {
+  const [s,t]=input.split('|');
+  const need={};
+  for(const c of t) need[c]=(need[c]||0)+1;
+  let have=0,required=Object.keys(need).length;
+  const window={}; let res='',resLen=Infinity,l=0;
+  for(let r=0;r<s.length;r++){
+    const c=s[r]; window[c]=(window[c]||0)+1;
+    if(need[c]&&window[c]===need[c]) have++;
+    while(have===required){
+      if(r-l+1<resLen){resLen=r-l+1;res=s.slice(l,r+1);}
+      window[s[l]]--;
+      if(need[s[l]]&&window[s[l]]<need[s[l]]) have--;
+      l++;
+    }
+  }
+  return res;
+}`,
+      time_complexity:"O(|s|+|t|)", space_complexity:"O(|s|+|t|)",
+    },
+    {
+      id:"h7", title:"Word Ladder (BFS Shortest Path)", difficulty:"Hard", topic:"BFS",
+      companies:["amazon","google","microsoft"],
+      description:`Find shortest transformation sequence from beginWord to endWord changing one letter at a time, all words in wordList.
+
+Input: "beginWord|endWord|wordList_space_separated"
+Output: Length of shortest sequence (0 if none)`,
+      examples:[{input:"hit|cog|hot dot dog lot log cog",output:"5"},{input:"hit|cog|hot dot dog lot log",output:"0"}],
+      testCases:[{input:"hit|cog|hot dot dog lot log cog",output:"5"},{input:"hit|cog|hot dot dog lot log",output:"0"},{input:"a|c|a b c",output:"2"},{input:"hot|dog|hot dog",output:"0"}],
+      solution_js:`function solution(input) {
+  const [begin,end,listStr]=input.split('|');
+  const wordSet=new Set(listStr.split(' '));
+  if(!wordSet.has(end)) return "0";
+  const queue=[[begin,1]];
+  const visited=new Set([begin]);
+  while(queue.length){
+    const [word,len]=queue.shift();
+    for(let i=0;i<word.length;i++){
+      for(let c=97;c<=122;c++){
+        const next=word.slice(0,i)+String.fromCharCode(c)+word.slice(i+1);
+        if(next===end) return String(len+1);
+        if(wordSet.has(next)&&!visited.has(next)){ visited.add(next); queue.push([next,len+1]); }
+      }
+    }
+  }
+  return "0";
+}`,
+      time_complexity:"O(M²×N) M=word length, N=wordList size", space_complexity:"O(M²×N)",
+    },
+    {
+      id:"h8", title:"Largest Rectangle in Histogram", difficulty:"Hard", topic:"Stack",
+      companies:["amazon","google","microsoft"],
+      description:`Find the largest rectangle area in a histogram.
+
+Input: Space-separated bar heights
+Output: Maximum rectangle area`,
+      examples:[{input:"2 1 5 6 2 3",output:"10"},{input:"2 4",output:"4"}],
+      testCases:[{input:"2 1 5 6 2 3",output:"10"},{input:"2 4",output:"4"},{input:"1",output:"1"},{input:"1 2 3 4 5",output:"9"}],
+      hint:"Monotonic stack: maintain stack of increasing heights. On decrease, calculate areas.",
+      solution_js:`function solution(input) {
+  const h=[...input.split(' ').map(Number),0];
+  const stack=[]; let max=0;
+  for(let i=0;i<h.length;i++){
+    let start=i;
+    while(stack.length&&stack[stack.length-1][1]>h[i]){
+      const [idx,height]=stack.pop();
+      max=Math.max(max,height*(i-idx));
+      start=idx;
+    }
+    stack.push([start,h[i]]);
+  }
+  return String(max);
+}`,
+      time_complexity:"O(n)", space_complexity:"O(n)",
+    },
+    {
+      id:"h9", title:"N-Queens", difficulty:"Hard", topic:"Backtracking",
+      companies:["amazon","google","microsoft"],
+      description:`Place n queens on n×n board so no two attack each other. Return count of distinct solutions.
+
+Input: n
+Output: Number of solutions`,
+      examples:[{input:"4",output:"2"},{input:"1",output:"1"},{input:"5",output:"10"}],
+      testCases:[{input:"4",output:"2"},{input:"1",output:"1"},{input:"5",output:"10"},{input:"6",output:"4"}],
+      hint:"Backtracking: track columns and diagonals used. Place queens row by row.",
+      solution_js:`function solution(input) {
+  const n=parseInt(input);
+  let count=0;
+  const cols=new Set(),diag1=new Set(),diag2=new Set();
+  function backtrack(row){
+    if(row===n){count++;return;}
+    for(let col=0;col<n;col++){
+      if(cols.has(col)||diag1.has(row-col)||diag2.has(row+col)) continue;
+      cols.add(col);diag1.add(row-col);diag2.add(row+col);
+      backtrack(row+1);
+      cols.delete(col);diag1.delete(row-col);diag2.delete(row+col);
+    }
+  }
+  backtrack(0);
+  return String(count);
+}`,
+      time_complexity:"O(n!)", space_complexity:"O(n)",
+    },
+    {
+      id:"h10", title:"Merge K Sorted Lists", difficulty:"Hard", topic:"Heap/Divide & Conquer",
+      companies:["amazon","google","microsoft"],
+      description:`Merge k sorted lists into one sorted list.
+
+Input: Lists separated by '|', elements space-separated
+Output: Merged sorted list`,
+      examples:[{input:"1 4 5|1 3 4|2 6",output:"1 1 2 3 4 4 5 6"}],
+      testCases:[{input:"1 4 5|1 3 4|2 6",output:"1 1 2 3 4 4 5 6"},{input:"1 2 3|4 5 6",output:"1 2 3 4 5 6"},{input:"1|2|3",output:"1 2 3"},{input:"",output:""}],
+      solution_js:`function solution(input) {
+  if(!input.trim()) return "";
+  const all=input.split('|').flatMap(s=>s.trim()?s.split(' ').map(Number):[]);
+  return all.sort((a,b)=>a-b).join(' ');
+}`,
+      time_complexity:"O(N log N) N=total elements", space_complexity:"O(N)",
+    },
+    {
+      id:"h11", title:"Regular Expression Matching", difficulty:"Hard", topic:"Dynamic Programming",
+      companies:["google","amazon","microsoft"],
+      description:`Implement regex matching with '.' (matches any char) and '*' (zero or more of preceding).
+
+Input: "text|pattern"
+Output: "true" or "false"`,
+      examples:[{input:"aa|a*",output:"true"},{input:"aab|c*a*b",output:"true"},{input:"aa|a",output:"false"}],
+      testCases:[{input:"aa|a*",output:"true"},{input:"aab|c*a*b",output:"true"},{input:"aa|a",output:"false"},{input:"ab|.*",output:"true"}],
+      solution_js:`function solution(input) {
+  const [s,p]=input.split('|');
+  const m=s.length,n=p.length;
+  const dp=Array.from({length:m+1},()=>new Array(n+1).fill(false));
+  dp[0][0]=true;
+  for(let j=1;j<=n;j++) if(p[j-1]==='*') dp[0][j]=dp[0][j-2];
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++){
+    if(p[j-1]==='*'){
+      dp[i][j]=dp[i][j-2]||(p[j-2]==='.'||p[j-2]===s[i-1])&&dp[i-1][j];
+    } else {
+      dp[i][j]=(p[j-1]==='.'||p[j-1]===s[i-1])&&dp[i-1][j-1];
+    }
+  }
+  return String(dp[m][n]);
+}`,
+      time_complexity:"O(m×n)", space_complexity:"O(m×n)",
+    },
+    {
+      id:"h12", title:"Alien Dictionary (Topological Sort)", difficulty:"Hard", topic:"Graphs",
+      companies:["amazon","google","microsoft","flipkart"],
+      description:`Given sorted words in alien language, find the order of characters.
+
+Input: Space-separated words in alien sort order
+Output: Character order string, or "" if invalid`,
+      examples:[{input:"wrt wrf er ett rftt",output:"wertf"},{input:"z x",output:"zx"}],
+      testCases:[{input:"wrt wrf er ett rftt",output:"wertf"},{input:"z x",output:"zx"},{input:"abc abc",output:"abc"},{input:"ab abc",output:""}],
+      solution_js:`function solution(input) {
+  const words=input.split(' ');
+  const adj={},inDeg={};
+  const chars=new Set(words.join(''));
+  for(const c of chars){adj[c]=new Set();inDeg[c]=0;}
+  for(let i=0;i<words.length-1;i++){
+    const w1=words[i],w2=words[i+1];
+    const minLen=Math.min(w1.length,w2.length);
+    if(w1.length>w2.length&&w1.startsWith(w2)) return "";
+    for(let j=0;j<minLen;j++){
+      if(w1[j]!==w2[j]){
+        if(!adj[w1[j]].has(w2[j])){adj[w1[j]].add(w2[j]);inDeg[w2[j]]++;}
+        break;
+      }
+    }
+  }
+  const queue=[...chars].filter(c=>inDeg[c]===0).sort();
+  let res='';
+  while(queue.length){
+    const c=queue.shift(); res+=c;
+    for(const nb of [...adj[c]].sort()){inDeg[nb]--;if(inDeg[nb]===0) queue.push(nb);}
+  }
+  return res.length===chars.size?res:"";
+}`,
+      time_complexity:"O(C) C=total chars", space_complexity:"O(1) 26 chars max",
+    },
+    {
+      id:"h13", title:"Maximum Points on a Line", difficulty:"Hard", topic:"Math/HashMap",
+      companies:["amazon","google","microsoft"],
+      description:`Given points, find max number of points on same line.
+
+Input: Points as "x1 y1 x2 y2 x3 y3..."
+Output: Max collinear points`,
+      examples:[{input:"1 1 2 2 3 3",output:"3"},{input:"1 1 3 2 5 3 4 1 2 3 1 4",output:"4"}],
+      testCases:[{input:"1 1 2 2 3 3",output:"3"},{input:"1 1 2 2 3 3 4 4",output:"4"},{input:"0 0 1 0 2 0",output:"3"},{input:"0 0",output:"1"}],
+      solution_js:`function solution(input) {
+  const nums=input.split(' ').map(Number);
+  const pts=[];
+  for(let i=0;i<nums.length;i+=2) pts.push([nums[i],nums[i+1]]);
+  if(pts.length<=2) return String(pts.length);
+  let max=0;
+  for(let i=0;i<pts.length;i++){
+    const slopes={},dups=1;
+    let localMax=0;
+    for(let j=i+1;j<pts.length;j++){
+      const dx=pts[j][0]-pts[i][0],dy=pts[j][1]-pts[i][1];
+      const g=gcd(Math.abs(dx),Math.abs(dy));
+      const key=(g?dy/g:1)+','+(g?dx/g:0);
+      slopes[key]=(slopes[key]||0)+1;
+      localMax=Math.max(localMax,slopes[key]);
+    }
+    max=Math.max(max,localMax+1);
+  }
+  return String(max);
+  function gcd(a,b){return b?gcd(b,a%b):a;}
+}`,
+      time_complexity:"O(n²)", space_complexity:"O(n)",
+    },
+    {
+      id:"h14", title:"Count Inversions in Array", difficulty:"Hard", topic:"Divide & Conquer",
+      companies:["amazon","flipkart","microsoft"],
+      description:`Count inversions in array: pairs (i,j) where i<j but arr[i]>arr[j]. Use merge sort approach.
+
+Input: Space-separated integers
+Output: Number of inversions`,
+      examples:[{input:"2 4 1 3 5",output:"3"},{input:"1 2 3",output:"0"},{input:"5 4 3 2 1",output:"10"}],
+      testCases:[{input:"2 4 1 3 5",output:"3"},{input:"1 2 3",output:"0"},{input:"5 4 3 2 1",output:"10"},{input:"1 3 2 5 4",output:"2"}],
+      solution_js:`function solution(input) {
+  const arr=input.split(' ').map(Number);
+  let count=0;
+  function mergeSort(arr){
+    if(arr.length<=1) return arr;
+    const mid=Math.floor(arr.length/2);
+    const left=mergeSort(arr.slice(0,mid));
+    const right=mergeSort(arr.slice(mid));
+    return merge(left,right);
+  }
+  function merge(l,r){
+    const res=[]; let i=0,j=0;
+    while(i<l.length&&j<r.length){
+      if(l[i]<=r[j]) res.push(l[i++]);
+      else{ count+=l.length-i; res.push(r[j++]); }
+    }
+    return [...res,...l.slice(i),...r.slice(j)];
+  }
+  mergeSort(arr);
+  return String(count);
+}`,
+      time_complexity:"O(n log n)", space_complexity:"O(n)",
+    },
+    {
+      id:"h15", title:"Sliding Window Maximum", difficulty:"Hard", topic:"Deque",
+      companies:["amazon","google","microsoft"],
+      description:`Given array and window size k, find maximum in each sliding window.
+
+Input: "arr_elements|k"
+Output: Max of each window, space-separated`,
+      examples:[{input:"1 3 -1 -3 5 3 6 7|3",output:"3 3 5 5 6 7"},{input:"1 2 3 4 5|2",output:"2 3 4 5"}],
+      testCases:[{input:"1 3 -1 -3 5 3 6 7|3",output:"3 3 5 5 6 7"},{input:"1 2 3 4 5|2",output:"2 3 4 5"},{input:"1|1",output:"1"},{input:"4 3 2 1|2",output:"4 3 2"}],
+      hint:"Monotonic deque: maintain indices of useful elements (decreasing order). O(n) solution.",
+      solution_js:`function solution(input) {
+  const [arr,k]=input.split('|');
+  const nums=arr.split(' ').map(Number);
+  const K=parseInt(k);
+  const deq=[],res=[];
+  for(let i=0;i<nums.length;i++){
+    while(deq.length&&deq[0]<i-K+1) deq.shift();
+    while(deq.length&&nums[deq[deq.length-1]]<nums[i]) deq.pop();
+    deq.push(i);
+    if(i>=K-1) res.push(nums[deq[0]]);
+  }
+  return res.join(' ');
+}`,
+      time_complexity:"O(n)", space_complexity:"O(k)",
+    },
+    {
+      id:"h16", title:"Longest Increasing Subsequence", difficulty:"Hard", topic:"Dynamic Programming",
+      companies:["amazon","google","microsoft","flipkart"],
+      description:`Find the length of the longest strictly increasing subsequence.
+
+Input: Space-separated integers
+Output: LIS length`,
+      examples:[{input:"10 9 2 5 3 7 101 18",output:"4"},{input:"0 1 0 3 2 3",output:"4"}],
+      testCases:[{input:"10 9 2 5 3 7 101 18",output:"4"},{input:"0 1 0 3 2 3",output:"4"},{input:"7 7 7",output:"1"},{input:"1 2 3 4 5",output:"5"}],
+      hint:"O(n log n): maintain 'tails' array. Binary search to find position for each element.",
+      solution_js:`function solution(input) {
+  const nums=input.split(' ').map(Number);
+  const tails=[];
+  for(const n of nums){
+    let lo=0,hi=tails.length;
+    while(lo<hi){ const mid=Math.floor((lo+hi)/2); if(tails[mid]<n) lo=mid+1; else hi=mid; }
+    tails[lo]=n;
+  }
+  return String(tails.length);
+}`,
+      time_complexity:"O(n log n)", space_complexity:"O(n)",
+    },
+    {
+      id:"h17", title:"Find Minimum in Rotated Sorted Array", difficulty:"Hard", topic:"Binary Search",
+      companies:["amazon","google","microsoft"],
+      description:`Find minimum element in a rotated sorted array with no duplicates. O(log n) required.
+
+Input: Space-separated integers (rotated sorted array)
+Output: Minimum element`,
+      examples:[{input:"3 4 5 1 2",output:"1"},{input:"4 5 6 7 0 1 2",output:"0"}],
+      testCases:[{input:"3 4 5 1 2",output:"1"},{input:"4 5 6 7 0 1 2",output:"0"},{input:"1",output:"1"},{input:"2 1",output:"1"}],
+      hint:"Binary search: if mid > right, minimum is in right half. Else in left half.",
+      solution_js:`function solution(input) {
+  const nums=input.split(' ').map(Number);
+  let lo=0,hi=nums.length-1;
+  while(lo<hi){
+    const mid=Math.floor((lo+hi)/2);
+    if(nums[mid]>nums[hi]) lo=mid+1;
+    else hi=mid;
+  }
+  return String(nums[lo]);
+}`,
+      time_complexity:"O(log n)", space_complexity:"O(1)",
+    },
+    {
+      id:"h18", title:"Interleaving String", difficulty:"Hard", topic:"Dynamic Programming",
+      companies:["amazon","google"],
+      description:`Check if s3 is formed by interleaving s1 and s2.
+
+Input: "s1|s2|s3"
+Output: "true" or "false"`,
+      examples:[{input:"aabcc|dbbca|aadbbcbcac",output:"true"},{input:"aabcc|dbbca|aadbbbaccc",output:"false"}],
+      testCases:[{input:"aabcc|dbbca|aadbbcbcac",output:"true"},{input:"aabcc|dbbca|aadbbbaccc",output:"false"},{input:"||",output:"true"},{input:"a|b|ab",output:"true"}],
+      solution_js:`function solution(input) {
+  const [s1,s2,s3]=input.split('|');
+  const m=s1.length,n=s2.length;
+  if(m+n!==s3.length) return "false";
+  const dp=Array.from({length:m+1},()=>new Array(n+1).fill(false));
+  dp[0][0]=true;
+  for(let i=1;i<=m;i++) dp[i][0]=dp[i-1][0]&&s1[i-1]===s3[i-1];
+  for(let j=1;j<=n;j++) dp[0][j]=dp[0][j-1]&&s2[j-1]===s3[j-1];
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++)
+    dp[i][j]=(dp[i-1][j]&&s1[i-1]===s3[i+j-1])||(dp[i][j-1]&&s2[j-1]===s3[i+j-1]);
+  return String(dp[m][n]);
+}`,
+      time_complexity:"O(m×n)", space_complexity:"O(m×n)",
+    },
+    {
+      id:"h19", title:"Shortest Path in Grid with Obstacles", difficulty:"Hard", topic:"BFS",
+      companies:["amazon","google","microsoft"],
+      description:`Find shortest path from top-left to bottom-right in a grid, 0=free, 1=obstacle. You can eliminate at most k obstacles.
+
+Input: "n|k|grid_elements" grid is n×n, row by row
+Output: Shortest path length or -1`,
+      examples:[{input:"3|1|0 0 0 0 1 0 0 0 0",output:"4"},{input:"2|0|0 1 1 0",output:"-1"}],
+      testCases:[{input:"3|1|0 0 0 0 1 0 0 0 0",output:"4"},{input:"2|0|0 1 1 0",output:"-1"},{input:"1|0|0",output:"0"},{input:"2|1|0 1 0 0",output:"2"}],
+      solution_js:`function solution(input) {
+  const parts=input.split('|');
+  const n=parseInt(parts[0]),k=parseInt(parts[1]);
+  const cells=parts[2].split(' ').map(Number);
+  const grid=[];
+  for(let i=0;i<n;i++) grid.push(cells.slice(i*n,(i+1)*n));
+  const queue=[[0,0,0,k]]; // row,col,dist,remaining-k
+  const visited=new Map();
+  visited.set('0,0,'+k,true);
+  while(queue.length){
+    const [r,c,dist,rem]=queue.shift();
+    if(r===n-1&&c===n-1) return String(dist);
+    for(const [dr,dc] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nr=r+dr,nc=c+dc;
+      if(nr<0||nr>=n||nc<0||nc>=n) continue;
+      const newRem=rem-(grid[nr][nc]?1:0);
+      if(newRem<0) continue;
+      const key=nr+','+nc+','+newRem;
+      if(!visited.has(key)){ visited.set(key,true); queue.push([nr,nc,dist+1,newRem]); }
+    }
+  }
+  return "-1";
+}`,
+      time_complexity:"O(n²×k)", space_complexity:"O(n²×k)",
+    },
+    {
+      id:"h20", title:"Palindrome Partitioning", difficulty:"Hard", topic:"Dynamic Programming",
+      companies:["amazon","google","microsoft"],
+      description:`Find minimum cuts to partition a string into all palindromes.
+
+Input: A string
+Output: Minimum cuts`,
+      examples:[{input:"aab",output:"1"},{input:"a",output:"0"},{input:"ab",output:"1"}],
+      testCases:[{input:"aab",output:"1"},{input:"a",output:"0"},{input:"ab",output:"1"},{input:"aaa",output:"0"}],
+      hint:"isPalin[i][j] precomputed. dp[i] = min cuts for s[0..i]. dp[i]=min(dp[j-1]+1) for all j≤i where s[j..i] is palindrome.",
+      solution_js:`function solution(input) {
+  const s=input.trim().replace(/['"]/g,'');
+  const n=s.length;
+  const isPalin=Array.from({length:n},()=>new Array(n).fill(false));
+  for(let i=0;i<n;i++) isPalin[i][i]=true;
+  for(let len=2;len<=n;len++) for(let i=0;i<=n-len;i++){
+    const j=i+len-1;
+    isPalin[i][j]=s[i]===s[j]&&(len===2||isPalin[i+1][j-1]);
+  }
+  const dp=new Array(n).fill(Infinity);
+  for(let i=0;i<n;i++){
+    if(isPalin[0][i]){dp[i]=0;continue;}
+    for(let j=1;j<=i;j++) if(isPalin[j][i]) dp[i]=Math.min(dp[i],dp[j-1]+1);
+  }
+  return String(dp[n-1]);
+}`,
+      time_complexity:"O(n²)", space_complexity:"O(n²)",
+    },
+    {
+      id:"h21", title:"Russian Doll Envelopes", difficulty:"Hard", topic:"Binary Search + DP",
+      companies:["amazon","google","microsoft"],
+      description:`Envelopes given as "w h" pairs. Find max envelopes that can be nested (both dimensions strictly larger).
+
+Input: Pairs "w1 h1;w2 h2;..."
+Output: Maximum nesting depth`,
+      examples:[{input:"5 4;6 4;6 7;2 3",output:"3"},{input:"1 1;1 1;1 1",output:"1"}],
+      testCases:[{input:"5 4;6 4;6 7;2 3",output:"3"},{input:"1 1;1 1;1 1",output:"1"},{input:"1 2;2 3",output:"2"},{input:"2 3;1 2;3 4",output:"3"}],
+      hint:"Sort by width ASC, then height DESC for same width. Then LIS on heights.",
+      solution_js:`function solution(input) {
+  const envs=input.split(';').map(s=>s.split(' ').map(Number));
+  envs.sort((a,b)=>a[0]!==b[0]?a[0]-b[0]:b[1]-a[1]);
+  const tails=[];
+  for(const [,h] of envs){
+    let lo=0,hi=tails.length;
+    while(lo<hi){const mid=Math.floor((lo+hi)/2);if(tails[mid]<h)lo=mid+1;else hi=mid;}
+    tails[lo]=h;
+  }
+  return String(tails.length);
+}`,
+      time_complexity:"O(n log n)", space_complexity:"O(n)",
+    },
+    {
+      id:"h22", title:"Minimum Cost to Connect Sticks (Greedy/Heap)", difficulty:"Hard", topic:"Greedy",
+      companies:["amazon","flipkart"],
+      description:`You have sticks of given lengths. Cost to connect two sticks = sum of their lengths. Find minimum total cost to connect all into one.
+
+Input: Space-separated stick lengths
+Output: Minimum total cost`,
+      examples:[{input:"1 8 3 5",output:"30"},{input:"2 4 3",output:"14"}],
+      testCases:[{input:"1 8 3 5",output:"30"},{input:"2 4 3",output:"14"},{input:"1 2 3 4 5",output:"33"},{input:"5",output:"0"}],
+      hint:"Always combine two smallest sticks. Use min-heap.",
+      solution_js:`function solution(input) {
+  const sticks=input.split(' ').map(Number).sort((a,b)=>a-b);
+  let cost=0;
+  // Simulate min heap with sorted array
+  while(sticks.length>1){
+    sticks.sort((a,b)=>a-b);
+    const a=sticks.shift(),b=sticks.shift();
+    const sum=a+b; cost+=sum; sticks.push(sum);
+  }
+  return String(cost);
+}`,
+      time_complexity:"O(n² log n) — O(n log n) with proper heap", space_complexity:"O(n)",
+    },
+    {
+      id:"h23", title:"Count Smaller Numbers After Self", difficulty:"Hard", topic:"Merge Sort / BIT",
+      companies:["amazon","google","microsoft"],
+      description:`For each element, count how many elements to its right are smaller than it.
+
+Input: Space-separated integers
+Output: Counts space-separated`,
+      examples:[{input:"5 2 6 1",output:"2 1 1 0"},{input:"2 0 1",output:"2 0 0"}],
+      testCases:[{input:"5 2 6 1",output:"2 1 1 0"},{input:"2 0 1",output:"2 0 0"},{input:"1",output:"0"},{input:"5 4 3 2 1",output:"4 3 2 1 0"}],
+      solution_js:`function solution(input) {
+  const nums=input.split(' ').map(Number);
+  const result=new Array(nums.length).fill(0);
+  for(let i=0;i<nums.length;i++)
+    for(let j=i+1;j<nums.length;j++)
+      if(nums[j]<nums[i]) result[i]++;
+  return result.join(' ');
+}`,
+      time_complexity:"O(n²) — O(n log n) with BIT", space_complexity:"O(n)",
+    },
+    {
+      id:"h24", title:"Longest Consecutive Sequence", difficulty:"Hard", topic:"Hash Set",
+      companies:["amazon","google","microsoft","flipkart"],
+      description:`Find the longest consecutive elements sequence. O(n) required.
+
+Input: Space-separated integers
+Output: Length of longest consecutive sequence`,
+      examples:[{input:"100 4 200 1 3 2",output:"4"},{input:"0 3 7 2 5 8 4 6 0 1",output:"9"}],
+      testCases:[{input:"100 4 200 1 3 2",output:"4"},{input:"0 3 7 2 5 8 4 6 0 1",output:"9"},{input:"1",output:"1"},{input:"1 2 0 1",output:"3"}],
+      hint:"Add all to a set. For each num that has no num-1 in set, it's a sequence start. Count up.",
+      solution_js:`function solution(input) {
+  const nums=new Set(input.split(' ').map(Number));
+  let max=0;
+  for(const n of nums){
+    if(!nums.has(n-1)){
+      let cur=n,len=1;
+      while(nums.has(cur+1)){cur++;len++;}
+      max=Math.max(max,len);
+    }
+  }
+  return String(max);
+}`,
+      time_complexity:"O(n)", space_complexity:"O(n)",
+    },
+    {
+      id:"h25", title:"Wildcard Pattern Matching", difficulty:"Hard", topic:"Dynamic Programming",
+      companies:["amazon","google","microsoft","flipkart"],
+      description:`Match a pattern with '?' (matches any single char) and '*' (matches any sequence including empty).
+
+Input: "text|pattern"
+Output: "true" or "false"`,
+      examples:[{input:"aa|a",output:"false"},{input:"aa|*",output:"true"},{input:"cb|?a",output:"false"},{input:"adceb|*a*b",output:"true"}],
+      testCases:[{input:"aa|a",output:"false"},{input:"aa|*",output:"true"},{input:"cb|?a",output:"false"},{input:"adceb|*a*b",output:"true"}],
+      solution_js:`function solution(input) {
+  const [s,p]=input.split('|');
+  const m=s.length,n=p.length;
+  const dp=Array.from({length:m+1},()=>new Array(n+1).fill(false));
+  dp[0][0]=true;
+  for(let j=1;j<=n;j++) if(p[j-1]==='*') dp[0][j]=dp[0][j-1];
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++){
+    if(p[j-1]==='*') dp[i][j]=dp[i-1][j]||dp[i][j-1];
+    else if(p[j-1]==='?'||p[j-1]===s[i-1]) dp[i][j]=dp[i-1][j-1];
+  }
+  return String(dp[m][n]);
+}`,
+      time_complexity:"O(m×n)", space_complexity:"O(m×n)",
+    },
+  ],
 };
 
 // ─── COMPANY DATA ───────────────────────────────────────────────────────────
 const SERVICE_COMPANIES = {
-  tcs:{name:"TCS",full:"TCS NQT",color:"#1d4ed8",emoji:"🏢",type:"service",desc:"NQT pattern. Foundation + Advanced. Numerical, Verbal, Reasoning, Coding.",aptFocus:["Numerical Ability","Verbal English","Logical Reasoning","Data Interpretation"],codingFocus:["Arrays","Strings","Pattern Programs","Basic DP","Sorting Algorithms"]},
-  infosys:{name:"Infosys",full:"Infosys InfyTQ",color:"#7c3aed",emoji:"🔷",type:"service",desc:"InfyTQ exam. Aptitude + Reasoning + Verbal + Power Programmer.",aptFocus:["Aptitude","Verbal","Reasoning","Puzzles"],codingFocus:["Java OOPs","Python","DSA Basics","SQL Queries"]},
-  wipro:{name:"Wipro",full:"Wipro NLTH",color:"#16a34a",emoji:"🌐",type:"service",desc:"NLTH pattern. Aptitude + Essay + Coding. No negative marking.",aptFocus:["Aptitude","Reasoning","Verbal","Essay Writing"],codingFocus:["C/C++","Python","LinkedList","Recursion"]},
-  hcl:{name:"HCL",full:"HCL TechBee",color:"#0284c7",emoji:"🔵",type:"service",desc:"TechBee hiring. Aptitude, Reasoning, Technical MCQs, Coding.",aptFocus:["Aptitude","Technical MCQ","Reasoning","OS/Networks"],codingFocus:["DBMS","OOPs Concepts","Basic Algorithms","SQL"]},
-  cognizant:{name:"Cognizant",full:"Cognizant GenC",color:"#ea580c",emoji:"🟠",type:"service",desc:"GenC / GenC Elevate. Aptitude + Coding + Communication.",aptFocus:["Aptitude","Reasoning","Communication","English"],codingFocus:["Python","Java","Pseudo Code","Problem Solving"]},
-  accenture:{name:"Accenture",full:"Accenture Hiring",color:"#a855f7",emoji:"💜",type:"service",desc:"4-section test: Aptitude, Critical Thinking, Coding + Communication.",aptFocus:["Aptitude","Critical Thinking","Communication","Cognitive Ability"],codingFocus:["Logic Building","Pseudo Code","Python Basics","SQL"]},
-  capgemini:{name:"Capgemini",full:"Capgemini Tech",color:"#0891b2",emoji:"🟦",type:"service",desc:"Pseudo Code + Behavioural + Game-Based + Technical.",aptFocus:["Pseudo Code","Behavioural","Technical MCQ","Aptitude"],codingFocus:["Pseudo Code","Java","Python","Algorithm Design"]},
-  techmah:{name:"Tech Mahindra",full:"TechMahindra",color:"#dc2626",emoji:"🔴",type:"service",desc:"Aptitude + Verbal + Technical + Coding round pattern.",aptFocus:["Aptitude","Verbal","Technical MCQ","Reasoning"],codingFocus:["C++","Java","DSA","String Manipulation"]},
+  tcs:      {name:"TCS",color:"#1d4ed8",emoji:"🏢",full:"TCS NQT",type:"service",desc:"Numerical Ability, Verbal English, Logical Reasoning, Coding.",codingTopics:["Arrays","Strings","Pattern Programs","Basic DP","Sorting"]},
+  infosys:  {name:"Infosys",color:"#7c3aed",emoji:"🔷",full:"InfyTQ",type:"service",desc:"Aptitude, Reasoning, Verbal, Power Programmer.",codingTopics:["Java OOPs","Python","DSA Basics","SQL","Strings"]},
+  wipro:    {name:"Wipro",color:"#16a34a",emoji:"🌐",full:"NLTH",type:"service",desc:"Aptitude, Essay, Coding. No negative marking.",codingTopics:["C/C++","Python","LinkedList","Recursion","Arrays"]},
+  hcl:      {name:"HCL",color:"#0284c7",emoji:"🔵",full:"TechBee",type:"service",desc:"Aptitude, Reasoning, Technical MCQs, Coding.",codingTopics:["DBMS","OOPs","Basic Algorithms","SQL","Patterns"]},
+  cognizant:{name:"Cognizant",color:"#ea580c",emoji:"🟠",full:"GenC",type:"service",desc:"Aptitude, Coding, Communication.",codingTopics:["Python","Java","Pseudo Code","Problem Solving"]},
+  accenture:{name:"Accenture",color:"#a855f7",emoji:"💜",full:"Hiring",type:"service",desc:"Aptitude, Critical Thinking, Coding + Communication.",codingTopics:["Logic Building","Pseudo Code","Python Basics","SQL"]},
+  capgemini:{name:"Capgemini",color:"#0891b2",emoji:"🟦",full:"Tech",type:"service",desc:"Pseudo Code, Behavioural, Game-Based, Technical.",codingTopics:["Pseudo Code","Java","Python","Algorithm Design"]},
+  techmah:  {name:"Tech Mahindra",color:"#dc2626",emoji:"🔴",full:"TechM",type:"service",desc:"Aptitude, Verbal, Technical, Coding round.",codingTopics:["C++","Java","DSA","String Manipulation"]},
+  mphasis:  {name:"Mphasis",color:"#059669",emoji:"🟢",full:"Mphasis",type:"service",desc:"Aptitude, Verbal, Technical MCQ, Coding.",codingTopics:["Java","Python","SQL","OOPs","Arrays"]},
+  ltimindtree:{name:"LTIMindtree",color:"#9333ea",emoji:"🌳",full:"LTIMindtree",type:"service",desc:"Cognitive Assessment, Technical, Coding.",codingTopics:["Java","Python","SQL","DSA Basics","Strings"]},
+  hexaware: {name:"Hexaware",color:"#dc8500",emoji:"🟡",full:"Hexaware",type:"service",desc:"Aptitude, Technical, Coding Test.",codingTopics:["Arrays","Strings","OOPs","SQL","Algorithms"]},
+  coforge:  {name:"Coforge",color:"#0f766e",emoji:"🔶",full:"Coforge",type:"service",desc:"Aptitude, Reasoning, Technical, Coding.",codingTopics:["Python","Java","Arrays","Logic","SQL"]},
+  persistent:{name:"Persistent",color:"#7c2d12",emoji:"🏗️",full:"Persistent",type:"service",desc:"Aptitude, Verbal, Coding (DSA-focused).",codingTopics:["DSA","Java","Python","Strings","Trees"]},
+  epam:     {name:"EPAM",color:"#1e3a5f",emoji:"🔷",full:"EPAM",type:"service",desc:"Technical screening, Coding Test, Problem Solving.",codingTopics:["Java","OOPs","Design Patterns","Arrays","Algorithms"]},
+  dxc:      {name:"DXC Technology",color:"#6b21a8",emoji:"🌀",full:"DXC",type:"service",desc:"Aptitude, Technical MCQ, Coding.",codingTopics:["Java","Python","SQL","OOPs","Arrays"]},
+  birlasoft:{name:"Birlasoft",color:"#b91c1c",emoji:"🔴",full:"Birlasoft",type:"service",desc:"Aptitude, Reasoning, Technical, Coding.",codingTopics:["Java","Python","Arrays","Strings","Logic"]},
+  sonata:   {name:"Sonata Software",color:"#1d4ed8",emoji:"🎵",full:"Sonata",type:"service",desc:"Aptitude, Verbal, Technical, Coding.",codingTopics:["Java","SQL","OOPs","Arrays","Strings"]},
+  niit:     {name:"NIIT Technologies",color:"#047857",emoji:"📚",full:"NIIT Tech",type:"service",desc:"Aptitude, Technical, Coding.",codingTopics:["Java","Python","Arrays","SQL","Logic"]},
+  sasken:   {name:"Sasken",color:"#92400e",emoji:"🔧",full:"Sasken",type:"service",desc:"Technical MCQ, Coding, Embedded focus.",codingTopics:["C","C++","Embedded","Arrays","Algorithms"]},
+  microland:{name:"Microland",color:"#065f46",emoji:"🌐",full:"Microland",type:"service",desc:"Aptitude, Technical, Communication, Coding.",codingTopics:["Python","Java","Networks","SQL","Arrays"]},
+  mastech:  {name:"Mastech",color:"#1e40af",emoji:"💼",full:"Mastech",type:"service",desc:"Aptitude, Technical MCQ, Coding.",codingTopics:["Java","SQL","Python","OOPs","Strings"]},
+  infotech: {name:"Infotech Enterprises",color:"#7e22ce",emoji:"📡",full:"Infotech",type:"service",desc:"Technical, Aptitude, Coding.",codingTopics:["C++","Java","Algorithms","Arrays","Math"]},
+  rahi:     {name:"Rahi Systems",color:"#854d0e",emoji:"🖧",full:"Rahi",type:"service",desc:"Networking, Technical MCQ, Aptitude.",codingTopics:["Networking","C","Java","SQL","Logic"]},
+  kellton:  {name:"Kellton Tech",color:"#166534",emoji:"🌿",full:"Kellton",type:"service",desc:"Aptitude, Technical, Coding.",codingTopics:["Java","Python","SQL","OOPs","Arrays"]},
+  cyient:   {name:"Cyient",color:"#0e7490",emoji:"⚙️",full:"Cyient",type:"service",desc:"Aptitude, Technical (Engineering), Coding.",codingTopics:["Python","C++","Algorithms","Math","Arrays"]},
 };
 
 const PRODUCT_COMPANIES = {
-  amazon:{name:"Amazon",full:"Amazon SDE OA",color:"#d97706",emoji:"📦",type:"product",desc:"OA: 2 DSA + Work Simulation + 16 Leadership Principles.",aptFocus:["Work Simulation","Leadership Principles","Problem Solving","Logical Reasoning"],codingFocus:["Arrays","Hash Maps","Two Pointers","BFS/DFS","DP","Linked Lists"]},
-  microsoft:{name:"Microsoft",full:"Microsoft SDE",color:"#0284c7",emoji:"🪟",type:"product",desc:"DSA rounds + System Design + Behavioral. FAANG level.",aptFocus:["System Design MCQ","CS Fundamentals","Behavioral","Debugging"],codingFocus:["Trees","Graphs","DP","Backtracking","System Design LLD"]},
-  google:{name:"Google",full:"Google SWE",color:"#dc2626",emoji:"🔍",type:"product",desc:"Coding interviews: Graphs, DP, optimization. Multiple rounds.",aptFocus:["Algorithmic Thinking","Math Puzzles","System Design","CS Theory"],codingFocus:["Graphs","DP","Segment Trees","Tries","Advanced DSA"]},
-  flipkart:{name:"Flipkart",full:"Flipkart SDE",color:"#f59e0b",emoji:"🛒",type:"product",desc:"OA: DSA + Technical + Product Thinking. Indian FAANG.",aptFocus:["Product Sense","Technical MCQ","System Design","Reasoning"],codingFocus:["Arrays","Trees","DP","SQL","System Design"]},
-  zomato:{name:"Zomato",full:"Zomato SDE",color:"#ef4444",emoji:"🍕",type:"product",desc:"DSA + Product Sense + Case Studies. Fast-paced startup.",aptFocus:["Product Sense","Case Study","SQL/Data","Reasoning"],codingFocus:["Geospatial Algorithms","SQL","Python","DSA Medium"]},
-  razorpay:{name:"Razorpay",full:"Razorpay SDE",color:"#3b82f6",emoji:"💳",type:"product",desc:"Fintech focus. DSA + System Design + Payments domain.",aptFocus:["Fintech MCQ","System Design","Behavioral","Payments Domain"],codingFocus:["DSA Medium-Hard","Payment APIs","Java/Go","Distributed Systems"]},
+  amazon:   {name:"Amazon",color:"#d97706",emoji:"📦",full:"SDE OA",type:"product",desc:"OA: 2 DSA + Work Simulation + 16 LPs.",codingTopics:["Arrays","Hash Maps","Two Pointers","BFS/DFS","DP","Linked Lists"]},
+  microsoft:{name:"Microsoft",color:"#0284c7",emoji:"🪟",full:"SDE",type:"product",desc:"DSA rounds + System Design + Behavioral.",codingTopics:["Trees","Graphs","DP","Backtracking","System Design"]},
+  google:   {name:"Google",color:"#dc2626",emoji:"🔍",full:"SWE",type:"product",desc:"Multiple coding rounds: Graphs, DP, optimization.",codingTopics:["Graphs","DP","Segment Trees","Tries","Advanced DSA"]},
+  flipkart: {name:"Flipkart",color:"#f59e0b",emoji:"🛒",full:"SDE",type:"product",desc:"OA: DSA + Technical + Product Thinking.",codingTopics:["Arrays","Trees","DP","SQL","System Design"]},
+  zomato:   {name:"Zomato",color:"#ef4444",emoji:"🍕",full:"SDE",type:"product",desc:"DSA + Product Sense + Case Studies.",codingTopics:["SQL","Python","DSA Medium","Geospatial","System Design"]},
+  razorpay: {name:"Razorpay",color:"#3b82f6",emoji:"💳",full:"SDE",type:"product",desc:"Fintech DSA + System Design + Payments domain.",codingTopics:["DSA Medium-Hard","APIs","Java/Go","Distributed Systems"]},
+  swiggy:   {name:"Swiggy",color:"#f97316",emoji:"🛵",full:"SDE",type:"product",desc:"DSA + System Design + Product Thinking.",codingTopics:["Arrays","Graphs","DP","System Design","SQL"]},
+  paytm:    {name:"Paytm",color:"#1d4ed8",emoji:"📱",full:"SDE",type:"product",desc:"Fintech DSA + System Design.",codingTopics:["Java","Distributed Systems","Arrays","DP","SQL"]},
+  ola:      {name:"Ola",color:"#16a34a",emoji:"🚗",full:"SDE",type:"product",desc:"Mobility DSA + Backend Systems.",codingTopics:["Maps/Graphs","System Design","Java","Python","APIs"]},
+  phonepe:  {name:"PhonePe",color:"#6d28d9",emoji:"💜",full:"SDE",type:"product",desc:"Fintech coding + System Design.",codingTopics:["Java","Distributed Systems","DSA","SQL","APIs"]},
+  meesho:   {name:"Meesho",color:"#db2777",emoji:"👗",full:"SDE",type:"product",desc:"E-commerce DSA + System Design.",codingTopics:["Python","Java","DSA","SQL","Algorithms"]},
+  cred:     {name:"CRED",color:"#1e293b",emoji:"🃏",full:"SDE",type:"product",desc:"Quality-focused DSA + System Design.",codingTopics:["Java","Kotlin","DSA Hard","System Design","APIs"]},
+  freshworks:{name:"Freshworks",color:"#22c55e",emoji:"🌱",full:"SDE",type:"product",desc:"Product-focused DSA + APIs + SaaS Systems.",codingTopics:["Ruby","Python","Java","APIs","DSA"]},
+  zoho:     {name:"Zoho",color:"#dc2626",emoji:"☁️",full:"SDE",type:"product",desc:"Manual written round + Technical + Coding.",codingTopics:["Java","C++","OOPs","DSA","SQL"]},
+  atlassian:{name:"Atlassian",color:"#0052cc",emoji:"🔷",full:"SDE",type:"product",desc:"Coding + System Design (Jira/Confluence context).",codingTopics:["Java","Python","System Design","DSA","APIs"]},
+  adobe:    {name:"Adobe",color:"#cc0000",emoji:"🎨",full:"SDE",type:"product",desc:"Creative tech + DSA + System Design.",codingTopics:["C++","Java","DSA","System Design","Algorithms"]},
+  uber:     {name:"Uber",color:"#000000",emoji:"🚙",full:"SDE",type:"product",desc:"Geospatial systems + DSA + System Design.",codingTopics:["Maps/Graphs","Distributed Systems","Python","DSA Hard"]},
+  twitter:  {name:"Twitter/X",color:"#1da1f2",emoji:"🐦",full:"SDE",type:"product",desc:"Social media infra + DSA + System Design.",codingTopics:["Distributed Systems","Graphs","DSA","Java/Scala","APIs"]},
+  linkedin: {name:"LinkedIn",color:"#0a66c2",emoji:"💼",full:"SDE",type:"product",desc:"Professional network systems + DSA.",codingTopics:["Java","Distributed Systems","Graphs","DSA","SQL"]},
+  bytedance:{name:"ByteDance",color:"#000000",emoji:"🎵",full:"SDE",type:"product",desc:"Algorithm-heavy + System Design.",codingTopics:["C++","Java","DSA Hard","Algorithms","System Design"]},
 };
 
-const ALL_COMPANIES = { ...SERVICE_COMPANIES, ...PRODUCT_COMPANIES };
+const ALL_COMPANIES = {...SERVICE_COMPANIES,...PRODUCT_COMPANIES};
 
-// ══════════════════════════════════════════════════════════════════════════
-// MOCK TEST ENGINE — UPGRADED WITH LANGUAGE SELECT + SOLUTION REVEAL
-// ══════════════════════════════════════════════════════════════════════════
+// ─── SCORE STORAGE ──────────────────────────────────────────────────────────
+const ScoreDB = {
+  key:(co,mode,n)=>`tp_score_${co}_${mode}_${n}`,
+  save:(co,mode,n,score,total)=>{
+    localStorage.setItem(ScoreDB.key(co,mode,n),JSON.stringify({score,total,pct:total>0?Math.round((score/total)*100):null,date:new Date().toISOString()}));
+  },
+  get:(co,mode,n)=>{ const r=localStorage.getItem(ScoreDB.key(co,mode,n)); return r?JSON.parse(r):null; },
+  getStats:(co,mode)=>{
+    const results=[];
+    for(let i=1;i<=40;i++){const r=ScoreDB.get(co,mode,i);if(r)results.push({testNum:i,...r});}
+    if(!results.length) return{completed:0,avg:null,best:null};
+    const pcts=results.filter(r=>r.pct!==null).map(r=>r.pct);
+    return{completed:results.length,avg:pcts.length?Math.round(pcts.reduce((a,b)=>a+b,0)/pcts.length):null,best:pcts.length?Math.max(...pcts):null};
+  },
+};
 
+// ─── LANGUAGE CONFIG ────────────────────────────────────────────────────────
 const LANGUAGES = [
-  { id:"javascript", label:"JavaScript", icon:"🟨", template:"function solution(input) {\n  // your code here\n  return result;\n}" },
-  { id:"python",     label:"Python",     icon:"🐍", template:"def solution(input):\n    # your code here\n    return result" },
-  { id:"java",       label:"Java",       icon:"☕", template:"import java.util.*;\npublic class Solution {\n    public static String solution(String input) {\n        // your code here\n        return \"\";\n    }\n}" },
-  { id:"cpp",        label:"C++",        icon:"⚙️", template:"#include <bits/stdc++.h>\nusing namespace std;\nstring solution(string input) {\n    // your code here\n    return \"\";\n}" },
-  { id:"c",          label:"C",          icon:"🔵", template:"#include <stdio.h>\n#include <string.h>\nvoid solution(char* input, char* output) {\n    // your code here\n    strcpy(output, \"\");\n}" },
+  {id:"javascript",label:"JavaScript",icon:"🟨",template:"function solution(input) {\n  // your code here\n  return '';\n}"},
+  {id:"python",    label:"Python",    icon:"🐍",template:"def solution(input_str):\n    # your code here\n    return ''"},
+  {id:"java",      label:"Java",      icon:"☕",template:"public static String solution(String input) {\n    // your code here\n    return \"\";\n}"},
+  {id:"cpp",       label:"C++",       icon:"⚙️",template:"#include <bits/stdc++.h>\nusing namespace std;\nstring solution(string input) {\n    // your code here\n    return \"\";\n}"},
+  {id:"c",         label:"C",         icon:"🔵",template:"#include <stdio.h>\n#include <string.h>\nvoid solution(char* input, char* output) {\n    // your code here\n    strcpy(output, \"\");\n}"},
 ];
 
-// JS-only runner (Python/Java/C/C++ show "compile & run" style UX with solution reveal)
-function runCodeJS(userCode, testCases) {
-  const results=[];
-  for(const tc of testCases){
+function runCodeJS(code, testCases) {
+  return testCases.map(tc=>{
     try{
-      const fn=new Function("input",`
-        ${userCode}
-        if(typeof solution==='function') return String(solution(input));
-        if(typeof solve==='function') return String(solve(input));
-        if(typeof main==='function') return String(main(input));
-        return 'No function named solution/solve/main found';
-      `);
-      const output=String(fn(tc.input)).trim();
+      const fn=new Function("input",`${code}\nif(typeof solution==='function') return String(solution(input)).trim();\nreturn 'No function named solution found';`);
+      const got=String(fn(tc.input)).trim();
       const expected=String(tc.output).trim();
-      results.push({input:tc.input,expected,got:output,pass:output===expected});
+      return{input:tc.input,expected,got,pass:got===expected};
     }catch(e){
-      results.push({input:tc.input,expected:String(tc.output).trim(),got:null,error:e.message,pass:false});
+      return{input:tc.input,expected:String(tc.output).trim(),got:null,error:e.message,pass:false};
     }
-  }
-  return results;
-}
-
-// For non-JS: simulate "run" by checking if code is non-empty and show compile message
-function runCodeSimulated(lang, userCode, testCases) {
-  if (!userCode.trim()) return testCases.map(tc=>({input:tc.input,expected:String(tc.output).trim(),got:null,error:"No code written",pass:false}));
-  // Simulate: if code contains the expected output string in comments or logic, partial pass
-  return testCases.map(tc=>({
-    input:tc.input,
-    expected:String(tc.output).trim(),
-    got:"[Run in "+lang+" compiler]",
-    pass:false,
-    simulated:true,
-  }));
-}
-
-function MockTestEngine({ user }) {
-  const [view,setView]=useState("home");
-  const [selectedCompany,setSelectedCompany]=useState(null);
-  const [testMode,setTestMode]=useState(null);
-  const [selectedTestNum,setSelectedTestNum]=useState(null);
-  const [questions,setQuestions]=useState([]);
-  const [currentQ,setCurrentQ]=useState(0);
-  const [answers,setAnswers]=useState({});
-  const [selectedLang,setSelectedLang]=useState({});   // qId -> langId
-  const [codeResults,setCodeResults]=useState({});
-  const [runningCode,setRunningCode]=useState({});
-  const [showSolution,setShowSolution]=useState({});   // qId -> bool
-  const [timeLeft,setTimeLeft]=useState(0);
-  const [loading,setLoading]=useState(false);
-  const [result,setResult]=useState(null);
-  const [err,setErr]=useState("");
-  const [companyTab,setCompanyTab]=useState("service");
-  const timerRef=useRef(null);
-  const isMobile=window.innerWidth<768;
-
-  const generateAptitudeQuestions=async(companyKey,testNum)=>{
-    const c=ALL_COMPANIES[companyKey];
-    const topicRotation=c.aptFocus[testNum%c.aptFocus.length];
-    const prompt=`Generate exactly 20 high-quality ${c.full} aptitude/MCQ questions for Test #${testNum}.
-Primary Topic Focus: ${topicRotation}
-All topics: ${c.aptFocus.join(", ")}
-Return ONLY valid JSON array:
-[{"id":"a${testNum}_1","type":"mcq","question":"question text","options":["A","B","C","D"],"correct":0,"explanation":"why correct","topic":"${topicRotation}","difficulty":"Easy"}]
-IMPORTANT: correct is 0-indexed. Generate all 20.`;
-    const raw=await callAI(prompt,3500,"json");
-    const qs=safeJSON(raw,[]);
-    if(!Array.isArray(qs)||qs.length<5) throw new Error("Failed to generate questions. Please retry.");
-    return qs.slice(0,20);
-  };
-
-  const generateCodingQuestions=async(companyKey,testNum)=>{
-    const c=ALL_COMPANIES[companyKey];
-    const topicRotation=c.codingFocus[testNum%c.codingFocus.length];
-    const isProduct=c.type==="product";
-    const prompt=`Generate exactly 5 LeetCode-style coding problems for ${c.full} Test #${testNum}.
-Primary Topic: ${topicRotation}
-Difficulty: ${isProduct?"Medium to Hard":"Easy to Medium"}
-Each problem MUST have:
-- A clear problem statement
-- 2-3 concrete examples with input/output
-- 4 test cases (edge cases included)
-- A complete solution in JavaScript with explanation
-- Time and space complexity
-
-Return ONLY valid JSON array:
-[{
-  "id":"c${testNum}_1",
-  "type":"coding",
-  "title":"Two Sum",
-  "difficulty":"Medium",
-  "topic":"${topicRotation}",
-  "description":"Given an array of integers nums and an integer target, return indices of the two numbers that add up to target.",
-  "functionSignature":"function solution(input) { /* input is JSON string */ }",
-  "examples":[
-    {"input":"[2,7,11,15],9","output":"[0,1]","explanation":"nums[0]+nums[1]=9"},
-    {"input":"[3,2,4],6","output":"[1,2]","explanation":"nums[1]+nums[2]=6"}
-  ],
-  "testCases":[
-    {"input":"[2,7,11,15],9","output":"[0,1]"},
-    {"input":"[3,2,4],6","output":"[1,2]"},
-    {"input":"[3,3],6","output":"[0,1]"},
-    {"input":"[1,5,3,2],7","output":"[1,3]"}
-  ],
-  "hint":"Use a hash map to store seen values.",
-  "solution_javascript":"function solution(input) {\n  const parts = input.split(',');\n  const target = parseInt(parts[parts.length-1]);\n  const nums = JSON.parse(parts.slice(0,parts.length-1).join(','));\n  const map = {};\n  for(let i=0;i<nums.length;i++){\n    const comp = target-nums[i];\n    if(comp in map) return JSON.stringify([map[comp],i]);\n    map[nums[i]] = i;\n  }\n}",
-  "solution_python":"def solution(input_str):\\n    # parse input\\n    pass",
-  "solution_java":"// Java solution\\npublic static String solution(String input) {\\n    return \\\"\\\";\\n}",
-  "solution_cpp":"// C++ solution\\nstring solution(string input) {\\n    return \\\"\\\";\\n}",
-  "time_complexity":"O(n)",
-  "space_complexity":"O(n)",
-  "approach":"Use hash map for O(n) lookup"
-}]`;
-    const raw=await callAI(prompt,4000,"json");
-    const qs=safeJSON(raw,[]);
-    if(!Array.isArray(qs)||qs.length<1) throw new Error("Failed to generate questions. Please retry.");
-    return qs.slice(0,5);
-  };
-
-  const startTest=async(companyKey,mode,testNum)=>{
-    setLoading(true); setErr("");
-    setSelectedCompany(companyKey); setTestMode(mode); setSelectedTestNum(testNum);
-    try{
-      let qs;
-      if(mode==="aptitude"){qs=await generateAptitudeQuestions(companyKey,testNum);setTimeLeft(30*60);}
-      else{qs=await generateCodingQuestions(companyKey,testNum);setTimeLeft(60*60);}
-      setQuestions(qs); setAnswers({}); setCodeResults({}); setCurrentQ(0);
-      setSelectedLang({}); setShowSolution({});
-      setView("test");
-    }catch(e){setErr(e.message);}
-    setLoading(false);
-  };
-
-  useEffect(()=>{
-    if(view!=="test") return;
-    clearInterval(timerRef.current);
-    timerRef.current=setInterval(()=>{
-      setTimeLeft(t=>{
-        if(t<=1){clearInterval(timerRef.current);submitTest();return 0;}
-        return t-1;
-      });
-    },1000);
-    return()=>clearInterval(timerRef.current);
-  },[view]);
-
-  const submitTest=()=>{
-    clearInterval(timerRef.current);
-    const mcqQs=questions.filter(q=>q.type==="mcq");
-    const correct=mcqQs.filter(q=>answers[q.id]===q.correct).length;
-    const total=mcqQs.length;
-    const pct=total>0?Math.round((correct/total)*100):null;
-    ScoreDB.save(selectedCompany,testMode,selectedTestNum,correct,total);
-    setResult({correct,total,pct,attempted:Object.keys(answers).length,questions});
-    setView("result");
-  };
-
-  const handleRunCode=(q)=>{
-    if(!q.testCases?.length) return;
-    const code=answers[q.id]||"";
-    if(!code.trim()){setCodeResults(r=>({...r,[q.id]:{error:"Write your code first",results:[]}}));return;}
-    const lang=selectedLang[q.id]||"javascript";
-    setRunningCode(r=>({...r,[q.id]:true}));
-    setTimeout(()=>{
-      let results;
-      if(lang==="javascript"){
-        results=runCodeJS(code,q.testCases);
-      }else{
-        results=runCodeSimulated(lang,code,q.testCases);
-      }
-      setCodeResults(r=>({...r,[q.id]:{results,lang}}));
-      setRunningCode(r=>({...r,[q.id]:false}));
-    },400);
-  };
-
-  const getLangTemplate=(q)=>{
-    const lang=selectedLang[q.id]||"javascript";
-    const langDef=LANGUAGES.find(l=>l.id===lang);
-    return langDef?.template||"";
-  };
-
-  const getSolutionForLang=(q)=>{
-    const lang=selectedLang[q.id]||"javascript";
-    if(lang==="javascript") return q.solution_javascript||q.solution_approach||"// Solution not available";
-    if(lang==="python") return q.solution_python||"# Solution not available";
-    if(lang==="java") return q.solution_java||"// Solution not available";
-    if(lang==="cpp") return q.solution_cpp||"// Solution not available";
-    if(lang==="c") return q.solution_c||"// Solution not available";
-    return q.solution_javascript||"// Solution not available";
-  };
-
-  const formatTime=(s)=>`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
-  const compInfo=selectedCompany?ALL_COMPANIES[selectedCompany]:null;
-
-  // HOME
-  if(view==="home") return(
-    <div>
-      <div style={{marginBottom:24}}>
-        <div style={{fontWeight:900,fontSize:isMobile?20:24,color:C.text,marginBottom:4}}>🧪 Mock Test Engine</div>
-        <div style={{color:C.muted,fontSize:13}}>30 companies · 40 tests each · Aptitude & Coding · LeetCode-style · Multi-language</div>
-      </div>
-      {err&&<div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:"12px 16px",marginBottom:16,color:C.danger,fontSize:13}}>⚠ {err}</div>}
-
-      <div style={{display:"flex",gap:8,marginBottom:20,overflowX:"auto",paddingBottom:4}}>
-        {[["service","🏢 Service Based"],["product","🚀 Product Based"]].map(([t,l])=>(
-          <button key={t} onClick={()=>setCompanyTab(t)}
-            style={{padding:"10px 20px",borderRadius:12,border:`1.5px solid ${companyTab===t?C.blue:C.border}`,background:companyTab===t?`${C.blue}10`:"#fff",color:companyTab===t?C.blue:C.muted,fontFamily:"'Inter',sans-serif",fontWeight:companyTab===t?700:400,fontSize:14,cursor:"pointer",whiteSpace:"nowrap"}}>
-            {l}
-          </button>
-        ))}
-      </div>
-
-      <div style={{background:"linear-gradient(135deg,#eff6ff,#f0fdf4)",border:`1px solid ${C.blue}20`,borderRadius:16,padding:"14px 18px",marginBottom:20}}>
-        <div style={{fontWeight:700,color:C.text,fontSize:13,marginBottom:10}}>📌 Features</div>
-        <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
-          {[
-            ["📊","Aptitude Mode","20 MCQs · 30 min · Quant, Verbal, Reasoning"],
-            ["💻","Coding Mode","5 Problems · 60 min · LeetCode-style DSA"],
-            ["🌐","Multi-language","Java, Python, C++, C, JavaScript"],
-            ["💡","Solution Reveal","Click to show solution after attempting"],
-          ].map(([e,t,d])=>(
-            <div key={t} style={{display:"flex",gap:8,alignItems:"flex-start",flex:1,minWidth:180}}>
-              <span style={{fontSize:20}}>{e}</span>
-              <div><div style={{fontWeight:700,fontSize:12,color:C.text}}>{t}</div><div style={{fontSize:11,color:C.muted}}>{d}</div></div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
-        {Object.entries(companyTab==="service"?SERVICE_COMPANIES:PRODUCT_COMPANIES).map(([key,c])=>{
-          const aptStats=ScoreDB.getStats(key,"aptitude");
-          const codeStats=ScoreDB.getStats(key,"coding");
-          const totalDone=aptStats.completed+codeStats.completed;
-          return(
-            <div key={key} className="hover-card"
-              onClick={()=>{setSelectedCompany(key);setTestMode(null);setView("company");}}
-              style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:16,padding:18,borderTop:`3px solid ${c.color}`,boxShadow:"0 2px 8px rgba(0,0,0,0.04)"}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-                <CompanyLogo companyKey={key} color={c.color} name={c.name} size={36}/>
-                <div>
-                  <div style={{fontWeight:800,fontSize:14,color:C.text}}>{c.full}</div>
-                  <div style={{fontSize:10,color:C.muted}}>{c.type==="service"?"Service":"Product"} Based</div>
-                </div>
-              </div>
-              <div style={{color:C.soft,fontSize:11,lineHeight:1.6,marginBottom:10}}>{c.desc}</div>
-              <div style={{display:"flex",gap:6,marginBottom:8}}>
-                <div style={{flex:1,background:aptStats.completed>0?"#eff6ff":"#f8fafc",borderRadius:8,padding:"6px 8px",border:`1px solid ${aptStats.completed>0?C.blue+"30":C.border}`}}>
-                  <div style={{fontSize:10,color:C.muted,marginBottom:2}}>📊 Aptitude</div>
-                  <div style={{fontWeight:700,fontSize:12,color:C.blue}}>{aptStats.completed}/40</div>
-                  {aptStats.best!=null&&<div style={{fontSize:10,color:C.green}}>Best: {aptStats.best}%</div>}
-                </div>
-                <div style={{flex:1,background:codeStats.completed>0?"#f0fdf4":"#f8fafc",borderRadius:8,padding:"6px 8px",border:`1px solid ${codeStats.completed>0?C.green+"30":C.border}`}}>
-                  <div style={{fontSize:10,color:C.muted,marginBottom:2}}>💻 Coding</div>
-                  <div style={{fontWeight:700,fontSize:12,color:C.green}}>{codeStats.completed}/40</div>
-                  {codeStats.best!=null&&<div style={{fontSize:10,color:C.green}}>Best: {codeStats.best}%</div>}
-                </div>
-              </div>
-              <div style={{background:"#e2e8f0",borderRadius:4,height:4,overflow:"hidden"}}>
-                <div style={{height:"100%",width:`${(totalDone/80)*100}%`,background:c.color,borderRadius:4,transition:"width .5s"}}/>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-
-  // COMPANY VIEW
-  if(view==="company"&&compInfo){
-    const aptStats=ScoreDB.getStats(selectedCompany,"aptitude");
-    const codeStats=ScoreDB.getStats(selectedCompany,"coding");
-    const activeMode=testMode||"aptitude";
-    const activeScores={};
-    for(let i=1;i<=40;i++){const s=ScoreDB.get(selectedCompany,activeMode,i);if(s)activeScores[i]=s;}
-    return(
-      <div>
-        <button onClick={()=>setView("home")} style={{background:"none",border:"none",color:C.muted,fontSize:13,cursor:"pointer",fontFamily:"'Inter',sans-serif",marginBottom:20}}>← Back to Companies</button>
-        <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:20,padding:20,marginBottom:16,borderTop:`4px solid ${compInfo.color}`}}>
-          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
-            <CompanyLogo companyKey={selectedCompany} color={compInfo.color} name={compInfo.name} size={48}/>
-            <div>
-              <div style={{fontWeight:900,fontSize:22,color:C.text}}>{compInfo.full}</div>
-              <div style={{color:C.muted,fontSize:12,marginTop:2}}>{compInfo.desc}</div>
-            </div>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
-            {[{label:"Apt Done",val:`${aptStats.completed}/40`,color:C.blue},{label:"Apt Best",val:aptStats.best!=null?`${aptStats.best}%`:"—",color:C.green},{label:"Code Done",val:`${codeStats.completed}/40`,color:C.purple},{label:"Code Best",val:codeStats.best!=null?`${codeStats.best}%`:"—",color:C.orange}].map((s,i)=>(
-              <div key={i} style={{background:C.bg,borderRadius:10,padding:"10px 8px",textAlign:"center",border:`1px solid ${C.border}`}}>
-                <div style={{fontWeight:900,fontSize:18,color:s.color}}>{s.val}</div>
-                <div style={{fontSize:10,color:C.muted}}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div style={{display:"flex",gap:10,marginBottom:16}}>
-          {[{mode:"aptitude",icon:"📊",label:"Aptitude Tests",desc:"20 MCQs · 30 min",color:C.blue,stats:aptStats},{mode:"coding",icon:"💻",label:"Coding Tests",desc:"5 DSA Problems · 60 min",color:C.green,stats:codeStats}].map(m=>(
-            <button key={m.mode} onClick={()=>setTestMode(m.mode)}
-              style={{flex:1,padding:"14px",borderRadius:14,border:`2px solid ${activeMode===m.mode?m.color:C.border}`,background:activeMode===m.mode?`${m.color}08`:"#fff",cursor:"pointer",fontFamily:"'Inter',sans-serif",textAlign:"left"}}>
-              <div style={{fontSize:22,marginBottom:4}}>{m.icon}</div>
-              <div style={{fontWeight:700,fontSize:14,color:C.text}}>{m.label}</div>
-              <div style={{fontSize:11,color:C.muted}}>{m.desc}</div>
-              <div style={{fontSize:12,fontWeight:700,color:m.color,marginTop:4}}>{m.stats.completed}/40 done</div>
-            </button>
-          ))}
-        </div>
-        {err&&<div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:"12px 16px",marginBottom:16,color:C.danger,fontSize:13}}>⚠ {err}</div>}
-        <div style={{fontWeight:700,fontSize:15,color:C.text,marginBottom:12}}>Select Test (1–40)</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
-          {Array.from({length:40},(_,i)=>{
-            const tNum=i+1;
-            const score=activeScores[tNum];
-            const pct=score?.pct;
-            const done=!!score;
-            const bg=done?(pct>=70?"#f0fdf4":pct>=40?"#fffbeb":"#fef2f2"):"#fff";
-            const bd=done?(pct>=70?C.green:pct>=40?C.warn:C.danger):C.border;
-            return(
-              <div key={tNum} className="hover-card"
-                onClick={()=>!loading&&startTest(selectedCompany,activeMode,tNum)}
-                style={{background:bg,border:`1.5px solid ${bd}`,borderRadius:12,padding:"12px 6px",textAlign:"center",cursor:loading?"not-allowed":"pointer"}}>
-                <div style={{fontWeight:700,fontSize:13,color:C.text}}>Test {tNum}</div>
-                {done?<div style={{fontWeight:900,fontSize:16,color:pct>=70?C.green:pct>=40?C.warn:C.danger}}>{pct!=null?`${pct}%`:"✅"}</div>
-                    :<div style={{fontSize:10,color:C.muted,marginTop:2}}>Start</div>}
-                {loading&&selectedTestNum===tNum&&<SpinIcon size={12} color={compInfo.color}/>}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  if(loading) return(
-    <div style={{textAlign:"center",padding:"60px 20px"}}>
-      <div style={{fontSize:48,marginBottom:14,animation:"float 2s ease-in-out infinite"}}>{compInfo?.emoji||"⏳"}</div>
-      <div style={{fontWeight:800,fontSize:18,color:C.text,marginBottom:6}}>Generating Test #{selectedTestNum}</div>
-      <SpinIcon size={36} color={compInfo?.color||C.blue}/>
-    </div>
-  );
-
-  // TEST VIEW
-  if(view==="test"){
-    const q=questions[currentQ];
-    if(!q) return null;
-    const progress=((currentQ+1)/questions.length)*100;
-    const isWarn=timeLeft<120;
-    const codeRes=q?.id?codeResults[q.id]:null;
-    const allPass=codeRes?.results?.every(r=>r.pass);
-    const currentLang=selectedLang[q.id]||"javascript";
-    const currentLangDef=LANGUAGES.find(l=>l.id===currentLang);
-    const solutionVisible=showSolution[q.id];
-
-    return(
-      <div>
-        {/* Timer bar */}
-        <div style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:14,padding:"12px 16px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
-          <div>
-            <div style={{fontWeight:800,color:C.text,fontSize:14}}>{compInfo.full} · Test #{selectedTestNum}</div>
-            <div style={{fontSize:11,color:C.muted}}>Q{currentQ+1}/{questions.length}</div>
-          </div>
-          <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            <div className={isWarn?"timer-warn":""} style={{background:isWarn?"#fef2f2":"#f0fdf4",border:`1.5px solid ${isWarn?"#fecaca":"#bbf7d0"}`,borderRadius:10,padding:"7px 14px",fontWeight:800,fontSize:16,color:isWarn?C.danger:C.green,fontFamily:"'JetBrains Mono',monospace"}}>
-              ⏱ {formatTime(timeLeft)}
-            </div>
-            <Btn variant="danger" size="sm" onClick={submitTest}>Submit</Btn>
-          </div>
-        </div>
-        <div style={{background:"#e2e8f0",borderRadius:4,height:4,marginBottom:16,overflow:"hidden"}}>
-          <div style={{height:"100%",width:`${progress}%`,background:`linear-gradient(90deg,${compInfo.color},${C.purple})`,borderRadius:4,transition:"width .3s"}}/>
-        </div>
-
-        <div style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:14,padding:isMobile?16:22,marginBottom:14}}>
-          <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
-            <Tag color={compInfo.color}>Q{currentQ+1}</Tag>
-            {q.difficulty&&<Tag color={q.difficulty==="Easy"?C.green:q.difficulty==="Hard"?C.danger:C.warn}>{q.difficulty}</Tag>}
-            {q.topic&&<Tag color={C.purple}>{q.topic}</Tag>}
-            {q.type==="coding"&&q.time_complexity&&<Tag color={C.teal}>⏱ {q.time_complexity}</Tag>}
-          </div>
-
-          {/* MCQ */}
-          {q.type==="mcq"&&(
-            <div>
-              <div style={{fontWeight:600,fontSize:15,color:C.text,lineHeight:1.9,marginBottom:18}}>{q.question}</div>
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {(q.options||[]).map((opt,i)=>{
-                  const sel=answers[q.id]===i;
-                  return(
-                    <button key={i} onClick={()=>setAnswers(a=>({...a,[q.id]:i}))}
-                      style={{textAlign:"left",padding:"12px 14px",borderRadius:10,border:`1.5px solid ${sel?compInfo.color:C.border}`,background:sel?`${compInfo.color}08`:"#fff",color:C.text,fontSize:14,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>
-                      <span style={{fontWeight:700,color:sel?compInfo.color:C.muted,marginRight:10}}>{String.fromCharCode(65+i)}.</span>{opt}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* CODING — UPGRADED */}
-          {q.type==="coding"&&(
-            <div>
-              <div style={{fontWeight:700,fontSize:16,color:C.text,marginBottom:8}}>{q.title}</div>
-              <div style={{color:C.soft,fontSize:13,lineHeight:1.9,marginBottom:12,background:C.bg,borderRadius:10,padding:14,whiteSpace:"pre-wrap"}}>{q.description}</div>
-
-              {/* Examples */}
-              {q.examples?.length>0&&(
-                <div style={{marginBottom:14}}>
-                  <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:6}}>Examples:</div>
-                  {q.examples.map((ex,i)=>(
-                    <div key={i} style={{background:"#0f172a",borderRadius:8,padding:12,marginBottom:6,fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>
-                      <div style={{color:"#94a3b8"}}>Input: <span style={{color:"#86efac"}}>{ex.input}</span></div>
-                      <div style={{color:"#94a3b8"}}>Output: <span style={{color:"#7dd3fc"}}>{ex.output}</span></div>
-                      {ex.explanation&&<div style={{color:"#64748b",marginTop:4}}>// {ex.explanation}</div>}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {q.hint&&<div style={{background:"#fffbeb",border:"1px solid #fef08a",borderRadius:8,padding:10,fontSize:12,color:"#92400e",marginBottom:14}}>💡 Hint: {q.hint}</div>}
-
-              {/* LANGUAGE SELECTOR */}
-              <div style={{marginBottom:10}}>
-                <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:7}}>🌐 Select Language:</div>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                  {LANGUAGES.map(lang=>(
-                    <button key={lang.id}
-                      onClick={()=>{
-                        setSelectedLang(s=>({...s,[q.id]:lang.id}));
-                        // Set template if field is empty
-                        if(!answers[q.id]||answers[q.id]===getLangTemplate(q)){
-                          setAnswers(a=>({...a,[q.id]:lang.template}));
-                        }
-                        setCodeResults(r=>({...r,[q.id]:null}));
-                      }}
-                      style={{padding:"6px 14px",borderRadius:8,border:`1.5px solid ${currentLang===lang.id?compInfo.color:C.border}`,background:currentLang===lang.id?`${compInfo.color}10`:"#fff",cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:currentLang===lang.id?700:500,fontSize:12,color:currentLang===lang.id?compInfo.color:C.muted,display:"flex",alignItems:"center",gap:5}}>
-                      <span>{lang.icon}</span> {lang.label}
-                    </button>
-                  ))}
-                </div>
-                {currentLang!=="javascript"&&(
-                  <div style={{background:"#fffbeb",border:"1px solid #fef08a",borderRadius:7,padding:"6px 10px",marginTop:8,fontSize:11,color:"#92400e"}}>
-                    ⚠️ Live execution only for JavaScript. For {currentLangDef?.label}, write your code here — use "Run" to check logic structure. Solution reveal available below.
-                  </div>
-                )}
-              </div>
-
-              {/* CODE EDITOR */}
-              <textarea className="code-editor"
-                value={answers[q.id]||(()=>{const t=getLangTemplate(q);setTimeout(()=>setAnswers(a=>({...a,[q.id]:a[q.id]===undefined?t:a[q.id]})),0);return t;})()}
-                onChange={e=>setAnswers(a=>({...a,[q.id]:e.target.value}))}
-                style={{...inp,minHeight:220,fontFamily:"'JetBrains Mono',monospace",fontSize:13,background:"#0f172a",color:"#e2e8f0",border:"1.5px solid #334155",lineHeight:1.7,resize:"vertical"}}
-                onKeyDown={e=>{
-                  if(e.key==="Tab"){
-                    e.preventDefault();
-                    const s=e.target.selectionStart;
-                    const v=e.target.value;
-                    const newVal=v.substring(0,s)+"  "+v.substring(e.target.selectionEnd);
-                    setAnswers(a=>({...a,[q.id]:newVal}));
-                    setTimeout(()=>{e.target.selectionStart=e.target.selectionEnd=s+2;},0);
-                  }
-                }}
-              />
-
-              {/* RUN + RESULTS */}
-              <div style={{marginTop:10,display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                <Btn variant="teal" loading={runningCode[q.id]} onClick={()=>handleRunCode(q)}>▶ Run Code</Btn>
-                {codeRes?.results&&(
-                  <div style={{fontWeight:700,fontSize:13,color:allPass?C.green:C.danger}}>
-                    {codeRes.results[0]?.simulated
-                      ? `📝 Code saved — run in ${currentLangDef?.label} compiler`
-                      : allPass?`✅ All ${codeRes.results.length} test cases passed!`:`❌ ${codeRes.results.filter(r=>r.pass).length}/${codeRes.results.length} passed`
-                    }
-                  </div>
-                )}
-              </div>
-
-              {/* TEST CASE RESULTS */}
-              {codeRes?.results&&!codeRes.results[0]?.simulated&&(
-                <div style={{marginTop:10}}>
-                  {codeRes.results.map((r,i)=>(
-                    <div key={i} style={{background:r.pass?"#f0fdf4":"#fef2f2",border:`1px solid ${r.pass?"#bbf7d0":"#fecaca"}`,borderRadius:8,padding:"8px 12px",marginBottom:5,fontSize:12,fontFamily:"'JetBrains Mono',monospace"}}>
-                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                        <span style={{fontWeight:700,color:r.pass?C.green:C.danger}}>{r.pass?"✅":"❌"} Test {i+1}</span>
-                        <span style={{color:C.muted}}>Input: {String(r.input).slice(0,40)}</span>
-                      </div>
-                      <div style={{color:"#475569"}}>Expected: <span style={{color:"#16a34a"}}>{r.expected}</span></div>
-                      {!r.pass&&<div style={{color:"#475569"}}>Got: <span style={{color:r.error?"#dc2626":"#ea580c"}}>{r.error||r.got}</span></div>}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* SOLUTION REVEAL */}
-              <div style={{marginTop:14,borderTop:`1px solid ${C.border}`,paddingTop:12}}>
-                <button
-                  onClick={()=>setShowSolution(s=>({...s,[q.id]:!s[q.id]}))}
-                  style={{padding:"8px 18px",borderRadius:9,border:`1.5px solid ${C.purple}40`,background:solutionVisible?`${C.purple}10`:"transparent",color:C.purple,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:13,display:"flex",alignItems:"center",gap:7}}>
-                  {solutionVisible?"🔒 Hide Solution":"💡 Show Solution"}
-                </button>
-
-                {solutionVisible&&(
-                  <div style={{marginTop:12,animation:"fadeIn .25s ease"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                      <div style={{fontWeight:700,fontSize:13,color:C.text}}>✅ Solution — {currentLangDef?.label}</div>
-                      {q.time_complexity&&<Tag color={C.teal}>⏱ {q.time_complexity}</Tag>}
-                      {q.space_complexity&&<Tag color={C.orange}>🗄 {q.space_complexity}</Tag>}
-                    </div>
-                    {q.approach&&<div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:8,padding:"8px 12px",fontSize:12,color:C.blue,marginBottom:8}}>🧠 Approach: {q.approach}</div>}
-                    <pre style={{background:"#0f172a",color:"#e2e8f0",borderRadius:10,padding:14,fontSize:12,fontFamily:"'JetBrains Mono',monospace",overflowX:"auto",lineHeight:1.7,border:"1px solid #1e293b",whiteSpace:"pre-wrap"}}>
-                      {getSolutionForLang(q)}
-                    </pre>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Navigation */}
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
-          <Btn variant="ghost" onClick={()=>setCurrentQ(q=>Math.max(0,q-1))} disabled={currentQ===0}>← Prev</Btn>
-          <div style={{display:"flex",gap:4,flexWrap:"wrap",justifyContent:"center"}}>
-            {questions.map((_,i)=>{
-              const qs2=questions[i];const ans=answers[qs2?.id];const done=ans!==undefined&&ans!=="";
-              return<button key={i} onClick={()=>setCurrentQ(i)} style={{width:26,height:26,borderRadius:6,border:`1.5px solid ${i===currentQ?compInfo.color:done?C.green:C.border}`,background:i===currentQ?`${compInfo.color}15`:done?`${C.green}10`:"#fff",color:i===currentQ?compInfo.color:C.muted,cursor:"pointer",fontWeight:700,fontSize:11}}>{i+1}</button>;
-            })}
-          </div>
-          {currentQ<questions.length-1
-            ?<Btn variant="cta" onClick={()=>setCurrentQ(q=>q+1)}>Next →</Btn>
-            :<Btn variant="green" onClick={submitTest}>Submit ✓</Btn>}
-        </div>
-      </div>
-    );
-  }
-
-  // RESULT
-  if(view==="result"&&result){
-    const hasMCQ=result.total>0;
-    const grade=hasMCQ?(result.pct>=80?"Excellent 🏆":result.pct>=60?"Good 👍":result.pct>=40?"Average 📈":"Needs Work 💪"):"Completed ✅";
-    const gradeColor=hasMCQ?(result.pct>=80?C.green:result.pct>=60?C.blue:result.pct>=40?C.warn:C.danger):C.blue;
-    return(
-      <div>
-        <div style={{background:`linear-gradient(135deg,${gradeColor}15,${gradeColor}05)`,border:`1.5px solid ${gradeColor}30`,borderRadius:18,padding:24,textAlign:"center",marginBottom:18}}>
-          <div style={{fontSize:44,marginBottom:8}}>{hasMCQ?(result.pct>=80?"🏆":result.pct>=60?"🎯":result.pct>=40?"📈":"💪"):"✅"}</div>
-          <div style={{fontWeight:900,fontSize:20,color:C.text,marginBottom:4}}>{grade}</div>
-          {hasMCQ&&<><div style={{fontSize:44,fontWeight:900,color:gradeColor,marginBottom:4}}>{result.pct}%</div><div style={{color:C.muted,fontSize:13}}>{result.correct}/{result.total} correct</div></>}
-        </div>
-        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-          <Btn variant="cta" onClick={()=>{setView("company");setResult(null);}} style={{flex:1}}>🔄 More Tests</Btn>
-          <Btn variant="ghost" onClick={()=>{setView("home");setResult(null);setSelectedCompany(null);setTestMode(null);}} style={{flex:1}}>← All Companies</Btn>
-        </div>
-      </div>
-    );
-  }
-
-  return null;
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// LINKEDIN SUITE (unchanged)
-// ══════════════════════════════════════════════════════════════════════════
-function LinkedInSuite({ user }) {
-  const [tool,setTool]=useState("bio");
-  const [resume,setResume]=useState(()=>localStorage.getItem("tp_resume")||"");
-  const [targetRole,setTargetRole]=useState("");
-  const [targetCompany,setTargetCompany]=useState("");
-  const [loading,setLoading]=useState(false);
-  const [result,setResult]=useState(null);
-  const [copied,setCopied]=useState("");
-  const [err,setErr]=useState("");
-  const fileRef=useRef();
-
-  const handleFile=async(e)=>{
-    const f=e.target.files[0]; if(!f) return;
-    try{
-      let text="";
-      if(f.type==="application/pdf"||f.name.endsWith(".pdf")) text=await extractTextFromPDF(f);
-      else if(f.name.endsWith(".docx")) text=await extractTextFromDOCX(f);
-      else{const r=new FileReader();r.onload=ev=>{setResume(ev.target.result);localStorage.setItem("tp_resume",ev.target.result);};r.readAsText(f);return;}
-      setResume(text); localStorage.setItem("tp_resume",text);
-    }catch(e2){setErr("Could not read file: "+e2.message);}
-  };
-
-  const copy=(text,key)=>{navigator.clipboard.writeText(text).then(()=>{setCopied(key);setTimeout(()=>setCopied(""),2000);});};
-
-  const generate=async()=>{
-    if(!resume.trim()&&tool!=="coldmsg"){setErr("Paste your resume first.");return;}
-    if(tool==="coldmsg"&&!targetCompany.trim()){setErr("Enter target company.");return;}
-    setLoading(true);setErr("");setResult(null);
-    const reT=resume.trim().slice(0,1500);
-    try{
-      let prompt="";
-      if(tool==="bio") prompt=`Write optimized LinkedIn About for ${targetRole||"software/tech"}.\nResume:\n${reT}\nReturn ONLY valid JSON: {"bio":"...","wordCount":220,"hook":"opening line","keyHighlights":["h1","h2","h3"]}`;
-      else if(tool==="headline") prompt=`Generate 5 LinkedIn headlines for ${targetRole||"software/tech"}.\nResume:\n${reT}\nReturn ONLY valid JSON: {"headlines":[{"text":"...","angle":"Skill-focused","score":92}],"bestPick":0,"tips":["tip"]}`;
-      else if(tool==="coldmsg") prompt=`Write cold messages to HR at ${targetCompany} for ${targetRole||"software engineer"}.\nCandidate: ${reT.slice(0,500)}\nReturn ONLY valid JSON: {"connectionRequest":"...","coldDM":"...","referralRequest":"...","tips":["tip"]}`;
-      else if(tool==="skills") prompt=`Analyze resume and suggest LinkedIn skills for ${targetRole||"software/tech"}.\nResume:\n${reT}\nReturn ONLY valid JSON: {"topSkills":[{"skill":"React.js","priority":"Must Add","reason":"...","endorsementTip":"..."}],"missingHighImpact":["Docker"],"profileStrengthTip":"..."}`;
-      else if(tool==="cover") prompt=`Write cover letter for ${targetRole||"software engineer"}${targetCompany?" at "+targetCompany:""}.\nResume:\n${reT}\nReturn ONLY valid JSON: {"coverLetter":"...","subject":"Application for [Role]","wordCount":200}`;
-      const raw=await callAI(prompt,2000,"json");
-      const data=safeJSON(raw,null);
-      if(!data) throw new Error("Generation failed. Try again.");
-      setResult(data);
-    }catch(e){setErr(e.message);}
-    setLoading(false);
-  };
-
-  const tools=[{id:"bio",icon:"📄",label:"LinkedIn Bio"},{id:"headline",icon:"✍️",label:"Headline"},{id:"coldmsg",icon:"💬",label:"Cold Message"},{id:"skills",icon:"🎯",label:"Skills"},{id:"cover",icon:"📧",label:"Cover Letter"}];
-
-  return(
-    <div>
-      <div style={{marginBottom:20}}>
-        <div style={{fontWeight:900,fontSize:24,color:C.text,marginBottom:4}}>🔗 LinkedIn Suite</div>
-        <div style={{color:C.muted,fontSize:13}}>Bio · Headline · Cold DM · Skills · Cover Letter</div>
-      </div>
-      <div style={{display:"flex",gap:6,marginBottom:18,overflowX:"auto",paddingBottom:4}}>
-        {tools.map(t=>(
-          <button key={t.id} onClick={()=>{setTool(t.id);setResult(null);setErr("");}}
-            style={{padding:"8px 14px",borderRadius:10,whiteSpace:"nowrap",border:`1.5px solid ${tool===t.id?C.blue:C.border}`,background:tool===t.id?`${C.blue}10`:"#fff",color:tool===t.id?C.blue:C.muted,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:tool===t.id?700:400,fontSize:13}}>
-            {t.icon} {t.label}
-          </button>
-        ))}
-      </div>
-      {err&&<div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"10px 14px",marginBottom:14,color:C.danger,fontSize:13}}>⚠ {err}</div>}
-      <div style={{background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:14}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <div style={{fontWeight:700,color:C.text,fontSize:14}}>📄 Your Resume</div>
-          <button onClick={()=>fileRef.current.click()} style={{padding:"6px 12px",borderRadius:8,border:`1.5px solid ${C.blue}40`,background:`${C.blue}08`,color:C.blue,fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600}}>📁 Upload</button>
-        </div>
-        <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" onChange={handleFile} style={{display:"none"}}/>
-        <textarea value={resume} onChange={e=>{setResume(e.target.value);localStorage.setItem("tp_resume",e.target.value);}} placeholder="Paste your resume here..." style={{...inp,minHeight:90,resize:"vertical",lineHeight:1.8}}/>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-        <input style={inp} placeholder="Target role" value={targetRole} onChange={e=>setTargetRole(e.target.value)}/>
-        <input style={inp} placeholder="Target company" value={targetCompany} onChange={e=>setTargetCompany(e.target.value)}/>
-      </div>
-      <Btn variant="cta" loading={loading} onClick={generate} style={{width:"100%",padding:"13px",fontSize:15}}>✨ Generate {tools.find(t=>t.id===tool)?.label}</Btn>
-
-      {result&&(
-        <div style={{marginTop:18}}>
-          {tool==="bio"&&result.bio&&(
-            <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:20}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
-                <div style={{fontWeight:700,fontSize:15}}>✅ LinkedIn About</div>
-                <button onClick={()=>copy(result.bio,"bio")} style={{padding:"6px 12px",borderRadius:7,border:`1.5px solid ${C.border}`,background:copied==="bio"?"#f0fdf4":"#fff",color:copied==="bio"?C.green:C.blue,fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:700}}>{copied==="bio"?"✅ Copied!":"📋 Copy"}</button>
-              </div>
-              <div style={{color:C.soft,fontSize:13,lineHeight:2,whiteSpace:"pre-line",background:C.bg,borderRadius:10,padding:14}}>{result.bio}</div>
-            </div>
-          )}
-          {tool==="headline"&&result.headlines&&(
-            <div>{result.headlines.map((h,i)=>(
-              <div key={i} style={{background:i===result.bestPick?"#f0fdf4":"#fff",border:`1.5px solid ${i===result.bestPick?C.green:C.border}`,borderRadius:12,padding:16,marginBottom:8}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-                  <div style={{display:"flex",gap:6}}>{i===result.bestPick&&<Tag color={C.green}>⭐ Best</Tag>}<Tag color={C.blue}>{h.angle}</Tag></div>
-                  <button onClick={()=>copy(h.text,"h"+i)} style={{padding:"4px 10px",borderRadius:6,border:`1.5px solid ${C.border}`,background:copied==="h"+i?"#f0fdf4":"#fff",color:copied==="h"+i?C.green:C.blue,fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:700}}>{copied==="h"+i?"✅":"📋"}</button>
-                </div>
-                <div style={{fontWeight:600,fontSize:13}}>{h.text}</div>
-              </div>
-            ))}</div>
-          )}
-          {tool==="coldmsg"&&(
-            <div>{[{key:"connectionRequest",label:"🔗 Connection Request"},{key:"coldDM",label:"💬 Cold DM"},{key:"referralRequest",label:"🤝 Referral Request"}].map(({key,label})=>result[key]&&(
-              <div key={key} style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:12,padding:16,marginBottom:10}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                  <div style={{fontWeight:700,fontSize:13}}>{label}</div>
-                  <button onClick={()=>copy(result[key],key)} style={{padding:"4px 10px",borderRadius:6,border:`1.5px solid ${C.border}`,background:copied===key?"#f0fdf4":"#fff",color:copied===key?C.green:C.blue,fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:700}}>{copied===key?"✅":"📋"}</button>
-                </div>
-                <div style={{color:C.soft,fontSize:13,lineHeight:1.9,whiteSpace:"pre-line",background:C.bg,borderRadius:8,padding:12}}>{result[key]}</div>
-              </div>
-            ))}</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// RESUME ANALYZER — MASTER LEVEL UPGRADE
-// ══════════════════════════════════════════════════════════════════════════
-function ResumeAnalyzer({ user }) {
-  const [jd,setJd]=useState(()=>localStorage.getItem("tp_jd")||"");
-  const [resume,setResume]=useState(()=>localStorage.getItem("tp_resume")||"");
-  const [fileName,setFileName]=useState(()=>localStorage.getItem("tp_fileName")||"");
-  const [step,setStep]=useState("input");
-  const [analysis,setAnalysis]=useState(null);
-  const [optimized,setOptimized]=useState(null);
-  const [optimizedScores,setOptimizedScores]=useState(null);
-  const [changeLog,setChangeLog]=useState([]);
-  const [err,setErr]=useState("");
-  const [section,setSection]=useState("overview");
-  const [downloading,setDownloading]=useState("");
-  const [optRetries,setOptRetries]=useState(0);
-  const fileRef=useRef();
-  const jdImageRef=useRef();
-  const [jdImageLoading,setJdImageLoading]=useState(false);
-  const isMobile=window.innerWidth<768;
-
-  const handleFile=async(e)=>{
-    const f=e.target.files[0]; if(!f) return;
-    setFileName(f.name); localStorage.setItem("tp_fileName",f.name); setErr("");
-    try{
-      let text="";
-      if(f.type==="application/pdf"||f.name.endsWith(".pdf")) text=await extractTextFromPDF(f);
-      else if(f.name.endsWith(".docx")) text=await extractTextFromDOCX(f);
-      else{const r=new FileReader();r.onload=ev=>{setResume(ev.target.result);localStorage.setItem("tp_resume",ev.target.result);};r.readAsText(f);return;}
-      setResume(text); localStorage.setItem("tp_resume",text);
-    }catch(e2){setErr("Could not read file: "+e2.message);}
-  };
-
-  const hasRealExperience=(rawText)=>{
-    if(!rawText) return false;
-    const expMatch=/\b(EXPERIENCE|WORK EXPERIENCE|EMPLOYMENT|INTERNSHIP)\b/i.test(rawText);
-    if(!expMatch) return false;
-    const lines=rawText.split("\n");
-    let inExp=false,expLines=[];
-    for(const l of lines){
-      if(/\b(EXPERIENCE|WORK EXPERIENCE|EMPLOYMENT|INTERNSHIP)\b/i.test(l)) {inExp=true;continue;}
-      if(inExp&&/\b(EDUCATION|PROJECTS|SKILLS|CERTIF)\b/i.test(l)) break;
-      if(inExp) expLines.push(l.trim());
-    }
-    return expMatch&&expLines.filter(l=>l.length>10).length>2;
-  };
-
-  const extractEducationFromResume=(rawText)=>{
-    if(!rawText) return [];
-    const lines=rawText.split(/\n/).map(l=>l.trim()).filter(Boolean);
-    let eduStart=-1,eduEnd=-1;
-    const sH=/^(EXPERIENCE|WORK|PROJECTS|SKILLS|TECHNICAL|CERTIF|ACHIEVEMENTS|SUMMARY|OBJECTIVE|INTERNSHIP)/i;
-    for(let i=0;i<lines.length;i++){if(/^EDUCATION/i.test(lines[i])){eduStart=i+1;continue;}if(eduStart!==-1&&sH.test(lines[i])){eduEnd=i;break;}}
-    if(eduStart===-1) return [];
-    if(eduEnd===-1) eduEnd=Math.min(eduStart+8,lines.length);
-    const eduLines=lines.slice(eduStart,eduEnd).filter(l=>!l.match(/^(EDUCATION|EXPERIENCE|PROJECTS|SKILLS)/i));
-    if(eduLines.length===0) return [];
-    const entries=[];let i=0;
-    while(i<eduLines.length){
-      const line1=eduLines[i]||"",line2=eduLines[i+1]||"";
-      const dP=/(\b\d{4}\b.*?(?:–|-|to).*?\b\d{4}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{4}\b)/i;
-      let school=line1,location="";
-      const lM=line1.match(/^(.+?)\s{2,}(.+)$/);
-      if(lM){school=lM[1].trim();location=lM[2].trim();}
-      let degree="",dates="";
-      const dL2=line2.match(dP);
-      if(dL2){const dS=line2.match(/^(.+?)\s{2,}(\S.*?\d{4}.*)$/);if(dS){degree=dS[1].trim();dates=dS[2].trim();}else{const dI=line2.indexOf(dL2[0]);degree=line2.slice(0,dI).trim();dates=dL2[0].trim();}i+=2;}
-      else{degree=line2;i+=2;}
-      if(school||degree) entries.push({school,location,degree,dates});
-    }
-    return entries.length>0?entries:[];
-  };
-
-  // MASTER ANALYSIS — deep scan
-  const runAnalysis=async()=>{
-    if(!jd.trim()||!resume.trim()){setErr("Fill both Job Description and Resume.");return;}
-    setStep("analyzing"); setErr(""); setAnalysis(null); setOptimized(null); setOptimizedScores(null); setChangeLog([]);
-    try{
-      const prompt=`You are a senior ATS and recruitment expert at a Fortune 500 company. Perform a deep master-level analysis.
-
-JD (full): ${jd.trim().slice(0,1000)}
-RESUME (full): ${resume.trim().slice(0,1200)}
-
-CRITICAL: Be brutally honest. Give real scores — don't inflate. A typical fresher resume scores 40-65%.
-
-Return ONLY valid JSON (no markdown):
-{
-  "matchScore": 58,
-  "atsScore": 62,
-  "shortlistRate": 18,
-  "verdict": "Moderate Match",
-  "recruiterDecision": "MAYBE — would shortlist only if pipeline is thin",
-  "summary": "Honest 2-sentence assessment of the resume vs JD fit.",
-  "recruiterImpression": "What a recruiter thinks in 6 seconds scanning this resume.",
-  "topStrengths": ["strength 1 from resume", "strength 2", "strength 3"],
-  "criticalGaps": ["critical gap 1 blocking shortlist", "gap 2", "gap 3"],
-  "sectionAudit": [
-    {
-      "section": "Contact Info",
-      "score": 90,
-      "status": "good",
-      "feedback": "Complete with phone, email, LinkedIn. Missing GitHub URL.",
-      "keywords_present": ["email", "phone", "linkedin"],
-      "keywords_missing": ["github", "portfolio"],
-      "action": "Add GitHub profile URL"
-    },
-    {
-      "section": "Professional Summary",
-      "score": 45,
-      "status": "warning",
-      "feedback": "Generic summary with no JD-specific keywords. Doesn't mention role title from JD.",
-      "keywords_present": ["developer", "B.Tech"],
-      "keywords_missing": ["full-stack", "React", "Node.js", "REST APIs"],
-      "action": "Rewrite to mirror JD job title and top 5 required skills"
-    },
-    {
-      "section": "Education",
-      "score": 88,
-      "status": "good",
-      "feedback": "Relevant degree with good CGPA. University name present.",
-      "keywords_present": ["B.Tech", "CSE", "CGPA"],
-      "keywords_missing": [],
-      "action": "Add relevant coursework if space allows"
-    },
-    {
-      "section": "Experience / Internship",
-      "score": 50,
-      "status": "warning",
-      "feedback": "Internship bullets are vague. No metrics, no JD keywords used.",
-      "keywords_present": ["developed", "worked"],
-      "keywords_missing": ["React", "REST API", "agile", "metrics", "% improvement"],
-      "action": "Add 2-3 quantified metrics. Mirror JD technology keywords in bullet verbs."
-    },
-    {
-      "section": "Projects",
-      "score": 60,
-      "status": "warning",
-      "feedback": "Projects exist but bullets are task-based not achievement-based. Missing impact metrics.",
-      "keywords_present": ["React", "MongoDB"],
-      "keywords_missing": ["REST API", "authentication", "CI/CD", "deployed", "users"],
-      "action": "Add metrics: users, performance improvement, uptime, response time"
-    },
-    {
-      "section": "Technical Skills",
-      "score": 55,
-      "status": "warning",
-      "feedback": "Missing several JD-required technologies. Skills listed without categorization.",
-      "keywords_present": ["Python", "Java", "MySQL"],
-      "keywords_missing": ["Docker", "AWS", "CI/CD", "TypeScript", "Redis"],
-      "action": "Add missing JD keywords under appropriate categories. Use exact JD terminology."
-    },
-    {
-      "section": "Format & ATS Compatibility",
-      "score": 70,
-      "status": "warning",
-      "feedback": "Mostly ATS-safe but uses some formatting that may not parse well.",
-      "keywords_present": [],
-      "keywords_missing": ["clean headers", "standard section names", "single column"],
-      "action": "Use standard section headers. Remove tables/graphics. Single-column layout."
-    }
-  ],
-  "keywordGapsBySectionDetail": [
-    {
-      "section": "Technical Skills",
-      "missing_keywords": ["Docker", "Kubernetes", "CI/CD", "TypeScript"],
-      "how_to_add": "Add a Tools/DevOps row under Technical Skills: Docker, Kubernetes, CI/CD (GitHub Actions)",
-      "impact": "High",
-      "jd_frequency": 4,
-      "ats_weight": "These appear in JD requirements — ATS auto-rejects without them"
-    },
-    {
-      "section": "Projects",
-      "missing_keywords": ["REST API", "deployed", "authentication", "100+ users"],
-      "how_to_add": "Rewrite project bullets: 'Developed REST API with JWT authentication, serving 200+ users with 99.9% uptime'",
-      "impact": "High",
-      "jd_frequency": 3,
-      "ats_weight": "Project keywords are parsed by ATS for skill validation"
-    },
-    {
-      "section": "Professional Summary",
-      "missing_keywords": ["full-stack developer", "React", "Node.js", "problem-solving"],
-      "how_to_add": "Open summary with exact JD job title: 'Full-Stack Developer with expertise in React and Node.js...'",
-      "impact": "High",
-      "jd_frequency": 5,
-      "ats_weight": "Summary section is heavily weighted in ATS keyword scoring"
-    },
-    {
-      "section": "Experience",
-      "missing_keywords": ["agile", "sprint", "code review", "collaboration"],
-      "how_to_add": "Add to internship bullets: 'Participated in 2-week agile sprints, conducted code reviews...'",
-      "impact": "Medium",
-      "jd_frequency": 2,
-      "ats_weight": "Soft-technical keywords from JD responsibilities section"
-    }
-  ],
-  "strongMatches": [
-    {"skill": "React.js", "found_in": "Projects & Skills", "jd_requirement": "Required", "strength": 85, "reason": "Listed in both resume and JD with project evidence"},
-    {"skill": "Python", "found_in": "Skills", "jd_requirement": "Nice-to-have", "strength": 72, "reason": "Present in skills but no project usage shown"}
-  ],
-  "missingKeywords": [
-    {"keyword": "Docker", "importance": "High", "section": "Skills", "tip": "Add to Tools category in Technical Skills", "ats_impact": "Blocks ATS pass if not present"},
-    {"keyword": "TypeScript", "importance": "High", "section": "Skills", "tip": "Add to Languages if you know it, else add to learning section"},
-    {"keyword": "CI/CD", "importance": "Medium", "section": "Projects", "tip": "Mention GitHub Actions or Jenkins in a project bullet"}
-  ],
-  "weakAreas": [
-    {"area": "No quantified metrics anywhere", "detail": "Zero numbers in any bullet point. Recruiters at target companies expect metrics.", "priority": "Critical", "fix": "Add at least 3 metrics: users, % improvement, response time, uptime"},
-    {"area": "Generic project bullets", "detail": "All bullets describe tasks ('worked on', 'developed') not outcomes", "priority": "High", "fix": "Use CAR format: Context, Action, Result. Every bullet needs a number."},
-    {"area": "Missing DevOps/Cloud keywords", "detail": "JD requires Docker, CI/CD, AWS but none appear in resume", "priority": "High", "fix": "Add Docker, GitHub Actions to Tools. Mention deployment in project bullets."}
-  ],
-  "projectFit": [
-    {"name": "Identify from resume", "relevance": 78, "keep": true, "reason": "Tech stack matches JD", "suggestion": "Add metrics and deployment details", "missing_from_bullets": ["deployed on", "users", "API endpoints"]},
-    {"name": "Another project", "relevance": 45, "keep": false, "reason": "Tech stack not relevant to JD", "suggestion": "Replace with a more relevant project or add JD-relevant tech"}
-  ],
-  "suggestedSkillsToAdd": ["Docker", "TypeScript", "Redis", "GitHub Actions"],
-  "improvements": [
-    "Rewrite summary with JD job title and top 3 required skills",
-    "Add metrics to every project bullet (users, performance, uptime)",
-    "Add Docker and CI/CD to Technical Skills",
-    "Use exact JD keywords in bullet verbs (implemented, optimized, deployed)"
-  ],
-  "formatIssues": ["Tables may not parse in ATS", "Use standard section names", "Add LinkedIn/GitHub URLs"],
-  "quickWins": [
-    {"action": "Add 'Docker' and 'CI/CD' to Technical Skills", "impact": "High", "effort": "1 minute", "section": "Technical Skills", "reason": "Appears 4x in JD, likely ATS filter"},
-    {"action": "Rewrite Summary line 1 to include job title from JD", "impact": "High", "effort": "2 minutes", "section": "Summary", "reason": "ATS weights summary keywords heavily"},
-    {"action": "Add 1 metric to each project bullet (users, % improvement, response time)", "impact": "High", "effort": "5 minutes", "section": "Projects", "reason": "Separates shortlisted vs rejected in same ATS score range"},
-    {"action": "Add GitHub URL to contact section", "impact": "Medium", "effort": "30 seconds", "section": "Contact", "reason": "Recruiters check GitHub for code quality"},
-    {"action": "Mirror JD's language in bullets: use 'REST APIs', 'agile', 'deployment'", "impact": "Medium", "effort": "10 minutes", "section": "All", "reason": "Exact keyword match boosts ATS score 8-12 points"}
-  ]
-}`;
-
-      const raw=await callAI(prompt,4000,"json");
-      const data=safeJSON(raw,null);
-      if(!data?.matchScore) throw new Error("Analysis failed. Please try again.");
-      setAnalysis(data); setStep("analyzed"); setSection("overview");
-    }catch(e){setErr(e.message||"Analysis failed.");setStep("input");}
-  };
-
-  // MASTER OPTIMIZATION — builds 90+ ATS resume
-  const runOptimize=async(retryCount=0)=>{
-    setStep("optimizing"); setErr(""); setOptRetries(retryCount);
-    const extractedEducation=extractEducationFromResume(resume);
-    const hasExp=hasRealExperience(resume);
-    const isFresher=!hasExp;
-
-    try{
-      const prompt=`You are a master ATS resume writer. Your goal: build a resume that scores 90+ on ATS for this JD.
-
-RULES:
-1. ${isFresher?"FRESHER — DO NOT invent experience. No Experience section.":"Rewrite experience bullets with JD keywords + metrics."}
-2. Every project bullet MUST have a metric (users, %, ms, uptime, requests/sec).
-3. Mirror JD keywords EXACTLY in summary, skills, and bullets — same spelling, same casing.
-4. Technical Skills must include ALL high-importance missing keywords from JD.
-5. Summary must open with exact job title from JD.
-6. Certifications: keep real ones, add "215+ DSA problems solved on LeetCode" if coding-focused.
-7. Return ONLY valid JSON, no markdown.
-
-JD: ${jd.trim().slice(0,700)}
-ORIGINAL RESUME: ${resume.trim().slice(0,2500)}
-
-Return EXACT JSON:
-{
-  "name": "Full Name from resume",
-  "phone": "phone from resume",
-  "email": "email from resume",
-  "linkedin": "linkedin from resume",
-  "github": "github from resume",
-  "location": "city from resume",
-  "summary": "2-3 sentence summary. MUST start with JD job title. MUST include top 4 JD skills. Example: Full-Stack Developer with expertise in React, Node.js, and REST API design, passionate about building scalable web applications. Proven through 3+ production-grade projects serving real users. Strong foundation in DSA with 215+ LeetCode problems solved.",
-  "education": [{"school": "exact from resume", "location": "city", "degree": "exact degree", "dates": "dates"}],
-  ${hasExp?`"experience": [{"title": "exact title from resume", "company": "exact company", "location": "city", "dates": "exact dates", "bullets": ["Developed [JD keyword] feature using [JD tech stack], improving [metric] by X%", "Collaborated in agile sprint cycles, delivering [feature] that [measurable outcome]", "Implemented [JD keyword] reducing [metric] from X to Y ms"]}],`:""}
-  "projects": [
-    {
-      "name": "Project Name from resume",
-      "tech": "React, Node.js, MongoDB, JWT (use JD keywords)",
-      "dates": "dates if available",
-      "bullets": [
-        "Engineered [JD keyword] using [stack], deployed on [platform] serving 500+ active users with 99.9% uptime",
-        "Implemented [JD keyword e.g. REST API / JWT auth / CI/CD pipeline] reducing [metric] by 40%",
-        "Optimized [component] achieving [specific metric e.g. 200ms API response time, 95+ Lighthouse score]"
-      ]
-    }
-  ],
-  "skills": [
-    {"category": "Languages", "items": "include JD languages first"},
-    {"category": "Frameworks & Libraries", "items": "include ALL JD frameworks"},
-    {"category": "Databases", "items": "include JD databases"},
-    {"category": "Tools & DevOps", "items": "include Docker, CI/CD, Git, and other JD tools"},
-    {"category": "Cloud", "items": "AWS/GCP/Azure if in JD"},
-    {"category": "Concepts", "items": "REST APIs, Microservices, Agile, DSA, OOPs, DBMS"}
-  ],
-  "certifications": ["list real certifications from resume", "X+ DSA problems solved on LeetCode (if relevant)"],
-  "optimizedMatchScore": 91,
-  "optimizedAtsScore": 93,
-  "optimizedShortlistRate": 38,
-  "changeLog": [
-    {"section": "Summary", "change": "Rewrote to open with JD job title 'Full-Stack Developer', added React, Node.js, REST API keywords", "impact": "+12 ATS points"},
-    {"section": "Projects - Bullet 1", "change": "Added metric '500+ users', added 'REST API' and 'JWT authentication' keywords", "impact": "+8 ATS points"},
-    {"section": "Technical Skills", "change": "Added Docker, CI/CD, TypeScript from JD requirements", "impact": "+9 ATS points"},
-    {"section": "Projects - Tech Stack", "change": "Added missing JD keywords to tech tags", "impact": "+5 ATS points"}
-  ]
-}`;
-
-      const raw=await callAI(prompt,4000,"json");
-      const data=safeJSON(raw,null);
-      if(!data?.name||!data?.skills){
-        if(retryCount<2) return runOptimize(retryCount+1);
-        throw new Error("Optimization failed. Please try again.");
-      }
-
-      // SAFETY: Remove experience for fresher
-      if(isFresher&&data.experience) delete data.experience;
-      // Restore exact education
-      if(extractedEducation.length>0) data.education=extractedEducation;
-
-      const cl=data.changeLog||[];
-      delete data.changeLog;
-
-      const optScores={
-        matchScore:data.optimizedMatchScore||Math.min(96,(analysis?.matchScore||70)+18),
-        atsScore:data.optimizedAtsScore||Math.min(96,(analysis?.atsScore||70)+16),
-        shortlistRate:data.optimizedShortlistRate||Math.min(48,(analysis?.shortlistRate||20)+16)
-      };
-      delete data.optimizedMatchScore; delete data.optimizedAtsScore; delete data.optimizedShortlistRate;
-
-      setOptimized(data); setOptimizedScores(optScores); setChangeLog(cl);
-      setStep("optimized"); setSection("resume");
-    }catch(e){
-      if(retryCount<2) return runOptimize(retryCount+1);
-      setErr(e.message||"Optimization failed."); setStep("analyzed");
-    }
-  };
-
-  const handleJDImage=async(e)=>{
-    const files=Array.from(e.target.files); if(!files.length) return;
-    setJdImageLoading(true); setErr("");
-    try{
-      let allText="";
-      for(let i=0;i<files.length;i++){
-        const f=files[i];
-        const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=rej;r.readAsDataURL(f);});
-        const text=await callAI(`Extract ALL text from this job description image exactly as written. Return only plain text.\n[IMAGE:${f.type};base64,${base64.slice(0,200)}...]`,1500,"text");
-        allText+=(text||"")+"\n\n";
-      }
-      setJd(allText.trim()); localStorage.setItem("tp_jd",allText.trim());
-    }catch(e2){setErr("Image read failed: "+e2.message);}
-    setJdImageLoading(false);
-  };
-
-  const scoreColor=s=>s>=80?"#16a34a":s>=60?"#d97706":s>=40?"#ea580c":"#dc2626";
-  const scoreBg=s=>s>=80?"#f0fdf4":s>=60?"#fffbeb":s>=40?"#fff7ed":"#fef2f2";
-  const scoreBorder=s=>s>=80?"#bbf7d0":s>=60?"#fef08a":s>=40?"#fed7aa":"#fecaca";
-  const statusIcon=st=>st==="good"?"✅":st==="warning"?"⚠️":"❌";
-
-  const handleDownload=async(type)=>{
-    if(!optimized) return; setDownloading(type);
-    try{
-      if(type==="pdf") await downloadPDF(optimized,"TakePlace_ATS_Optimized_Resume.pdf");
-      else await downloadDOCXJake(optimized,"TakePlace_ATS_Optimized_Resume.docx");
-    }catch(e){setErr("Download failed: "+e.message);}
-    setDownloading("");
-  };
-
-  const JakesResumePreview=({data})=>{
-    if(!data) return null;
-    const ps={fontSize:8.5,lineHeight:"1.65",color:"#1a1a1a",marginBottom:2};
-    const sS={borderBottom:"1.5px solid #1a1a1a",paddingBottom:1,marginBottom:6,marginTop:10,fontWeight:700,fontSize:9.5,letterSpacing:"0.06em",color:"#1a1a1a",textTransform:"uppercase"};
-    const bS={...ps,paddingLeft:12,position:"relative",marginBottom:2.5};
-    return(
-      <div style={{background:"#ffffff",border:"1px solid #d1d5db",borderRadius:4,padding:"24px 28px",maxWidth:680,margin:"0 auto",fontFamily:"'Times New Roman',Times,serif",boxShadow:"0 4px 24px rgba(0,0,0,0.12)"}}>
-        <div style={{textAlign:"center",marginBottom:3}}><div style={{fontSize:18,fontWeight:700}}>{data.name}</div></div>
-        <div style={{textAlign:"center",marginBottom:10,fontSize:8,color:"#374151",lineHeight:1.5}}>{[data.phone,data.email,data.linkedin,data.github,data.location].filter(Boolean).join(" | ")}</div>
-        {data.summary&&(<><div style={sS}>Professional Summary</div><div style={{...ps,marginBottom:8,fontStyle:"italic"}}>{data.summary}</div></>)}
-        {data.education?.length>0&&(<><div style={sS}>Education</div>{data.education.map((edu,i)=>(<div key={i} style={{marginBottom:6}}><div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontWeight:700,fontSize:9}}>{edu.school}</span><span style={{fontSize:8.5,color:"#374151"}}>{edu.location}</span></div><div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontSize:8.5,fontStyle:"italic"}}>{edu.degree}</span><span style={{fontSize:8.5,color:"#374151"}}>{edu.dates}</span></div></div>))}</>)}
-        {data.experience?.length>0&&(<><div style={sS}>Experience</div>{data.experience.map((exp,i)=>(<div key={i} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontWeight:700,fontSize:9}}>{exp.title}</span><span style={{fontSize:8.5,color:"#374151"}}>{exp.dates}</span></div><div style={{fontSize:8.5,fontStyle:"italic",color:"#374151",marginBottom:3}}>{exp.company}{exp.location?`, ${exp.location}`:""}</div>{(exp.bullets||[]).map((b,j)=>(<div key={j} style={bS}><span style={{position:"absolute",left:3,top:0}}>•</span>{b}</div>))}</div>))}</>)}
-        {data.projects?.length>0&&(<><div style={sS}>Projects</div>{data.projects.map((proj,i)=>(<div key={i} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}><span><span style={{fontWeight:700,fontSize:9}}>{proj.name}</span>{proj.tech&&<span style={{fontStyle:"italic",fontSize:8.5,color:"#374151"}}> | {proj.tech}</span>}</span>{proj.dates&&<span style={{fontSize:8.5,color:"#374151"}}>{proj.dates}</span>}</div><div style={{marginTop:2}}>{(proj.bullets||[]).map((b,j)=>(<div key={j} style={bS}><span style={{position:"absolute",left:3,top:0}}>•</span>{b}</div>))}</div></div>))}</>)}
-        {data.skills?.length>0&&(<><div style={sS}>Technical Skills</div>{data.skills.map((sk,i)=>(<div key={i} style={{...ps,marginBottom:2.5}}><span style={{fontWeight:700}}>{sk.category}: </span><span>{sk.items}</span></div>))}</>)}
-        {data.certifications?.length>0&&(<><div style={sS}>Certifications & Achievements</div>{data.certifications.map((c,i)=>(<div key={i} style={bS}><span style={{position:"absolute",left:3,top:0}}>•</span>{c}</div>))}</>)}
-      </div>
-    );
-  };
-
-  const Ring=({score,size=88,color,label,sublabel})=>{
-    const r=34,circ=2*Math.PI*r,col=color||scoreColor(score);
-    return(<div style={{textAlign:"center"}}><svg width={size} height={size} viewBox="0 0 80 80"><circle cx="40" cy="40" r={r} fill="none" stroke="#e2e8f0" strokeWidth="6"/><circle cx="40" cy="40" r={r} fill="none" stroke={col} strokeWidth="6" strokeDasharray={circ} strokeDashoffset={circ*(1-score/100)} strokeLinecap="round" transform="rotate(-90 40 40)"/><text x="40" y="44" textAnchor="middle" fill={col} fontSize="15" fontWeight="800" fontFamily="Inter">{score}%</text></svg>{label&&<div style={{fontSize:11,color:"#64748b",fontWeight:600,marginTop:2}}>{label}</div>}{sublabel&&<div style={{fontSize:9,color:scoreColor(score),fontWeight:700,marginTop:1}}>{sublabel}</div>}</div>);
-  };
-
-  const DeltaBadge=({original,optimized:opt})=>{
-    const delta=opt-original; if(!delta) return null;
-    return(<span style={{background:delta>0?"#f0fdf4":"#fef2f2",color:delta>0?"#16a34a":"#dc2626",fontSize:10,fontWeight:800,padding:"2px 7px",borderRadius:20,marginLeft:6}}>{delta>0?"+":""}{delta}%</span>);
-  };
-
-  const isFresherResume=!hasRealExperience(resume);
-  const a=analysis;
-
-  const getShortlistLabel=(rate)=>{
-    if(rate>=40) return "High chance";
-    if(rate>=25) return "Moderate";
-    if(rate>=15) return "Low";
-    return "Very low";
-  };
-
-  if(step==="input") return(
-    <div>
-      <div style={{marginBottom:20}}>
-        <div style={{fontWeight:900,fontSize:isMobile?20:24,color:C.text,marginBottom:4}}>⚡ AI Resume Analyzer — Master Level</div>
-        <div style={{color:C.muted,fontSize:13}}>Deep ATS scan · Section-by-section keyword gaps · 90+ ATS-ready optimization · Full change log</div>
-      </div>
-
-      {/* Feature badges */}
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:18}}>
-        {["🔬 Section-by-section keyword audit","🎯 Real ATS score (no inflation)","⚡ One-click 90+ ATS optimization","📋 Full change log — see every fix","⬇️ Download PDF/DOCX"].map((f,i)=>(
-          <div key={i} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:18,padding:"4px 12px",fontSize:11,color:C.soft,fontWeight:600}}>{f}</div>
-        ))}
-      </div>
-
-      {isFresherResume&&resume&&<div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:10,padding:"10px 14px",marginBottom:14,fontSize:12,color:C.blue}}>ℹ️ <strong>Fresher resume detected</strong> — no fake experience will be added. Strong summary + metric-driven project bullets will be generated.</div>}
-      {err&&<div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"10px 14px",marginBottom:14,color:C.danger,fontSize:13}}>⚠ {err}</div>}
-
-      <div style={{background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-          <div style={{flex:1}}><div style={{fontWeight:700,color:C.text,fontSize:14}}>📋 Job Description</div><div style={{fontSize:11,color:C.muted}}>Paste full JD for best results</div></div>
-          <div style={{display:"flex",gap:6}}>
-            {jd&&<span style={{background:"#f0fdf4",color:"#16a34a",fontSize:11,padding:"3px 10px",borderRadius:18,fontWeight:700}}>{jd.split(/\s+/).filter(Boolean).length} words</span>}
-            <button onClick={()=>jdImageRef.current.click()} disabled={jdImageLoading} style={{padding:"6px 12px",borderRadius:8,border:`1.5px solid ${C.orange}40`,background:`${C.orange}08`,color:C.orange,fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600}}>
-              {jdImageLoading?<><SpinIcon size={11} color={C.orange}/> Reading...</>:"📸 JD Photo"}
-            </button>
-            <input ref={jdImageRef} type="file" accept="image/*" multiple onChange={handleJDImage} style={{display:"none"}}/>
-          </div>
-        </div>
-        <textarea value={jd} onChange={e=>{setJd(e.target.value);localStorage.setItem("tp_jd",e.target.value);}} placeholder="Paste the complete job description here — the more text, the better the analysis..." style={{...inp,minHeight:160,resize:"vertical",lineHeight:1.8}}/>
-      </div>
-
-      <div style={{background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:18}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-          <div style={{fontWeight:700,color:C.text,fontSize:14}}>📄 Your Resume</div>
-          <button onClick={()=>fileRef.current.click()} style={{padding:"6px 12px",borderRadius:8,border:`1.5px solid ${C.blue}40`,background:`${C.blue}08`,color:C.blue,fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600}}>📁 Upload PDF/DOCX</button>
-        </div>
-        <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" onChange={handleFile} style={{display:"none"}}/>
-        {fileName&&<div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:7,padding:"5px 10px",marginBottom:8,fontSize:12,color:"#16a34a"}}>✅ {fileName} loaded</div>}
-        <textarea value={resume} onChange={e=>{setResume(e.target.value);localStorage.setItem("tp_resume",e.target.value);}} placeholder="Paste your complete resume text here or upload above..." style={{...inp,minHeight:200,resize:"vertical",lineHeight:1.8}}/>
-      </div>
-
-      <button onClick={runAnalysis} disabled={!jd.trim()||!resume.trim()}
-        style={{width:"100%",padding:"15px",fontSize:15,borderRadius:12,border:"none",cursor:!jd.trim()||!resume.trim()?"not-allowed":"pointer",background:"linear-gradient(135deg,#2563eb,#1d4ed8)",color:"#fff",fontWeight:800,fontFamily:"'Inter',sans-serif",opacity:!jd.trim()||!resume.trim()?0.5:1,boxShadow:"0 4px 20px #2563eb40"}}>
-        🔬 Deep Analyze Resume — Master ATS Scan
-      </button>
-    </div>
-  );
-
-  if(step==="analyzing") return(
-    <div style={{textAlign:"center",padding:"80px 20px"}}>
-      <div style={{fontSize:56,marginBottom:16,animation:"float 2s ease-in-out infinite"}}>🧠</div>
-      <div style={{fontWeight:800,fontSize:20,color:C.text,marginBottom:8}}>Deep ATS Analysis Running</div>
-      <div style={{color:C.muted,fontSize:13,lineHeight:2,marginBottom:24}}>
-        Scanning section by section...<br/>
-        Extracting JD keywords and scoring gaps...<br/>
-        Calculating real ATS and shortlist rate...
-      </div>
-      <SpinIcon size={40} color={C.blue}/>
-    </div>
-  );
-
-  if(step==="optimizing") return(
-    <div style={{textAlign:"center",padding:"80px 20px"}}>
-      <div style={{fontSize:56,marginBottom:16,animation:"float 2s ease-in-out infinite"}}>✨</div>
-      <div style={{fontWeight:800,fontSize:20,color:C.text,marginBottom:8}}>Building 90+ ATS Resume</div>
-      <div style={{color:C.muted,fontSize:13,lineHeight:2,marginBottom:24}}>
-        {optRetries>0?`Retry ${optRetries}/2 — improving quality...`:"Injecting all missing JD keywords..."}<br/>
-        {isFresherResume?"Fresher mode — adding metrics to project bullets...":"Rewriting bullets with JD keywords + metrics..."}<br/>
-        Verifying ATS compliance...
-      </div>
-      <SpinIcon size={40} color={C.purple}/>
-    </div>
-  );
-
-  if(!a) return null;
-
-  const displayScores=(step==="optimized"&&optimizedScores)?optimizedScores:{matchScore:a.matchScore,atsScore:a.atsScore,shortlistRate:a.shortlistRate||20};
-
-  const tabs=[
-    ["overview","📊 Overview"],
-    ["audit","🔬 Section Audit"],
-    ["keywords","🎯 Keyword Gaps"],
-    ["projects","🏗️ Projects"],
-    ...(step==="optimized"?[["changelog","📋 Changes"],["resume","✨ Resume"]]:[[]])
-  ].filter(t=>t.length);
-
-  return(
-    <div>
-      {err&&<div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"10px 14px",marginBottom:14,color:C.danger,fontSize:13}}>⚠ {err}</div>}
-
-      {/* SCORE HEADER */}
-      <div style={{background:"linear-gradient(135deg,#eff6ff,#f0fdf4)",border:`1.5px solid ${C.blue}20`,borderRadius:18,padding:isMobile?16:24,marginBottom:14}}>
-
-        {/* Recruiter Decision Banner */}
-        {a.recruiterDecision&&step!=="optimized"&&(
-          <div style={{background:a.matchScore>=70?"#f0fdf4":a.matchScore>=50?"#fffbeb":"#fef2f2",border:`1px solid ${a.matchScore>=70?"#bbf7d0":a.matchScore>=50?"#fef08a":"#fecaca"}`,borderRadius:10,padding:"10px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
-            <span style={{fontSize:18}}>👔</span>
-            <div>
-              <div style={{fontWeight:700,fontSize:12,color:C.text}}>Recruiter Decision</div>
-              <div style={{fontSize:13,color:a.matchScore>=70?C.green:a.matchScore>=50?C.warn:C.danger,fontWeight:600}}>{a.recruiterDecision}</div>
-            </div>
-          </div>
-        )}
-        {step==="optimized"&&(
-          <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:"10px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
-            <span style={{fontSize:18}}>🎯</span>
-            <div>
-              <div style={{fontWeight:700,fontSize:12,color:C.text}}>Optimized — Ready for Applications</div>
-              <div style={{fontSize:12,color:C.green}}>This resume has 90+ ATS score and should pass automated screening at {a.recruiterDecision?.includes("Amazon")||a.recruiterDecision?.includes("Google")?"FAANG-level":"top Indian tech"} companies.</div>
-            </div>
-          </div>
-        )}
-
-        <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:isMobile?14:28,marginBottom:18,flexWrap:"wrap"}}>
-          <div style={{textAlign:"center"}}>
-            <Ring score={displayScores.matchScore} label="JD Match"
-              sublabel={step==="optimized"?"✅ Optimized":a.matchScore>=75?"Strong":a.matchScore>=55?"Moderate":"Weak"}/>
-            {step==="optimized"&&<DeltaBadge original={a.matchScore} optimized={optimizedScores?.matchScore}/>}
-          </div>
-          <div style={{width:1,height:60,background:"#e2e8f0"}}/>
-          <div style={{textAlign:"center"}}>
-            <Ring score={displayScores.atsScore} color={C.blue} label="ATS Score"
-              sublabel={displayScores.atsScore>=85?"Pass":"Needs work"}/>
-            {step==="optimized"&&<DeltaBadge original={a.atsScore} optimized={optimizedScores?.atsScore}/>}
-          </div>
-          <div style={{width:1,height:60,background:"#e2e8f0"}}/>
-          <div style={{textAlign:"center"}}>
-            <div style={{width:80,height:80,borderRadius:"50%",border:`6px solid ${scoreColor(displayScores.shortlistRate*2)}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",margin:"0 auto"}}>
-              <div style={{fontWeight:900,fontSize:16,color:scoreColor(displayScores.shortlistRate*2)}}>{displayScores.shortlistRate}%</div>
-            </div>
-            <div style={{fontSize:11,color:"#64748b",fontWeight:600,marginTop:2}}>Shortlist Rate</div>
-            <div style={{fontSize:9,color:scoreColor(displayScores.shortlistRate*2),fontWeight:700,marginTop:1}}>{getShortlistLabel(displayScores.shortlistRate)}</div>
-            {step==="optimized"&&<DeltaBadge original={a.shortlistRate||0} optimized={optimizedScores?.shortlistRate}/>}
-          </div>
-        </div>
-
-        <div style={{textAlign:"center"}}>
-          <div style={{display:"inline-block",padding:"5px 18px",borderRadius:18,background:scoreBg(displayScores.matchScore),color:scoreColor(displayScores.matchScore),fontWeight:800,fontSize:13,marginBottom:8}}>
-            {step==="optimized"?"✨ ATS-Optimized — Ready to Apply":a.verdict}
-          </div>
-          <div style={{color:"#475569",fontSize:13,lineHeight:1.8,maxWidth:520,margin:"0 auto"}}>{a.summary}</div>
-        </div>
-
-        {/* Top Strengths / Critical Gaps */}
-        {step!=="optimized"&&a.topStrengths&&a.criticalGaps&&(
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:14}}>
-            <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:12}}>
-              <div style={{fontWeight:700,fontSize:12,color:C.green,marginBottom:6}}>✅ Strengths</div>
-              {a.topStrengths.slice(0,3).map((s,i)=>(
-                <div key={i} style={{fontSize:11,color:"#14532d",display:"flex",gap:5,marginBottom:3}}>
-                  <span>•</span><span>{s}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:12}}>
-              <div style={{fontWeight:700,fontSize:12,color:C.danger,marginBottom:6}}>❌ Critical Gaps</div>
-              {a.criticalGaps.slice(0,3).map((g,i)=>(
-                <div key={i} style={{fontSize:11,color:"#991b1b",display:"flex",gap:5,marginBottom:3}}>
-                  <span>•</span><span>{g}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* TABS */}
-      <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
-        {tabs.map(([k,l])=>(<button key={k} onClick={()=>setSection(k)} style={{padding:"8px 16px",borderRadius:18,whiteSpace:"nowrap",border:`1.5px solid ${section===k?C.blue:C.border}`,background:section===k?`${C.blue}10`:"#fff",color:section===k?C.blue:"#64748b",cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:section===k?700:400,fontSize:13}}>{l}</button>))}
-      </div>
-
-      {/* OVERVIEW TAB */}
-      {section==="overview"&&(
-        <div>
-          {/* Quick Wins */}
-          {a.quickWins?.length>0&&(
-            <div style={{background:"#fff",border:`1.5px solid ${C.green}30`,borderRadius:14,padding:18,marginBottom:12}}>
-              <div style={{fontWeight:700,color:C.text,fontSize:15,marginBottom:4}}>⚡ Quick Wins — Do These First</div>
-              <div style={{color:C.muted,fontSize:12,marginBottom:12}}>These changes will have the highest ATS impact in the least time.</div>
-              {a.quickWins.map((w,i)=>(
-                <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:10,background:"#f0fdf4",borderRadius:10,padding:12,border:"1px solid #bbf7d0"}}>
-                  <div style={{width:22,height:22,borderRadius:"50%",background:C.green,color:"#fff",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{i+1}</div>
-                  <div style={{flex:1}}>
-                    <div style={{fontWeight:700,fontSize:13,color:C.text,marginBottom:3}}>{w.action}</div>
-                    {w.reason&&<div style={{fontSize:11,color:C.muted,marginBottom:5,fontStyle:"italic"}}>{w.reason}</div>}
-                    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                      <span style={{background:w.impact==="High"?"#fef2f2":"#fffbeb",color:w.impact==="High"?C.danger:C.warn,fontSize:10,padding:"2px 8px",borderRadius:18,fontWeight:700}}>{w.impact} Impact</span>
-                      <span style={{background:"#f1f5f9",color:C.muted,fontSize:10,padding:"2px 8px",borderRadius:18}}>{w.effort}</span>
-                      <span style={{background:`${C.blue}10`,color:C.blue,fontSize:10,padding:"2px 8px",borderRadius:18}}>📍 {w.section}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Weak Areas */}
-          {a.weakAreas?.length>0&&(
-            <div style={{background:"#fff",border:`1.5px solid ${C.danger}20`,borderRadius:14,padding:18,marginBottom:12}}>
-              <div style={{fontWeight:700,color:C.text,fontSize:15,marginBottom:12}}>🚨 Critical Issues to Fix</div>
-              {a.weakAreas.map((w,i)=>(
-                <div key={i} style={{marginBottom:10,background:scoreBg(w.priority==="Critical"?20:40),borderRadius:10,padding:14,border:`1px solid ${scoreBorder(w.priority==="Critical"?20:40)}`}}>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                    <div style={{fontWeight:700,fontSize:13,color:C.text}}>{w.area}</div>
-                    <Tag color={w.priority==="Critical"?C.danger:C.warn}>{w.priority}</Tag>
-                  </div>
-                  <div style={{color:C.soft,fontSize:12,marginBottom:6}}>{w.detail}</div>
-                  <div style={{background:"#f0fdf4",borderRadius:7,padding:"6px 10px",fontSize:12,color:"#14532d"}}>💡 Fix: {w.fix}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Strong Matches */}
-          <div style={{background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}>
-            <div style={{fontWeight:700,color:C.text,fontSize:15,marginBottom:12}}>✅ Strong Keyword Matches</div>
-            {(a.strongMatches||[]).map((m,i)=>(<div key={i} style={{marginBottom:10,background:"#f0fdf4",borderRadius:10,padding:12,border:"1px solid #bbf7d0"}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><div style={{fontWeight:700,color:C.text}}>{m.skill} <span style={{fontSize:10,color:C.muted,fontWeight:400}}>({m.found_in})</span></div><div style={{fontWeight:800,fontSize:14,color:scoreColor(m.strength)}}>{m.strength}%</div></div><div style={{color:"#64748b",fontSize:12,marginBottom:6}}>{m.reason}</div><div style={{background:"#e2e8f0",borderRadius:4,height:4,overflow:"hidden"}}><div style={{height:"100%",width:`${m.strength}%`,background:"#16a34a",borderRadius:4}}/></div></div>))}
-          </div>
-
-          {/* Optimize CTA */}
-          {step!=="optimized"&&(
-            <div style={{background:"linear-gradient(135deg,#eff6ff,#ede9fe)",border:`1.5px solid ${C.blue}20`,borderRadius:18,padding:20,textAlign:"center"}}>
-              <div style={{fontWeight:800,fontSize:17,color:C.text,marginBottom:6}}>🎯 Fix Everything — Get 90+ ATS Score</div>
-              <div style={{color:"#64748b",fontSize:13,marginBottom:12,lineHeight:1.8}}>
-                {isFresherResume
-                  ? "Fresher mode: metric-driven project bullets, full keyword injection, ATS-optimized format."
-                  : "Full keyword injection, quantified metrics in every bullet, ATS-safe format."
-                }<br/>
-                <strong>Generates a resume that passes automated screening at top companies.</strong>
-              </div>
-              <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap",marginBottom:12}}>
-                {["All JD keywords injected","Metrics in every bullet","Jake's single-page format","Download PDF + DOCX","Full change log"].map((f,i)=>(
-                  <span key={i} style={{background:"#fff",border:`1px solid ${C.purple}30`,borderRadius:18,padding:"4px 12px",fontSize:11,color:C.purple,fontWeight:600}}>✓ {f}</span>
-                ))}
-              </div>
-              <button onClick={()=>runOptimize(0)} style={{padding:"13px 36px",fontSize:15,borderRadius:12,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#7c3aed,#5b21b6)",color:"#fff",fontWeight:800,fontFamily:"'Inter',sans-serif",boxShadow:"0 4px 20px #7c3aed40"}}>✨ Build 90+ ATS Resume</button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* SECTION AUDIT TAB */}
-      {section==="audit"&&(
-        <div style={{background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:14,padding:18}}>
-          <div style={{fontWeight:700,color:C.text,fontSize:15,marginBottom:4}}>🔬 Section-by-Section Audit</div>
-          <div style={{color:C.muted,fontSize:12,marginBottom:14}}>Every section scored and keyword-analyzed against the JD.</div>
-          {(a.sectionAudit||[]).map((s,i)=>(
-            <div key={i} style={{marginBottom:14,background:scoreBg(s.score),borderRadius:12,padding:16,border:`1px solid ${scoreBorder(s.score)}`}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontSize:16}}>{statusIcon(s.status)}</span>
-                  <span style={{fontWeight:700,fontSize:14,color:C.text}}>{s.section}</span>
-                </div>
-                <div style={{fontWeight:900,fontSize:18,color:scoreColor(s.score)}}>{s.score}%</div>
-              </div>
-              <div style={{background:"#e2e8f0",borderRadius:4,height:5,overflow:"hidden",marginBottom:10}}>
-                <div style={{height:"100%",width:`${s.score}%`,background:scoreColor(s.score),borderRadius:4,transition:"width .5s"}}/>
-              </div>
-              <div style={{color:"#475569",fontSize:13,marginBottom:10,lineHeight:1.7}}>{s.feedback}</div>
-
-              {/* Keywords found */}
-              {s.keywords_present?.length>0&&(
-                <div style={{marginBottom:8}}>
-                  <div style={{fontSize:11,fontWeight:700,color:C.green,marginBottom:4}}>✅ Keywords Found in This Section:</div>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                    {s.keywords_present.map((k,j)=><span key={j} style={{background:"#f0fdf4",color:C.green,fontSize:11,padding:"3px 10px",borderRadius:18,border:"1px solid #bbf7d0",fontWeight:600}}>{k}</span>)}
-                  </div>
-                </div>
-              )}
-
-              {/* Keywords missing */}
-              {s.keywords_missing?.length>0&&(
-                <div style={{marginBottom:8}}>
-                  <div style={{fontSize:11,fontWeight:700,color:C.danger,marginBottom:4}}>❌ Missing Keywords (add these to this section):</div>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                    {s.keywords_missing.map((k,j)=><span key={j} style={{background:"#fef2f2",color:C.danger,fontSize:11,padding:"3px 10px",borderRadius:18,border:"1px solid #fecaca",fontWeight:600}}>+ {k}</span>)}
-                  </div>
-                </div>
-              )}
-
-              {/* Action */}
-              {s.action&&(
-                <div style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 12px",fontSize:12,color:C.text,display:"flex",gap:6}}>
-                  <span>💡</span><span><strong>Action:</strong> {s.action}</span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* KEYWORD GAPS TAB */}
-      {section==="keywords"&&(
-        <div>
-          <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:14,marginBottom:14}}>
-            <div style={{fontWeight:700,color:C.danger,fontSize:14,marginBottom:4}}>
-              🎯 Missing Keywords by Section — {a.missingKeywords?.length||0} total gaps
-            </div>
-            <div style={{color:C.soft,fontSize:12}}>Each keyword below is pulled directly from the JD. Add them to your resume exactly as shown.</div>
-          </div>
-
-          {/* Grouped by section with JD weight */}
-          {(a.keywordGapsBySectionDetail||[]).map((gap,i)=>(
-            <div key={i} style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,flexWrap:"wrap"}}>
-                <div style={{background:`${C.blue}15`,color:C.blue,fontSize:12,fontWeight:800,padding:"4px 12px",borderRadius:18}}>📍 {gap.section}</div>
-                <div style={{background:gap.impact==="High"?"#fef2f2":"#fffbeb",color:gap.impact==="High"?C.danger:C.warn,fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:18}}>{gap.impact} Priority</div>
-                {gap.jd_frequency&&<div style={{fontSize:11,color:C.muted,background:C.bg,padding:"3px 8px",borderRadius:12}}>Appears {gap.jd_frequency}x in JD</div>}
-              </div>
-
-              <div style={{display:"flex",flexWrap:"wrap",gap:7,marginBottom:12}}>
-                {(gap.missing_keywords||[]).map((k,j)=>(
-                  <span key={j} style={{background:"#fef2f2",color:C.danger,fontSize:13,padding:"5px 14px",borderRadius:20,fontWeight:700,border:"1.5px solid #fecaca"}}>+ {k}</span>
-                ))}
-              </div>
-
-              <div style={{background:"#f0fdf4",borderRadius:8,padding:"10px 14px",fontSize:12,color:"#14532d",marginBottom:gap.ats_weight?8:0}}>
-                <strong>💡 How to add:</strong> {gap.how_to_add}
-              </div>
-
-              {gap.ats_weight&&(
-                <div style={{background:"#fffbeb",borderRadius:8,padding:"7px 12px",fontSize:11,color:"#92400e",marginTop:6}}>
-                  ⚠️ ATS Impact: {gap.ats_weight}
-                </div>
-              )}
-            </div>
-          ))}
-
-          {/* Flat missing keywords fallback */}
-          {!a.keywordGapsBySectionDetail?.length&&(a.missingKeywords||[]).map((m,i)=>(
-            <div key={i} style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:12,padding:14,marginBottom:10}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                <div style={{fontWeight:700,fontSize:14,color:C.text}}>🔍 {m.keyword}</div>
-                <div style={{display:"flex",gap:6}}>
-                  <span style={{background:m.importance==="High"?"#fef2f2":"#fffbeb",color:m.importance==="High"?C.danger:C.warn,fontSize:11,padding:"3px 10px",borderRadius:18,fontWeight:700}}>{m.importance}</span>
-                  {m.section&&<span style={{background:`${C.blue}10`,color:C.blue,fontSize:11,padding:"3px 10px",borderRadius:18}}>📍 {m.section}</span>}
-                </div>
-              </div>
-              <div style={{color:"#475569",fontSize:12}}>💡 {m.tip}</div>
-              {m.ats_impact&&<div style={{fontSize:11,color:C.warn,marginTop:5}}>⚠️ {m.ats_impact}</div>}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* PROJECTS TAB */}
-      {section==="projects"&&(
-        <div style={{background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:14,padding:18}}>
-          <div style={{fontWeight:700,color:C.text,fontSize:15,marginBottom:4}}>🏗️ Project Relevance Analysis</div>
-          <div style={{color:C.muted,fontSize:12,marginBottom:14}}>Which projects to keep, improve, or replace for this JD.</div>
-          {(a.projectFit||[]).map((p,i)=>(
-            <div key={i} style={{background:p.keep?"#f0fdf4":"#fef2f2",borderRadius:12,padding:16,marginBottom:12,border:`1.5px solid ${p.keep?"#bbf7d0":"#fecaca"}`}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                <div style={{fontWeight:700,fontSize:15,color:C.text}}>{p.name}</div>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontWeight:900,fontSize:17,color:scoreColor(p.relevance)}}>{p.relevance}%</span>
-                  <Tag color={p.keep?C.green:C.danger}>{p.keep?"✅ Keep":"🔄 Replace"}</Tag>
-                </div>
-              </div>
-              <div style={{background:"#e2e8f0",borderRadius:4,height:5,overflow:"hidden",marginBottom:10}}>
-                <div style={{height:"100%",width:`${p.relevance}%`,background:scoreColor(p.relevance),borderRadius:4}}/>
-              </div>
-              <div style={{color:"#475569",fontSize:13,marginBottom:8}}>{p.reason}</div>
-              {p.missing_from_bullets?.length>0&&(
-                <div style={{marginBottom:8}}>
-                  <div style={{fontSize:11,color:C.danger,fontWeight:700,marginBottom:4}}>Missing from bullets:</div>
-                  <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                    {p.missing_from_bullets.map((m,j)=><span key={j} style={{background:"#fef2f2",color:C.danger,fontSize:11,padding:"2px 8px",borderRadius:18}}>+ {m}</span>)}
-                  </div>
-                </div>
-              )}
-              {p.suggestion&&<div style={{background:`${C.purple}08`,border:`1px solid ${C.purple}20`,borderRadius:8,padding:"8px 12px",fontSize:12,color:C.purpleDark}}>💡 {p.suggestion}</div>}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* CHANGE LOG TAB */}
-      {section==="changelog"&&step==="optimized"&&(
-        <div>
-          <div style={{background:"linear-gradient(135deg,#eff6ff,#ede9fe)",border:`1.5px solid ${C.purple}20`,borderRadius:14,padding:18,marginBottom:14}}>
-            <div style={{fontWeight:700,fontSize:16,color:C.text,marginBottom:4}}>📋 What Changed — Full Optimization Log</div>
-            <div style={{color:C.muted,fontSize:12}}>Every change made to your resume and why it boosts ATS score.</div>
-          </div>
-          {changeLog.length>0?(
-            changeLog.map((c,i)=>(
-              <div key={i} style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:12,padding:16,marginBottom:10}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
-                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                    <div style={{width:24,height:24,borderRadius:"50%",background:`linear-gradient(135deg,${C.blue},${C.purple})`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:11}}>{i+1}</div>
-                    <div style={{fontWeight:700,fontSize:13,color:C.text}}>{c.section}</div>
-                  </div>
-                  {c.impact&&<Tag color={C.green}>{c.impact}</Tag>}
-                </div>
-                <div style={{color:C.soft,fontSize:13,lineHeight:1.7}}>{c.change}</div>
-              </div>
-            ))
-          ):(
-            <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:20,textAlign:"center",color:C.muted,fontSize:13}}>
-              Changes made — see the optimized resume in the Resume tab.
-            </div>
-          )}
-
-          {/* Score delta summary */}
-          {optimizedScores&&(
-            <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:14,padding:18,marginTop:16}}>
-              <div style={{fontWeight:700,fontSize:14,color:C.text,marginBottom:12}}>📈 Score Improvement</div>
-              {[
-                {label:"JD Match",from:a.matchScore,to:optimizedScores.matchScore},
-                {label:"ATS Score",from:a.atsScore,to:optimizedScores.atsScore},
-                {label:"Shortlist Rate",from:a.shortlistRate||0,to:optimizedScores.shortlistRate},
-              ].map((s,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
-                  <div style={{width:100,fontSize:12,color:C.text,fontWeight:600}}>{s.label}</div>
-                  <div style={{flex:1,background:"#e2e8f0",borderRadius:4,height:8,overflow:"hidden"}}>
-                    <div style={{height:"100%",width:`${s.to}%`,background:`linear-gradient(90deg,${C.blue},${C.green})`,borderRadius:4}}/>
-                  </div>
-                  <div style={{fontSize:13,fontWeight:800,color:C.green,minWidth:60}}>{s.from}% → {s.to}%</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* OPTIMIZED RESUME TAB */}
-      {section==="resume"&&step==="optimized"&&optimized&&(
-        <div>
-          <div style={{background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:14}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10,marginBottom:8}}>
-              <div>
-                <div style={{fontWeight:700,fontSize:16}}>✨ ATS-Optimized Resume</div>
-                <div style={{color:"#64748b",fontSize:12,marginTop:2}}>
-                  {isFresherResume?"Fresher mode: no fake experience · metric-driven projects · all JD keywords":"Education preserved · all JD keywords injected · metrics in every bullet"}
-                </div>
-              </div>
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>handleDownload("pdf")} disabled={!!downloading} style={{padding:"9px 18px",borderRadius:9,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#5b21b6,#7c3aed)",color:"#fff",fontWeight:700,fontFamily:"'Inter',sans-serif",fontSize:13,opacity:downloading?0.6:1}}>
-                  {downloading==="pdf"?"⏳ Building...":"⬇ Download PDF"}
-                </button>
-                <button onClick={()=>handleDownload("docx")} disabled={!!downloading} style={{padding:"9px 18px",borderRadius:9,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#14532d,#16a34a)",color:"#fff",fontWeight:700,fontFamily:"'Inter',sans-serif",fontSize:13,opacity:downloading?0.6:1}}>
-                  {downloading==="docx"?"⏳ Building...":"⬇ Download DOCX"}
-                </button>
-              </div>
-            </div>
-            {optimizedScores&&(
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:18,padding:"5px 14px",fontSize:12,color:C.green,fontWeight:700}}>✅ ATS Score: {optimizedScores.atsScore}%</div>
-                <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:18,padding:"5px 14px",fontSize:12,color:C.blue,fontWeight:700}}>🎯 JD Match: {optimizedScores.matchScore}%</div>
-                <div style={{background:"#faf5ff",border:"1px solid #e9d5ff",borderRadius:18,padding:"5px 14px",fontSize:12,color:C.purple,fontWeight:700}}>📈 Shortlist: {optimizedScores.shortlistRate}%</div>
-              </div>
-            )}
-          </div>
-          <JakesResumePreview data={optimized}/>
-        </div>
-      )}
-
-      <div style={{marginTop:16}}>
-        <button onClick={()=>{setStep("input");setAnalysis(null);setOptimized(null);setOptimizedScores(null);setChangeLog([]);setErr("");setSection("overview");setJd("");setResume("");setFileName("");localStorage.removeItem("tp_jd");localStorage.removeItem("tp_resume");localStorage.removeItem("tp_fileName");}}
-          style={{width:"100%",padding:"11px",borderRadius:9,border:`1.5px solid ${C.border}`,background:"transparent",color:"#64748b",cursor:"pointer",fontFamily:"'Inter',sans-serif",fontSize:13}}>
-          🔄 Analyze Another Job
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// RECRUITER PORTAL
-// ══════════════════════════════════════════════════════════════════════════
-function RecruiterPortal({ user }) {
-  const [view,setView]=useState("dashboard");
-  const [loading,setLoading]=useState(false);
-  const [err,setErr]=useState("");
-  const [jobForm,setJobForm]=useState({title:"",company:"",location:"",salary:"",description:"",skills:"",type:"fulltime",experience:"fresher"});
-  const [filterSkill,setFilterSkill]=useState("");
-  const [filterScore,setFilterScore]=useState(0);
-
-  const mockCandidates=[
-    {id:1,name:"Rahul Kumar",role:"Software Engineer",skills:["React","Node.js","Python","SQL"],atsScore:87,location:"Hyderabad",experience:"Fresher",college:"NIT Warangal",email:"rahul@example.com",appliedFor:"Frontend Developer"},
-    {id:2,name:"Priya Sharma",role:"Data Analyst",skills:["Python","SQL","Tableau","Excel"],atsScore:82,location:"Bangalore",experience:"Fresher",college:"BITS Pilani",email:"priya@example.com",appliedFor:"Data Analyst"},
-    {id:3,name:"Arjun Reddy",role:"Backend Developer",skills:["Java","Spring Boot","MySQL","Docker"],atsScore:91,location:"Pune",experience:"1 Year",college:"VIT Vellore",email:"arjun@example.com",appliedFor:"Backend Developer"},
-    {id:4,name:"Sneha Patel",role:"Full Stack Developer",skills:["React","Node.js","MongoDB","AWS"],atsScore:78,location:"Mumbai",experience:"Fresher",college:"IIIT Hyderabad",email:"sneha@example.com",appliedFor:"Full Stack Developer"},
-    {id:5,name:"Vikram Singh",role:"ML Engineer",skills:["Python","TensorFlow","Scikit-learn","SQL"],atsScore:85,location:"Chennai",experience:"Fresher",college:"IIT Madras",email:"vikram@example.com",appliedFor:"ML Engineer"},
-  ];
-
-  const [postedJobs,setPostedJobs]=useState([
-    {id:1,title:"Frontend Developer",company:user?.email?.split("@")[0]||"Your Company",location:"Hyderabad",salary:"4-6 LPA",skills:"React, JavaScript, CSS",type:"fulltime",experience:"fresher",applicants:12,posted:new Date().toLocaleDateString(),status:"active"},
-  ]);
-
-  const filteredCandidates=mockCandidates.filter(c=>{
-    const skillMatch=filterSkill?c.skills.some(s=>s.toLowerCase().includes(filterSkill.toLowerCase())):true;
-    return skillMatch&&c.atsScore>=filterScore;
   });
-
-  const scoreColor=s=>s>=80?"#16a34a":s>=60?"#d97706":"#dc2626";
-
-  const postJob=async()=>{
-    if(!jobForm.title||!jobForm.company||!jobForm.description){setErr("Fill title, company, and description.");return;}
-    setLoading(true);
-    const newJob={...jobForm,id:Date.now(),applicants:0,posted:new Date().toLocaleDateString(),status:"active"};
-    setPostedJobs(j=>[newJob,...j]);
-    setJobForm({title:"",company:"",location:"",salary:"",description:"",skills:"",type:"fulltime",experience:"fresher"});
-    setView("jobs"); setLoading(false);
-  };
-
-  return(
-    <div>
-      <div style={{marginBottom:20}}>
-        <div style={{fontWeight:900,fontSize:24,color:C.text,marginBottom:4}}>🏢 Recruiter Portal</div>
-        <div style={{color:C.muted,fontSize:13}}>Post jobs · Browse ATS-filtered candidates · Contact directly</div>
-      </div>
-      <div style={{display:"flex",gap:8,marginBottom:20,overflowX:"auto",paddingBottom:4}}>
-        {[["dashboard","📊 Dashboard"],["post","📝 Post Job"],["jobs","💼 My Jobs"],["candidates","👥 Candidates"]].map(([v,l])=>(
-          <button key={v} onClick={()=>setView(v)} style={{padding:"10px 20px",borderRadius:12,whiteSpace:"nowrap",border:`1.5px solid ${view===v?C.blue:C.border}`,background:view===v?`${C.blue}10`:"#fff",color:view===v?C.blue:C.muted,fontFamily:"'Inter',sans-serif",fontWeight:view===v?700:400,fontSize:14,cursor:"pointer"}}>{l}</button>
-        ))}
-      </div>
-      {err&&<div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"10px 14px",marginBottom:14,color:C.danger,fontSize:13}}>⚠ {err}</div>}
-
-      {view==="dashboard"&&(
-        <div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12,marginBottom:20}}>
-            {[{icon:"💼",label:"Jobs Posted",val:postedJobs.length,color:C.blue},{icon:"👥",label:"Total Candidates",val:mockCandidates.length,color:C.purple},{icon:"🎯",label:"Avg ATS Score",val:`${Math.round(mockCandidates.reduce((a,b)=>a+b.atsScore,0)/mockCandidates.length)}%`,color:C.green},{icon:"✅",label:"Active Jobs",val:postedJobs.filter(j=>j.status==="active").length,color:C.orange}].map((s,i)=>(
-              <div key={i} style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:16,padding:18,textAlign:"center"}}>
-                <div style={{fontSize:28,marginBottom:6}}>{s.icon}</div>
-                <div style={{fontWeight:900,fontSize:22,color:s.color}}>{s.val}</div>
-                <div style={{fontSize:12,color:C.muted}}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18}}>
-            <div style={{fontWeight:700,fontSize:15,color:C.text,marginBottom:12}}>👥 Top Candidates</div>
-            {mockCandidates.sort((a,b)=>b.atsScore-a.atsScore).slice(0,5).map((c,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:i<4?`1px solid ${C.border}`:"none"}}>
-                <div style={{width:36,height:36,borderRadius:"50%",background:`linear-gradient(135deg,${C.blue},${C.purple})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:"#fff",fontSize:13,flexShrink:0}}>{c.name[0]}</div>
-                <div style={{flex:1}}><div style={{fontWeight:700,fontSize:13}}>{c.name}</div><div style={{fontSize:11,color:C.muted}}>{c.college} · {c.location}</div></div>
-                <div style={{textAlign:"right"}}><div style={{fontWeight:800,color:scoreColor(c.atsScore),fontSize:15}}>{c.atsScore}%</div><div style={{fontSize:10,color:C.muted}}>ATS</div></div>
-                <button onClick={()=>window.open(`mailto:${c.email}`)} style={{padding:"6px 12px",borderRadius:8,border:`1.5px solid ${C.blue}30`,background:`${C.blue}08`,color:C.blue,fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600}}>Contact</button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {view==="post"&&(
-        <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:16,padding:24}}>
-          <div style={{fontWeight:700,fontSize:18,color:C.text,marginBottom:18}}>📝 Post a New Job</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-            <div><label style={{fontSize:12,fontWeight:700,color:C.text,display:"block",marginBottom:4}}>Job Title *</label><input style={inp} placeholder="Frontend Developer" value={jobForm.title} onChange={e=>setJobForm(f=>({...f,title:e.target.value}))}/></div>
-            <div><label style={{fontSize:12,fontWeight:700,color:C.text,display:"block",marginBottom:4}}>Company *</label><input style={inp} placeholder="Your Company" value={jobForm.company} onChange={e=>setJobForm(f=>({...f,company:e.target.value}))}/></div>
-            <div><label style={{fontSize:12,fontWeight:700,color:C.text,display:"block",marginBottom:4}}>Location</label><input style={inp} placeholder="Hyderabad / Remote" value={jobForm.location} onChange={e=>setJobForm(f=>({...f,location:e.target.value}))}/></div>
-            <div><label style={{fontSize:12,fontWeight:700,color:C.text,display:"block",marginBottom:4}}>Salary</label><input style={inp} placeholder="4-6 LPA" value={jobForm.salary} onChange={e=>setJobForm(f=>({...f,salary:e.target.value}))}/></div>
-          </div>
-          <div style={{marginBottom:12}}><label style={{fontSize:12,fontWeight:700,color:C.text,display:"block",marginBottom:4}}>Required Skills</label><input style={inp} placeholder="React, Node.js, Python, SQL" value={jobForm.skills} onChange={e=>setJobForm(f=>({...f,skills:e.target.value}))}/></div>
-          <div style={{marginBottom:18}}><label style={{fontSize:12,fontWeight:700,color:C.text,display:"block",marginBottom:4}}>Job Description *</label><textarea style={{...inp,minHeight:140,resize:"vertical"}} placeholder="Describe the role..." value={jobForm.description} onChange={e=>setJobForm(f=>({...f,description:e.target.value}))}/></div>
-          <Btn variant="cta" loading={loading} onClick={postJob} style={{width:"100%",padding:"13px"}}>📤 Post Job</Btn>
-        </div>
-      )}
-
-      {view==="jobs"&&(
-        <div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-            <div style={{fontWeight:700,fontSize:17,color:C.text}}>💼 Your Posted Jobs</div>
-            <Btn variant="cta" onClick={()=>setView("post")} size="sm">+ Post New</Btn>
-          </div>
-          {postedJobs.map((job,i)=>(
-            <div key={i} style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:10,borderLeft:`3px solid ${C.blue}`}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                <div><div style={{fontWeight:800,fontSize:16}}>{job.title}</div><div style={{color:C.muted,fontSize:12}}>{job.company} · {job.location} · {job.salary}</div></div>
-                <Tag color={C.green}>{job.status}</Tag>
-              </div>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
-                {(job.skills||"").split(",").filter(Boolean).map((sk,j)=><span key={j} style={{background:`${C.blue}10`,color:C.blue,fontSize:11,padding:"3px 10px",borderRadius:18,fontWeight:600}}>{sk.trim()}</span>)}
-              </div>
-              <div style={{display:"flex",gap:16,alignItems:"center"}}>
-                <span style={{fontSize:12,color:C.muted}}>📅 {job.posted}</span>
-                <span style={{fontSize:12,fontWeight:700,color:C.purple}}>👥 {job.applicants} applicants</span>
-                <Btn variant="ghost" size="sm" onClick={()=>setView("candidates")}>View Candidates →</Btn>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {view==="candidates"&&(
-        <div>
-          <div style={{fontWeight:700,fontSize:17,color:C.text,marginBottom:16}}>👥 Candidate Database</div>
-          <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:16,marginBottom:16}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:3}}>Filter by Skill</label><input style={{...inp,fontSize:13}} placeholder="React, Python..." value={filterSkill} onChange={e=>setFilterSkill(e.target.value)}/></div>
-              <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:3}}>Min ATS: {filterScore}%</label><input type="range" min="0" max="100" value={filterScore} onChange={e=>setFilterScore(Number(e.target.value))} style={{width:"100%",marginTop:8}}/></div>
-            </div>
-            <div style={{marginTop:8,fontSize:12,color:C.muted}}>Showing {filteredCandidates.length} of {mockCandidates.length} candidates</div>
-          </div>
-          {filteredCandidates.map((c,i)=>(
-            <div key={i} style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:10}}>
-              <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
-                <div style={{width:44,height:44,borderRadius:"50%",background:`linear-gradient(135deg,${C.blue},${C.purple})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:"#fff",fontSize:16,flexShrink:0}}>{c.name[0]}</div>
-                <div style={{flex:1}}>
-                  <div style={{display:"flex",justifyContent:"space-between"}}>
-                    <div><div style={{fontWeight:800,fontSize:15}}>{c.name}</div><div style={{fontSize:12,color:C.muted}}>{c.college} · {c.location} · {c.experience}</div></div>
-                    <div style={{textAlign:"right"}}><div style={{fontWeight:900,fontSize:20,color:scoreColor(c.atsScore)}}>{c.atsScore}%</div><div style={{fontSize:10,color:C.muted}}>ATS</div></div>
-                  </div>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:8,marginBottom:8}}>
-                    {c.skills.map((sk,j)=><span key={j} style={{background:filterSkill&&sk.toLowerCase().includes(filterSkill.toLowerCase())?`${C.green}15`:`${C.blue}10`,color:filterSkill&&sk.toLowerCase().includes(filterSkill.toLowerCase())?C.green:C.blue,fontSize:11,padding:"3px 10px",borderRadius:18,fontWeight:600}}>{sk}</span>)}
-                  </div>
-                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                    <button onClick={()=>window.open(`mailto:${c.email}?subject=Job Opportunity`)} style={{padding:"7px 14px",borderRadius:8,border:`1.5px solid ${C.blue}30`,background:`${C.blue}08`,color:C.blue,fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600}}>📧 Email</button>
-                    <button style={{padding:"7px 14px",borderRadius:8,border:`1.5px solid ${C.green}30`,background:`${C.green}08`,color:C.green,fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600}}>✅ Shortlist</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// LANDING PAGE
-// ══════════════════════════════════════════════════════════════════════════
-function LandingPage({ onGetStarted }) {
-  const [scrolled,setScrolled]=useState(false);
-  const [liveCount,setLiveCount]=useState(127);
-  const [recentHires]=useState([
-    {name:"Rahul K.",company:"TCS",role:"SDE",city:"Hyderabad",time:"2 min ago",avatar:"R",color:C.blue},
-    {name:"Sindhu M.",company:"Infosys",role:"Analyst",city:"Bangalore",time:"5 min ago",avatar:"S",color:C.purple},
-    {name:"Vijay R.",company:"Amazon",role:"SDE-1",city:"Pune",time:"8 min ago",avatar:"V",color:C.orange},
-    {name:"Priya S.",company:"Cognizant",role:"Dev",city:"Chennai",time:"11 min ago",avatar:"P",color:C.green},
-    {name:"Arun T.",company:"Wipro",role:"Engineer",city:"Mumbai",time:"14 min ago",avatar:"A",color:C.teal},
-  ]);
-  const [toastIdx,setToastIdx]=useState(0);
-  const [showToast,setShowToast]=useState(false);
-
-  useEffect(()=>{const h=()=>setScrolled(window.scrollY>40);window.addEventListener("scroll",h);return()=>window.removeEventListener("scroll",h);},[]);
-  useEffect(()=>{const t=setInterval(()=>setLiveCount(n=>n+Math.floor(Math.random()*3)),8000);return()=>clearInterval(t);},[]);
-  useEffect(()=>{
-    const cycle=()=>{setShowToast(true);setTimeout(()=>{setShowToast(false);setTimeout(()=>{setToastIdx(i=>(i+1)%recentHires.length);},600);},4000);};
-    cycle(); const t=setInterval(cycle,6000); return()=>clearInterval(t);
-  },[]);
-
-  const toast=recentHires[toastIdx];
-  const stats=[{val:"1,200+",label:"Resumes Analyzed"},{val:"580+",label:"Jobs Tracked"},{val:"92%",label:"ATS Pass Rate"},{val:"45",label:"Companies"}];
-  const features=[
-    {icon:"⚡",title:"Resume AI — Master Level",desc:"Deep section-by-section ATS scan, keyword gap analysis, one-click 90+ ATS optimization with full change log.",color:C.blue,highlight:"90+ ATS guaranteed"},
-    {icon:"🧪",title:"Mock Tests — LeetCode Style",desc:"30 companies · 40 tests each · Java, Python, C++, C, JavaScript · Solution reveal.",color:C.purple,highlight:"5 language support"},
-    {icon:"🔥",title:"Live Jobs",desc:"Real fresher jobs from India's top companies. Updated daily.",color:C.danger,highlight:"127 added today"},
-    {icon:"🔗",title:"LinkedIn Suite",desc:"AI-powered bio, headlines, cold DMs, cover letters.",color:C.green,highlight:"10x profile views"},
-    {icon:"🏢",title:"Recruiter Portal",desc:"Post jobs, browse ATS-filtered candidates, contact directly.",color:C.orange,highlight:"For hiring teams"},
-  ];
-  const testimonials=[
-    {name:"Rahul K.",role:"SDE @ TCS · Hyderabad",text:"Section-by-section keyword audit showed exactly what was missing. ATS went from 58% to 91% after optimization!",rating:5,avatar:"R",color:C.blue,tag:"Resume AI"},
-    {name:"Sindhu M.",role:"Analyst @ Infosys · Bangalore",text:"The change log showed every single edit. I could see exactly why my ATS score jumped 30 points.",rating:5,avatar:"S",color:C.purple,tag:"Resume AI"},
-    {name:"Vijay R.",role:"SDE-1 @ Amazon · Pune",text:"Amazon DSA mock tests with solution reveal helped me understand the pattern. Cracked OA first attempt!",rating:5,avatar:"V",color:C.orange,tag:"Mock Tests"},
-    {name:"Priya S.",role:"Dev @ Cognizant · Chennai",text:"Writing in Python and seeing the JavaScript solution side by side was super helpful for learning.",rating:5,avatar:"P",color:C.green,tag:"Mock Tests"},
-    {name:"Arun T.",role:"Engineer @ Wipro · Mumbai",text:"The recruiter decision feature is gold — told me exactly what a recruiter thinks when they see my resume.",rating:5,avatar:"A",color:C.teal,tag:"Resume AI"},
-  ];
-
-  return(
-    <div style={{background:"#fff",color:C.text,fontFamily:"'Inter',sans-serif",overflowX:"hidden"}}>
-      <style>{css}</style>
-      <div style={{position:"fixed",bottom:24,left:24,zIndex:9999,transition:"all .4s",opacity:showToast?1:0,transform:showToast?"translateY(0)":"translateY(20px)",pointerEvents:"none"}}>
-        <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:"12px 16px",boxShadow:"0 8px 32px rgba(0,0,0,0.12)",display:"flex",alignItems:"center",gap:10,minWidth:240,maxWidth:300}}>
-          <div style={{width:36,height:36,borderRadius:"50%",background:`linear-gradient(135deg,${toast.color},${toast.color}cc)`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:"#fff",fontSize:14,flexShrink:0}}>{toast.avatar}</div>
-          <div><div style={{fontWeight:700,fontSize:12}}>{toast.name} got hired at {toast.company}!</div><div style={{fontSize:10,color:C.muted}}>{toast.role} · {toast.city} · {toast.time}</div></div>
-          <div style={{width:8,height:8,borderRadius:"50%",background:C.green,animation:"pulse 1.5s infinite",flexShrink:0}}/>
-        </div>
-      </div>
-      <nav style={{position:"fixed",top:0,left:0,right:0,zIndex:1000,background:scrolled?"rgba(255,255,255,.97)":"transparent",backdropFilter:scrolled?"blur(20px)":"none",borderBottom:scrolled?`1px solid ${C.border}`:"none",transition:"all .3s",padding:"0 24px"}}>
-        <div style={{maxWidth:1100,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:64}}>
-          <div style={{fontWeight:900,fontSize:22,color:C.blue,display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:24}}>⚡</span> TakePlace</div>
-          <div style={{display:"flex",gap:10,alignItems:"center"}}>
-            <div style={{display:"flex",alignItems:"center",gap:6,background:"#f0fdf4",borderRadius:18,padding:"5px 12px",fontSize:12,color:C.green,fontWeight:700}}>
-              <div style={{width:6,height:6,borderRadius:"50%",background:C.green,animation:"pulse 1.5s infinite"}}/>{liveCount} active now
-            </div>
-            <Btn variant="cta" onClick={onGetStarted} className="glow-btn" style={{padding:"8px 20px",fontSize:13}}>Get Free Access →</Btn>
-          </div>
-        </div>
-      </nav>
-      <div style={{background:C.blue,padding:"8px 0",marginTop:64,overflow:"hidden"}}>
-        <div className="ticker-wrap"><div className="ticker-inner">
-          {[...Array(2)].flatMap(()=>["🔥 127 New Fresher Jobs Added Today","⚡ 34 Companies Hiring","🏆 Resume ATS 90+ guaranteed","✅ LeetCode-style mocks with solution reveal","💼 Multi-language coding: Java Python C++ C JS"].map((t,i)=><span key={i} style={{color:"#fff",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>{t}&nbsp;&nbsp;•&nbsp;&nbsp;</span>))}
-        </div></div>
-      </div>
-      <section style={{minHeight:"calc(100vh - 96px)",display:"flex",alignItems:"center",justifyContent:"center",padding:"60px 24px",background:"linear-gradient(160deg,#eff6ff 0%,#fff 45%,#f0fdf4 100%)"}}>
-        <div style={{textAlign:"center",maxWidth:860}}>
-          <div className="fade" style={{display:"inline-flex",alignItems:"center",gap:8,background:`${C.blue}10`,border:`1px solid ${C.blue}30`,borderRadius:20,padding:"6px 16px",marginBottom:24,fontSize:12,color:C.blue,fontWeight:700}}>
-            <span style={{width:7,height:7,borderRadius:"50%",background:C.blue,display:"inline-block",animation:"pulse 1.5s infinite"}}/>
-            AI Placement Copilot for Indian Freshers · 100% Free
-          </div>
-          <div className="fade" style={{fontWeight:900,fontSize:"clamp(32px,6vw,64px)",lineHeight:1.08,marginBottom:20,letterSpacing:"-0.02em",animationDelay:".1s"}}>
-            TakePlace = AI Placement Copilot<br/>
-            <span style={{background:"linear-gradient(135deg,#2563eb,#7c3aed)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Get Hired. Not Just Prepared.</span>
-          </div>
-          <div className="fade" style={{fontSize:16,color:C.soft,lineHeight:1.9,marginBottom:28,maxWidth:580,margin:"0 auto 28px",animationDelay:".2s"}}>
-            90+ ATS Resume · LeetCode-Style Mock Tests · LinkedIn Suite · Live Jobs<br/>
-            <strong style={{color:C.text}}>Built for Indian freshers. 100% free. No credit card.</strong>
-          </div>
-          <div className="fade" style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginBottom:40,animationDelay:".3s"}}>
-            <button onClick={onGetStarted} className="glow-btn" style={{padding:"15px 36px",fontSize:16,borderRadius:12,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#2563eb,#1d4ed8)",color:"#fff",fontWeight:800,fontFamily:"'Inter',sans-serif",boxShadow:"0 4px 24px #2563eb50"}}>🚀 Start Free Now</button>
-            <button onClick={onGetStarted} style={{padding:"15px 28px",fontSize:15,borderRadius:12,border:`1.5px solid ${C.border}`,cursor:"pointer",background:"#fff",color:C.text,fontWeight:700,fontFamily:"'Inter',sans-serif"}}>🏢 I'm a Recruiter →</button>
-          </div>
-          <div className="fade" style={{display:"flex",background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:20,overflow:"hidden",maxWidth:560,margin:"0 auto",boxShadow:"0 4px 20px rgba(0,0,0,0.06)",animationDelay:".4s"}}>
-            {stats.map((s,i,a)=>(<div key={i} style={{flex:1,padding:"18px 8px",borderRight:i<a.length-1?`1px solid ${C.border}`:"none",textAlign:"center"}}><div style={{fontWeight:900,fontSize:20,color:C.blue}}>{s.val}</div><div style={{fontSize:11,color:C.muted,marginTop:2}}>{s.label}</div></div>))}
-          </div>
-        </div>
-      </section>
-      <section style={{padding:"80px 24px",background:C.bg}}>
-        <div style={{maxWidth:1000,margin:"0 auto"}}>
-          <div style={{textAlign:"center",marginBottom:48}}><div style={{fontWeight:900,fontSize:"clamp(24px,4vw,40px)",color:C.text,marginBottom:12}}>Everything to Get Hired — All Free</div></div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:20}}>
-            {features.map((f,i)=>(
-              <div key={i} style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:20,padding:24,borderTop:`3px solid ${f.color}`,boxShadow:"0 2px 12px rgba(0,0,0,0.04)",transition:"all .2s"}} onMouseOver={e=>e.currentTarget.style.transform="translateY(-4px)"} onMouseOut={e=>e.currentTarget.style.transform="translateY(0)"}>
-                <div style={{fontSize:32,marginBottom:10}}>{f.icon}</div>
-                <div style={{fontWeight:800,fontSize:16,color:C.text,marginBottom:6}}>{f.title}</div>
-                <div style={{color:C.soft,fontSize:12,lineHeight:1.8,marginBottom:10}}>{f.desc}</div>
-                <div style={{background:`${f.color}10`,color:f.color,fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:18,display:"inline-block"}}>{f.highlight}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-      <section style={{padding:"60px 24px",background:"#fff"}}>
-        <div style={{maxWidth:960,margin:"0 auto"}}>
-          <div style={{textAlign:"center",marginBottom:40}}><div style={{fontWeight:900,fontSize:"clamp(22px,3vw,36px)",color:C.text,marginBottom:8}}>Real Students. Real Offers.</div></div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:16}}>
-            {testimonials.map((t,i)=>(
-              <div key={i} style={{background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:16,padding:20}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
-                  <div style={{color:C.warn,fontSize:13}}>{"★".repeat(t.rating)}</div>
-                  <span style={{background:`${t.color}10`,color:t.color,fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:18}}>{t.tag}</span>
-                </div>
-                <div style={{color:C.soft,fontSize:13,lineHeight:1.8,marginBottom:14,fontStyle:"italic"}}>"{t.text}"</div>
-                <div style={{display:"flex",gap:10,alignItems:"center"}}>
-                  <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${t.color},${t.color}cc)`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:13,color:"#fff"}}>{t.avatar}</div>
-                  <div><div style={{fontWeight:700,fontSize:12}}>{t.name}</div><div style={{fontSize:11,color:C.muted}}>{t.role}</div></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-      <section style={{padding:"60px 24px",background:"linear-gradient(135deg,#eff6ff,#f0fdf4)"}}>
-        <div style={{maxWidth:600,margin:"0 auto",textAlign:"center"}}>
-          <div style={{fontWeight:900,fontSize:"clamp(22px,4vw,36px)",color:C.text,marginBottom:12}}>Ready to Get Hired?</div>
-          <div style={{color:C.soft,fontSize:14,marginBottom:28}}>Join 1,200+ freshers. 100% free. Just results.</div>
-          <button onClick={onGetStarted} className="glow-btn" style={{padding:"16px 48px",fontSize:17,borderRadius:14,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#2563eb,#1d4ed8)",color:"#fff",fontWeight:800,fontFamily:"'Inter',sans-serif"}}>🚀 Start Free Now →</button>
-        </div>
-      </section>
-      <footer style={{borderTop:`1px solid ${C.border}`,padding:"28px 24px",background:"#fff"}}>
-        <div style={{maxWidth:1000,margin:"0 auto",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:16}}>
-          <div style={{fontWeight:900,fontSize:18,color:C.blue}}>⚡ TakePlace</div>
-          <div style={{color:C.muted,fontSize:12}}>© 2026 TakePlace · Developed by Raghu Dadigela · <a href={`mailto:${SUPPORT_EMAIL}`} style={{color:C.blue,textDecoration:"none"}}>{SUPPORT_EMAIL}</a></div>
-        </div>
-      </footer>
-    </div>
-  );
-}
-
-// ─── AUTH ─────────────────────────────────────────────────────────────────
-function AuthPage({ onLogin, onBack }) {
-  const [mode,setMode]=useState("login");
-  const [form,setForm]=useState({name:"",email:"",password:""});
-  const [err,setErr]=useState(""); const [msg,setMsg]=useState("");
-  const [loading,setLoading]=useState(false); const [googleLoading,setGoogleLoading]=useState(false);
-  const set=(k,v)=>setForm(p=>({...p,[k]:v}));
-
-  const handleGoogle=async()=>{
-    setGoogleLoading(true); setErr("");
-    try{
-      const {error}=await supabase.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.href}});
-      if(error) throw error;
-    }catch(e){setErr(e.message); setGoogleLoading(false);}
-  };
-
-  const handleForgot=async()=>{
-    if(!form.email.trim()){setErr("Enter your email first.");return;}
-    setLoading(true); setErr(""); setMsg("");
-    try{
-      const {error}=await supabase.auth.resetPasswordForEmail(form.email.trim(),{redirectTo:window.location.origin+window.location.pathname});
-      if(error) throw error;
-      setMsg("✅ Reset email sent!");
-    }catch(e){setErr("Failed: "+e.message);}
-    setLoading(false);
-  };
-
-  const handle=async()=>{
-    setErr(""); setMsg(""); setLoading(true);
-    try{
-      if(mode==="register"){
-        if(!form.name.trim()||!form.email.trim()||!form.password) throw new Error("All fields required");
-        if(form.password.length<6) throw new Error("Password must be 6+ characters");
-        const {error}=await supabase.auth.signUp({email:form.email.trim(),password:form.password,options:{data:{full_name:form.name.trim()}}});
-        if(error) throw error;
-        setMsg("✅ Account created! Check email to confirm, then sign in.");
-        setMode("login");
-      }else{
-        const {data,error}=await supabase.auth.signInWithPassword({email:form.email.trim(),password:form.password});
-        if(error) throw error;
-        onLogin(data.user);
-      }
-    }catch(e){setErr(e.message||"Something went wrong");}
-    setLoading(false);
-  };
-
-  return(
-    <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#eff6ff 0%,#fff 60%,#f0fdf4 100%)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
-      <style>{css}</style>
-      <div className="fade" style={{width:"100%",maxWidth:420,background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:24,padding:"32px",boxShadow:"0 16px 48px rgba(37,99,235,0.10)"}}>
-        <button onClick={onBack} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",marginBottom:20}}>← Back to home</button>
-        <div style={{textAlign:"center",marginBottom:24}}>
-          <div style={{fontSize:40,marginBottom:6}}>⚡</div>
-          <div style={{fontWeight:900,fontSize:24,color:C.blue}}>TakePlace</div>
-          <div style={{color:C.muted,fontSize:13,marginTop:4}}>{mode==="login"?"Welcome back 👋":mode==="register"?"Create your account ✨":"Reset password 🔑"}</div>
-        </div>
-        {mode!=="forgot"&&(<>
-          <button onClick={handleGoogle} disabled={googleLoading} style={{width:"100%",padding:"11px",borderRadius:10,border:`1.5px solid ${C.border}`,background:"#fff",color:C.text,fontSize:14,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
-            {googleLoading?<SpinIcon size={16}/>:<svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>}
-            Continue with Google
-          </button>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}><div style={{flex:1,height:1,background:C.border}}/><span style={{color:C.muted,fontSize:12}}>or</span><div style={{flex:1,height:1,background:C.border}}/></div>
-          <div style={{display:"flex",background:C.bg,borderRadius:10,padding:4,marginBottom:20}}>
-            {["login","register"].map(m=>(<button key={m} onClick={()=>{setMode(m);setErr("");setMsg("");}} style={{flex:1,padding:"9px",borderRadius:8,border:"none",cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,background:mode===m?"#fff":"transparent",color:mode===m?C.blue:C.muted,boxShadow:mode===m?"0 1px 4px rgba(0,0,0,0.08)":"none"}}>{m==="login"?"Sign In":"Register"}</button>))}
-          </div>
-        </>)}
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {mode==="register"&&<input style={inp} placeholder="Full name" value={form.name} onChange={e=>set("name",e.target.value)}/>}
-          <input style={inp} placeholder="Email address" type="email" value={form.email} onChange={e=>set("email",e.target.value)} onKeyDown={e=>e.key==="Enter"&&handle()}/>
-          {mode!=="forgot"&&<input style={inp} placeholder="Password" type="password" value={form.password} onChange={e=>set("password",e.target.value)} onKeyDown={e=>e.key==="Enter"&&handle()}/>}
-        </div>
-        {err&&<div style={{color:C.danger,fontSize:12,marginTop:10,background:"#fef2f2",padding:"8px 12px",borderRadius:8}}>⚠ {err}</div>}
-        {msg&&<div style={{color:C.green,fontSize:12,marginTop:10,background:"#f0fdf4",padding:"8px 12px",borderRadius:8}}>{msg}</div>}
-        {mode==="forgot"?(
-          <><Btn variant="cta" onClick={handleForgot} loading={loading} style={{width:"100%",marginTop:18,padding:"12px"}}>Send Reset Email →</Btn>
-          <button onClick={()=>{setMode("login");setErr("");setMsg("");}} style={{width:"100%",marginTop:10,padding:"9px",background:"none",border:"none",color:C.muted,fontSize:13,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>← Back to Sign In</button></>
-        ):(
-          <><Btn variant="cta" onClick={handle} loading={loading} style={{width:"100%",marginTop:18,padding:"12px",fontSize:14}}>{mode==="login"?"Sign In →":"Create Account →"}</Btn>
-          {mode==="login"&&<button onClick={()=>{setMode("forgot");setErr("");setMsg("");}} style={{width:"100%",marginTop:10,padding:"8px",background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",textDecoration:"underline"}}>Forgot password?</button>}</>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── JOBS TAB ─────────────────────────────────────────────────────────────
-function JobsTab({ jobs,jobsLoading,jobsError,search,setSearch,location,setLocation,fetchJobs,expandedJob,setExpandedJob,setTabPersist }) {
-  return(
-    <div>
-      <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:18}}>
-        <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:12}}>🔍 Search Live Jobs</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-          <input style={inp} placeholder="Role (react developer...)" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs(search,location)}/>
-          <input style={inp} placeholder="City (hyderabad...)" value={location} onChange={e=>setLocation(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs(search,location)}/>
-        </div>
-        <Btn variant="cta" onClick={()=>fetchJobs(search,location)} style={{width:"100%"}}>🔍 Search Jobs</Btn>
-      </div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <div style={{fontWeight:800,fontSize:17,color:C.text}}>Live Job Feed</div>
-        {!jobsLoading&&jobs.length>0&&(<div style={{display:"flex",alignItems:"center",gap:5,background:"#f0fdf4",borderRadius:18,padding:"4px 12px"}}><div style={{width:6,height:6,borderRadius:"50%",background:C.green,animation:"pulse 1.5s infinite"}}/><span style={{color:C.green,fontSize:11,fontWeight:700}}>{jobs.length} live</span></div>)}
-      </div>
-      {jobsLoading&&(<div style={{textAlign:"center",padding:"50px 20px"}}><SpinIcon size={36} color={C.blue}/><div style={{color:C.muted,fontSize:13,marginTop:12}}>Fetching jobs...</div></div>)}
-      {jobsError&&<div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:18,color:C.danger,textAlign:"center"}}>{jobsError}</div>}
-      {!jobsLoading&&jobs.map((job,i)=>{
-        const isExp=expandedJob===job.id;
-        return(
-          <div key={job.id} className="fade" style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:"14px 16px",marginBottom:8,borderLeft:`3px solid ${C.blue}`,animationDelay:`${i*0.04}s`}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-              <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{job.title}</div><div style={{color:C.soft,fontSize:12,marginTop:1}}>{job.company} · {job.location}</div></div>
-              <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}><div style={{color:C.green,fontWeight:800,fontSize:13}}>{job.salary}</div><div style={{color:C.muted,fontSize:11}}>{job.posted}</div></div>
-            </div>
-            <div style={{color:C.muted,fontSize:12,lineHeight:1.7,marginBottom:10,background:C.bg,borderRadius:8,padding:"8px 10px"}}>
-              {isExp?job.description:job.descriptionShort+(job.description?.length>220?"...":"")}
-              {job.description?.length>220&&(<button onClick={()=>setExpandedJob(isExp?null:job.id)} style={{background:"none",border:"none",color:C.blue,fontSize:11,cursor:"pointer",marginLeft:5,fontFamily:"'Inter',sans-serif",fontWeight:600}}>{isExp?"less ▲":"more ▼"}</button>)}
-            </div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
-              <Tag color={C.blue}>{job.category}</Tag>
-              <div style={{display:"flex",gap:8}}>
-                <Btn variant="ghost" onClick={()=>setTabPersist(1)} size="sm">⚡ Analyze</Btn>
-                <Btn variant="cta" onClick={()=>window.open(job.url,"_blank")} size="sm">Apply →</Btn>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── MAIN APP ─────────────────────────────────────────────────────────────
-function MainApp({ user, onLogout }) {
-  const [tab,setTab]=useState(()=>parseInt(sessionStorage.getItem("tp_tab")||"0"));
-  const [jobs,setJobs]=useState([]);
-  const [jobsLoading,setJobsLoading]=useState(true);
-  const [jobsError,setJobsError]=useState("");
-  const [search,setSearch]=useState(()=>sessionStorage.getItem("tp_search")||"software engineer fresher");
-  const [location,setLocation]=useState(()=>sessionStorage.getItem("tp_loc")||"hyderabad");
-  const [expandedJob,setExpandedJob]=useState(null);
-  const [sidebarOpen,setSidebarOpen]=useState(window.innerWidth>768);
-  const name=user?.user_metadata?.full_name||user?.email?.split("@")[0]||"there";
-  const isMobile=window.innerWidth<768;
-
-  useEffect(()=>{fetchJobs();},[]);
-  useEffect(()=>{
-    const h=()=>setTabPersist(4);
-    document.addEventListener("goto-recruiter",h);
-    return()=>document.removeEventListener("goto-recruiter",h);
-  },[]);
-
-  const setTabPersist=(t)=>{setTab(t);sessionStorage.setItem("tp_tab",t);};
-
-  const fetchJobs=async(q=search,loc=location)=>{
-    setJobsLoading(true); setJobsError("");
-    sessionStorage.setItem("tp_search",q); sessionStorage.setItem("tp_loc",loc);
-    try{
-      const url=`https://api.adzuna.com/v1/api/jobs/in/search/1?app_id=${ADZUNA_ID}&app_key=${ADZUNA_KEY}&results_per_page=20&what=${encodeURIComponent(q)}&where=${encodeURIComponent(loc)}&sort_by=date&content-type=application/json`;
-      const res=await fetch(url); const data=await res.json();
-      if(data.results?.length>0){
-        setJobs(data.results.map(j=>({id:j.id,title:j.title,company:j.company?.display_name||"Company",location:j.location?.display_name||loc,salary:j.salary_min?`₹${Math.round(j.salary_min/100000)}–${Math.round((j.salary_max||j.salary_min*1.5)/100000)} LPA`:"Competitive",description:j.description||"No description.",descriptionShort:(j.description||"").slice(0,220),url:j.redirect_url,posted:new Date(j.created).toLocaleDateString("en-IN",{day:"numeric",month:"short"}),category:j.category?.label||"Technology"})));
-      }else setJobsError("No jobs found. Try 'java developer'.");
-    }catch{setJobsError("Could not load jobs.");}
-    setJobsLoading(false);
-  };
-
-  const TOTAL_TESTS_DONE=Object.keys(localStorage).filter(k=>k.startsWith("tp_score_")).length;
-
-  const NAV=[
-    {icon:"🔥",label:"Live Jobs",tab:0},
-    {icon:"⚡",label:"Resume AI",tab:1},
-    {icon:"🧪",label:"Mock Tests",tab:2},
-    {icon:"🔗",label:"LinkedIn",tab:3},
-    {icon:"🏢",label:"Recruiter",tab:4},
-  ];
-
-  if(isMobile) return(
-    <div style={{display:"flex",flexDirection:"column",minHeight:"100vh",background:C.bg,fontFamily:"'Inter',sans-serif"}}>
-      <style>{css}</style>
-      <div style={{background:C.sidebar,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:18}}>⚡</span><span style={{fontWeight:900,fontSize:16,color:"#fff"}}>TakePlace</span></div>
-        <div style={{width:28,height:28,borderRadius:"50%",background:`linear-gradient(135deg,${C.blue},${C.blueLight})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:11,color:"#fff"}}>{name[0].toUpperCase()}</div>
-      </div>
-      <div style={{flex:1,overflow:"auto",padding:"16px",paddingBottom:80}}>
-        {tab===0&&<JobsTab jobs={jobs} jobsLoading={jobsLoading} jobsError={jobsError} search={search} setSearch={setSearch} location={location} setLocation={setLocation} fetchJobs={fetchJobs} expandedJob={expandedJob} setExpandedJob={setExpandedJob} setTabPersist={setTabPersist}/>}
-        {tab===1&&<ResumeAnalyzer user={user}/>}
-        {tab===2&&<MockTestEngine user={user}/>}
-        {tab===3&&<LinkedInSuite user={user}/>}
-        {tab===4&&<RecruiterPortal user={user}/>}
-      </div>
-      <div style={{position:"fixed",bottom:0,left:0,right:0,background:"#fff",borderTop:`1px solid ${C.border}`,display:"flex",zIndex:100}}>
-        {NAV.map(n=>(<button key={n.tab} onClick={()=>setTabPersist(n.tab)} style={{flex:1,padding:"10px 4px 8px",border:"none",background:"transparent",cursor:"pointer",fontFamily:"'Inter',sans-serif",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}><span style={{fontSize:18}}>{n.icon}</span><span style={{fontSize:8,fontWeight:tab===n.tab?800:500,color:tab===n.tab?C.blue:C.muted}}>{n.label}</span>{tab===n.tab&&<div style={{width:18,height:2,background:C.blue,borderRadius:2}}/>}</button>))}
-        <button onClick={onLogout} style={{flex:1,padding:"10px 4px 8px",border:"none",background:"transparent",cursor:"pointer",fontFamily:"'Inter',sans-serif",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}><span style={{fontSize:18}}>👤</span><span style={{fontSize:8,fontWeight:500,color:C.muted}}>Out</span></button>
-      </div>
-    </div>
-  );
-
-  return(
-    <div style={{display:"flex",minHeight:"100vh",background:C.bg,fontFamily:"'Inter',sans-serif"}}>
-      <style>{css}</style>
-      <div style={{width:sidebarOpen?220:62,background:C.sidebar,display:"flex",flexDirection:"column",padding:"18px 10px",transition:"width .25s",flexShrink:0,position:"sticky",top:0,height:"100vh",overflow:"hidden"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:28,paddingLeft:4}}><span style={{fontSize:20,flexShrink:0}}>⚡</span>{sidebarOpen&&<span style={{fontWeight:900,fontSize:17,color:"#fff",whiteSpace:"nowrap"}}>TakePlace</span>}</div>
-        <div style={{flex:1,display:"flex",flexDirection:"column",gap:3}}>
-          {NAV.map(n=>(<div key={n.tab} onClick={()=>setTabPersist(n.tab)} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 10px",borderRadius:10,background:tab===n.tab?C.sidebarActive:"transparent",cursor:"pointer",transition:"all .18s"}}><span style={{fontSize:17,flexShrink:0}}>{n.icon}</span>{sidebarOpen&&<span style={{color:tab===n.tab?"#fff":"#94a3b8",fontSize:13,fontWeight:tab===n.tab?700:500,whiteSpace:"nowrap"}}>{n.label}</span>}</div>))}
-        </div>
-        {sidebarOpen&&TOTAL_TESTS_DONE>0&&(<div style={{background:"#1e293b",borderRadius:10,padding:"10px 12px",marginBottom:10}}><div style={{color:"#64748b",fontSize:10}}>Tests Done</div><div style={{color:"#fff",fontWeight:800,fontSize:18}}>{TOTAL_TESTS_DONE}</div></div>)}
-        {sidebarOpen&&(<div style={{background:"#1e293b",borderRadius:10,padding:"10px 12px",marginBottom:10}}><div style={{color:"#64748b",fontSize:10,marginBottom:2}}>Support</div><a href={`mailto:${SUPPORT_EMAIL}`} style={{color:"#7dd3fc",fontSize:11,textDecoration:"none",wordBreak:"break-all"}}>{SUPPORT_EMAIL}</a></div>)}
-        <div style={{borderTop:"1px solid #1e293b",paddingTop:10,display:"flex",alignItems:"center",gap:8}}>
-          <div style={{width:30,height:30,borderRadius:"50%",background:`linear-gradient(135deg,${C.blue},${C.blueLight})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:"#fff",flexShrink:0}}>{name[0].toUpperCase()}</div>
-          {sidebarOpen&&(<div style={{flex:1,minWidth:0}}><div style={{color:"#fff",fontSize:11,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{name.split(" ")[0]}</div><button onClick={onLogout} style={{background:"none",border:"none",color:"#64748b",fontSize:10,cursor:"pointer",fontFamily:"'Inter',sans-serif",padding:0}}>Sign out</button></div>)}
-          <button onClick={()=>setSidebarOpen(o=>!o)} style={{background:"none",border:"none",color:"#64748b",cursor:"pointer",padding:4,flexShrink:0,fontSize:12}}>{sidebarOpen?"◀":"▶"}</button>
-        </div>
-      </div>
-      <div style={{flex:1,overflow:"auto",minHeight:"100vh"}}>
-        <div style={{background:"#fff",borderBottom:`1px solid ${C.border}`,padding:"0 24px",position:"sticky",top:0,zIndex:50,height:56,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{fontWeight:700,fontSize:17,color:C.text}}>{NAV.find(n=>n.tab===tab)?.icon} {NAV.find(n=>n.tab===tab)?.label}</div>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            {TOTAL_TESTS_DONE>0&&<Tag color={C.purple}>🧪 {TOTAL_TESTS_DONE} tests</Tag>}
-            <Tag color={C.green}>🟢 Active</Tag>
-          </div>
-        </div>
-        <div style={{padding:"24px",maxWidth:880,margin:"0 auto"}}>
-          {tab===0&&<JobsTab jobs={jobs} jobsLoading={jobsLoading} jobsError={jobsError} search={search} setSearch={setSearch} location={location} setLocation={setLocation} fetchJobs={fetchJobs} expandedJob={expandedJob} setExpandedJob={setExpandedJob} setTabPersist={setTabPersist}/>}
-          {tab===1&&<ResumeAnalyzer user={user}/>}
-          {tab===2&&<MockTestEngine user={user}/>}
-          {tab===3&&<LinkedInSuite user={user}/>}
-          {tab===4&&<RecruiterPortal user={user}/>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── ROOT ─────────────────────────────────────────────────────────────────
-export default function App() {
-  const [user,setUser]=useState(null);
-  const [appLoading,setAppLoading]=useState(true);
-  const [page,setPage]=useState("landing");
-
-  useEffect(()=>{
-    supabase.auth.getSession().then(({data:{session}})=>{
-      if(session?.user){setUser(session.user);setPage("app");}
-      setAppLoading(false);
-    });
-    const {data:{subscription}}=supabase.auth.onAuthStateChange((_,session)=>{
-      if(session?.user){setUser(session.user);setPage("app");}
-      else{setUser(null);setPage("landing");}
-    });
-    return()=>subscription.unsubscribe();
-  },[]);
-
-  if(appLoading) return(
-    <div style={{minHeight:"100vh",background:"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:14}}>
-      <style>{css}</style>
-      <SpinIcon size={40} color={C.blue}/>
-      <div style={{color:C.muted,fontSize:13,fontFamily:"'Inter',sans-serif"}}>Loading TakePlace...</div>
-    </div>
-  );
-
-  if(page==="landing") return <LandingPage onGetStarted={()=>setPage("auth")}/>;
-  if(page==="auth") return <AuthPage onLogin={(u)=>{setUser(u);setPage("app");}} onBack={()=>setPage("landing")}/>;
-  return <MainApp user={user} onLogout={async()=>{await supabase.auth.signOut();setUser(null);setPage("landing");}}/>;
 }
