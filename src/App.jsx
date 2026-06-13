@@ -2410,3 +2410,33 @@ function runCodeJS(code, testCases) {
     }
   });
 }
+// ─── ROOT ─────────────────────────────────────────────────────────────────
+export default function App() {
+  const [user,setUser]=useState(null);
+  const [appLoading,setAppLoading]=useState(true);
+  const [page,setPage]=useState("landing");
+
+  useEffect(()=>{
+    supabase.auth.getSession().then(({data:{session}})=>{
+      if(session?.user){setUser(session.user);setPage("app");}
+      setAppLoading(false);
+    });
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((_,session)=>{
+      if(session?.user){setUser(session.user);setPage("app");}
+      else{setUser(null);setPage("landing");}
+    });
+    return()=>subscription.unsubscribe();
+  },[]);
+
+  if(appLoading) return(
+    <div style={{minHeight:"100vh",background:"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:14}}>
+      <style>{css}</style>
+      <SpinIcon size={40} color={C.blue}/>
+      <div style={{color:C.muted,fontSize:13,fontFamily:"'Inter',sans-serif"}}>Loading TakePlace...</div>
+    </div>
+  );
+
+  if(page==="landing") return <LandingPage onGetStarted={()=>setPage("auth")}/>;
+  if(page==="auth") return <AuthPage onLogin={(u)=>{setUser(u);setPage("app");}} onBack={()=>setPage("landing")}/>;
+  return <MainApp user={user} onLogout={async()=>{await supabase.auth.signOut();setUser(null);setPage("landing");}}/>;
+}
