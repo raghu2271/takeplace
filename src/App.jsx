@@ -2399,6 +2399,7 @@ const LANGUAGES = [
 ];
 
 function runCodeJS(code, testCases) {
+  
   return testCases.map(tc=>{
     try{
       const fn=new Function("input",`${code}\nif(typeof solution==='function') return String(solution(input)).trim();\nreturn 'No function named solution found';`);
@@ -2409,6 +2410,646 @@ function runCodeJS(code, testCases) {
       return{input:tc.input,expected:String(tc.output).trim(),got:null,error:e.message,pass:false};
     }
   });
+}
+// ─── LANDING PAGE ──────────────────────────────────────────────────────────
+function LandingPage({ onGetStarted }) {
+  return (
+    <div style={{minHeight:"100vh",background:`linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%)`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"'Inter',sans-serif"}}>
+      <style>{css}</style>
+      <div className="fade" style={{textAlign:"center",maxWidth:640}}>
+        <div style={{fontSize:48,marginBottom:16}}>🎯</div>
+        <h1 style={{fontSize:48,fontWeight:900,color:"#fff",marginBottom:12,lineHeight:1.1}}>
+          Take<span style={{color:C.blue}}>Place</span>
+        </h1>
+        <p style={{fontSize:18,color:"#94a3b8",marginBottom:8,fontWeight:500}}>
+          India's #1 Company-Specific Interview Prep Platform
+        </p>
+        <p style={{fontSize:14,color:"#64748b",marginBottom:40}}>
+          Mock tests · Aptitude · Coding · Resume · Jobs — all in one place
+        </p>
+        <div style={{display:"flex",flexWrap:"wrap",gap:10,justifyContent:"center",marginBottom:40}}>
+          {["🏢 45+ Companies","📝 Mock Aptitude Tests","💻 Coding Practice","📄 AI Resume Builder","💼 Job Board"].map(f=>(
+            <span key={f} style={{background:"#1e293b",border:"1px solid #334155",color:"#cbd5e1",padding:"6px 16px",borderRadius:20,fontSize:13,fontWeight:600}}>{f}</span>
+          ))}
+        </div>
+        <Btn variant="cta" size="lg" onClick={onGetStarted} style={{fontSize:16,padding:"16px 48px",borderRadius:14}}>
+          Get Started Free →
+        </Btn>
+        <p style={{color:"#475569",fontSize:12,marginTop:16}}>No credit card required · Free forever for students</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── AUTH PAGE ─────────────────────────────────────────────────────────────
+function AuthPage({ onLogin, onBack }) {
+  const [mode, setMode] = useState("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [msg, setMsg] = useState("");
+
+  const handle = async () => {
+    setError(""); setMsg(""); setLoading(true);
+    try {
+      if (mode === "login") {
+        const { data, error: e } = await supabase.auth.signInWithPassword({ email, password });
+        if (e) throw e;
+        onLogin(data.user);
+      } else if (mode === "signup") {
+        const { data, error: e } = await supabase.auth.signUp({ email, password, options: { data: { name } } });
+        if (e) throw e;
+        if (data.user && !data.session) setMsg("Check your email to confirm your account!");
+        else if (data.user) onLogin(data.user);
+      } else {
+        const { error: e } = await supabase.auth.resetPasswordForEmail(email);
+        if (e) throw e;
+        setMsg("Password reset email sent!");
+      }
+    } catch (e) { setError(e.message); }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"#0f172a",display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"'Inter',sans-serif"}}>
+      <style>{css}</style>
+      <div className="fade" style={{background:"#1e293b",borderRadius:20,padding:40,width:"100%",maxWidth:400,border:"1px solid #334155"}}>
+        <button onClick={onBack} style={{background:"none",border:"none",color:"#64748b",cursor:"pointer",fontSize:13,marginBottom:20,fontFamily:"'Inter',sans-serif"}}>← Back</button>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{fontSize:32,marginBottom:8}}>🎯</div>
+          <h2 style={{color:"#fff",fontWeight:800,fontSize:24,margin:0}}>TakePlace</h2>
+          <p style={{color:"#64748b",fontSize:13,marginTop:4}}>
+            {mode==="login"?"Welcome back!":mode==="signup"?"Create your account":"Reset password"}
+          </p>
+        </div>
+        {error && <div style={{background:"#dc262620",border:"1px solid #dc2626",color:"#fca5a5",padding:"10px 14px",borderRadius:8,fontSize:13,marginBottom:16}}>{error}</div>}
+        {msg   && <div style={{background:"#16a34a20",border:"1px solid #16a34a",color:"#86efac",padding:"10px 14px",borderRadius:8,fontSize:13,marginBottom:16}}>{msg}</div>}
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          {mode==="signup" && (
+            <input placeholder="Full Name" value={name} onChange={e=>setName(e.target.value)}
+              style={{...inp,background:"#0f172a",border:"1.5px solid #334155",color:"#fff"}}/>
+          )}
+          <input placeholder="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)}
+            style={{...inp,background:"#0f172a",border:"1.5px solid #334155",color:"#fff"}}
+            onKeyDown={e=>e.key==="Enter"&&handle()}/>
+          {mode!=="forgot" && (
+            <input placeholder="Password" type="password" value={password} onChange={e=>setPassword(e.target.value)}
+              style={{...inp,background:"#0f172a",border:"1.5px solid #334155",color:"#fff"}}
+              onKeyDown={e=>e.key==="Enter"&&handle()}/>
+          )}
+          <Btn onClick={handle} loading={loading} style={{width:"100%",justifyContent:"center"}}>
+            {mode==="login"?"Sign In":mode==="signup"?"Create Account":"Send Reset Email"}
+          </Btn>
+        </div>
+        <div style={{textAlign:"center",marginTop:20,display:"flex",flexDirection:"column",gap:8}}>
+          {mode==="login" && <>
+            <button onClick={()=>{setMode("signup");setError("");}} style={{background:"none",border:"none",color:C.blue,cursor:"pointer",fontSize:13,fontFamily:"'Inter',sans-serif"}}>Don't have an account? Sign up</button>
+            <button onClick={()=>{setMode("forgot");setError("");}} style={{background:"none",border:"none",color:"#64748b",cursor:"pointer",fontSize:12,fontFamily:"'Inter',sans-serif"}}>Forgot password?</button>
+          </>}
+          {mode!=="login" && (
+            <button onClick={()=>{setMode("login");setError("");}} style={{background:"none",border:"none",color:C.blue,cursor:"pointer",fontSize:13,fontFamily:"'Inter',sans-serif"}}>Already have an account? Sign in</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN APP ──────────────────────────────────────────────────────────────
+function MainApp({ user, onLogout }) {
+  const [tab, setTab] = useState("home");
+  const [selectedCompany, setSelectedCompany] = useState(null);
+
+  const navItems = [
+    { id:"home",      icon:"🏠", label:"Home" },
+    { id:"companies", icon:"🏢", label:"Companies" },
+    { id:"coding",    icon:"💻", label:"Coding" },
+    { id:"resume",    icon:"📄", label:"Resume" },
+    { id:"jobs",      icon:"💼", label:"Jobs" },
+  ];
+
+  return (
+    <div style={{display:"flex",minHeight:"100vh",background:C.bg,fontFamily:"'Inter',sans-serif"}}>
+      <style>{css}</style>
+      <div style={{width:220,background:C.sidebar,display:"flex",flexDirection:"column",padding:"24px 12px",gap:4,position:"fixed",top:0,left:0,height:"100vh",zIndex:100}}>
+        <div style={{color:"#fff",fontWeight:900,fontSize:20,padding:"0 12px",marginBottom:24}}>🎯 TakePlace</div>
+        {navItems.map(n=>(
+          <button key={n.id} onClick={()=>setTab(n.id)}
+            style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:10,border:"none",
+              cursor:"pointer",fontFamily:"'Inter',sans-serif",fontSize:14,fontWeight:600,textAlign:"left",
+              background:tab===n.id?C.sidebarActive:"transparent",
+              color:tab===n.id?"#fff":"#94a3b8",transition:"all .2s"}}>
+            <span>{n.icon}</span>{n.label}
+          </button>
+        ))}
+        <div style={{marginTop:"auto"}}>
+          <div style={{color:"#475569",fontSize:12,padding:"0 14px",marginBottom:8,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user?.email}</div>
+          <button onClick={onLogout}
+            style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:10,border:"none",
+              cursor:"pointer",fontFamily:"'Inter',sans-serif",fontSize:14,fontWeight:600,
+              background:"transparent",color:"#64748b",width:"100%"}}>
+            🚪 Sign Out
+          </button>
+        </div>
+      </div>
+      <div style={{marginLeft:220,flex:1,padding:32,minHeight:"100vh"}}>
+        {tab==="home"      && <HomeTab user={user} onNavigate={setTab} onSelectCompany={(c)=>{setSelectedCompany(c);setTab("companies");}}/>}
+        {tab==="companies" && <CompaniesTab selectedCompany={selectedCompany} onSelectCompany={setSelectedCompany} user={user}/>}
+        {tab==="coding"    && <CodingTab user={user}/>}
+        {tab==="resume"    && <ResumeTab user={user}/>}
+        {tab==="jobs"      && <JobsTab user={user}/>}
+      </div>
+    </div>
+  );
+}
+
+// ─── HOME TAB ──────────────────────────────────────────────────────────────
+function HomeTab({ user, onNavigate, onSelectCompany }) {
+  const name = user?.user_metadata?.name || user?.email?.split("@")[0] || "there";
+  const topCompanies = ["tcs","infosys","wipro","amazon","microsoft","google","flipkart","cognizant"];
+  return (
+    <div className="fade">
+      <div style={{marginBottom:32}}>
+        <h1 style={{fontSize:28,fontWeight:800,color:C.text,margin:0}}>Hey {name}! 👋</h1>
+        <p style={{color:C.muted,marginTop:6,fontSize:15}}>Ready to crack your dream company? Let's get started.</p>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:16,marginBottom:32}}>
+        {[{label:"Companies",val:"45+",icon:"🏢",color:C.blue},{label:"Questions",val:"500+",icon:"❓",color:C.purple},{label:"Coding Problems",val:"80+",icon:"💻",color:C.green},{label:"Students",val:"10K+",icon:"🎓",color:C.orange}].map(s=>(
+          <div key={s.label} style={{background:C.card,borderRadius:14,padding:20,border:`1px solid ${C.border}`,textAlign:"center"}}>
+            <div style={{fontSize:28,marginBottom:6}}>{s.icon}</div>
+            <div style={{fontSize:24,fontWeight:800,color:s.color}}>{s.val}</div>
+            <div style={{fontSize:12,color:C.muted,fontWeight:600}}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+      <h2 style={{fontSize:18,fontWeight:700,color:C.text,marginBottom:16}}>Popular Companies</h2>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:14,marginBottom:32}}>
+        {topCompanies.map(key=>{ const co=ALL_COMPANIES[key]; return (
+          <div key={key} className="hover-card" onClick={()=>onSelectCompany(key)}
+            style={{background:C.card,borderRadius:14,padding:18,border:`1px solid ${C.border}`,cursor:"pointer"}}>
+            <div style={{fontSize:28,marginBottom:8}}>{co.emoji}</div>
+            <div style={{fontWeight:700,color:C.text,fontSize:15}}>{co.name}</div>
+            <div style={{fontSize:12,color:C.muted,marginTop:4}}>{co.full}</div>
+            <Tag color={co.type==="product"?C.purple:C.blue}>{co.type==="product"?"Product":"Service"}</Tag>
+          </div>
+        );})}
+      </div>
+      <h2 style={{fontSize:18,fontWeight:700,color:C.text,marginBottom:16}}>Quick Actions</h2>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14}}>
+        {[{icon:"💻",title:"Practice Coding",desc:"80+ DSA problems",action:()=>onNavigate("coding")},{icon:"📄",title:"Build Resume",desc:"AI-powered resume builder",action:()=>onNavigate("resume")},{icon:"💼",title:"Find Jobs",desc:"Latest openings",action:()=>onNavigate("jobs")},{icon:"🏢",title:"All Companies",desc:"45+ company tests",action:()=>onNavigate("companies")}].map(a=>(
+          <div key={a.title} className="hover-card" onClick={a.action}
+            style={{background:C.card,borderRadius:14,padding:20,border:`1px solid ${C.border}`,cursor:"pointer"}}>
+            <div style={{fontSize:28,marginBottom:8}}>{a.icon}</div>
+            <div style={{fontWeight:700,color:C.text,fontSize:15}}>{a.title}</div>
+            <div style={{fontSize:12,color:C.muted,marginTop:4}}>{a.desc}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── COMPANIES TAB ─────────────────────────────────────────────────────────
+function CompaniesTab({ selectedCompany, onSelectCompany, user }) {
+  const [view, setView] = useState(selectedCompany?"detail":"list");
+  const [company, setCompany] = useState(selectedCompany);
+  const [mode, setMode] = useState(null);
+  const [filter, setFilter] = useState("all");
+
+  useEffect(()=>{ if(selectedCompany){setCompany(selectedCompany);setView("detail");setMode(null);} },[selectedCompany]);
+
+  if(view==="list") return (
+    <div className="fade">
+      <h1 style={{fontSize:26,fontWeight:800,color:C.text,marginBottom:6}}>Companies</h1>
+      <p style={{color:C.muted,marginBottom:24}}>Choose a company to start practicing</p>
+      <div style={{display:"flex",gap:10,marginBottom:24,flexWrap:"wrap"}}>
+        {["all","service","product"].map(f=>(
+          <Btn key={f} variant={filter===f?"primary":"ghost"} size="sm" onClick={()=>setFilter(f)}>
+            {f==="all"?"All":f==="service"?"Service":"Product"}
+          </Btn>
+        ))}
+      </div>
+      {["service","product"].filter(t=>filter==="all"||filter===t).map(type=>(
+        <div key={type} style={{marginBottom:32}}>
+          <h2 style={{fontSize:16,fontWeight:700,color:C.muted,marginBottom:14,textTransform:"uppercase",letterSpacing:1}}>
+            {type==="service"?"🏢 Service Companies":"🚀 Product Companies"}
+          </h2>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14}}>
+            {Object.entries(type==="service"?SERVICE_COMPANIES:PRODUCT_COMPANIES).map(([key,co])=>(
+              <div key={key} className="hover-card"
+                onClick={()=>{setCompany(key);setView("detail");setMode(null);onSelectCompany(key);}}
+                style={{background:C.card,borderRadius:14,padding:18,border:`1px solid ${C.border}`}}>
+                <div style={{fontSize:28,marginBottom:8}}>{co.emoji}</div>
+                <div style={{fontWeight:700,color:C.text}}>{co.name}</div>
+                <div style={{fontSize:11,color:C.muted,marginTop:3}}>{co.full}</div>
+                <div style={{fontSize:11,color:C.soft,marginTop:6,lineHeight:1.4}}>{co.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const co = ALL_COMPANIES[company];
+  if(!co) return null;
+
+  if(view==="detail"&&!mode) return (
+    <div className="fade">
+      <button onClick={()=>{setView("list");setMode(null);}} style={{background:"none",border:"none",color:C.blue,cursor:"pointer",fontSize:14,marginBottom:20,fontFamily:"'Inter',sans-serif",fontWeight:600}}>← All Companies</button>
+      <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:28}}>
+        <span style={{fontSize:48}}>{co.emoji}</span>
+        <div><h1 style={{fontSize:28,fontWeight:800,color:C.text,margin:0}}>{co.name}</h1><p style={{color:C.muted,margin:"4px 0 0"}}>{co.desc}</p></div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,maxWidth:600}}>
+        <div className="hover-card" onClick={()=>setMode("aptitude")} style={{background:C.card,borderRadius:16,padding:28,border:`2px solid ${C.border}`,textAlign:"center"}}>
+          <div style={{fontSize:36,marginBottom:12}}>📝</div>
+          <h3 style={{fontWeight:800,color:C.text,margin:"0 0 8px"}}>Aptitude Test</h3>
+          <p style={{color:C.muted,fontSize:13,margin:0}}>MCQ questions specific to {co.name}'s exam pattern</p>
+          <Btn style={{marginTop:16,width:"100%"}} onClick={()=>setMode("aptitude")}>Start Test</Btn>
+        </div>
+        <div className="hover-card" onClick={()=>setMode("coding")} style={{background:C.card,borderRadius:16,padding:28,border:`2px solid ${C.border}`,textAlign:"center"}}>
+          <div style={{fontSize:36,marginBottom:12}}>💻</div>
+          <h3 style={{fontWeight:800,color:C.text,margin:"0 0 8px"}}>Coding Practice</h3>
+          <p style={{color:C.muted,fontSize:13,margin:0}}>DSA problems asked in {co.name}'s interviews</p>
+          <Btn style={{marginTop:16,width:"100%"}} onClick={()=>setMode("coding")}>Practice</Btn>
+        </div>
+      </div>
+    </div>
+  );
+
+  if(mode==="aptitude") return <AptitudeTest company={company} onBack={()=>setMode(null)}/>;
+  if(mode==="coding")   return <CodingTab company={company} onBack={()=>setMode(null)} user={user}/>;
+  return null;
+}
+
+// ─── APTITUDE TEST ─────────────────────────────────────────────────────────
+function AptitudeTest({ company, onBack }) {
+  const co = ALL_COMPANIES[company];
+  const allQs = getAptQuestions(company);
+  const [started, setStarted] = useState(false);
+  const [questions, setQuestions] = useState([]);
+  const [current, setCurrent] = useState(0);
+  const [selected, setSelected] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const timerRef = useRef(null);
+  const NUM_Q = 20, TIME = NUM_Q*90;
+
+  const start = () => {
+    const shuffled=[...allQs].sort(()=>Math.random()-0.5).slice(0,Math.min(NUM_Q,allQs.length));
+    setQuestions(shuffled); setSelected({}); setCurrent(0); setSubmitted(false); setTimeLeft(TIME); setStarted(true);
+  };
+
+  useEffect(()=>{
+    if(started&&!submitted){
+      timerRef.current=setInterval(()=>setTimeLeft(t=>{ if(t<=1){clearInterval(timerRef.current);setSubmitted(true);return 0;} return t-1; }),1000);
+    }
+    return()=>clearInterval(timerRef.current);
+  },[started,submitted]);
+
+  const submit=()=>{clearInterval(timerRef.current);setSubmitted(true);};
+
+  if(!started) return (
+    <div className="fade">
+      <button onClick={onBack} style={{background:"none",border:"none",color:C.blue,cursor:"pointer",fontSize:14,marginBottom:20,fontFamily:"'Inter',sans-serif",fontWeight:600}}>← Back</button>
+      <div style={{maxWidth:500}}>
+        <div style={{fontSize:48,marginBottom:12}}>{co.emoji}</div>
+        <h1 style={{fontSize:26,fontWeight:800,color:C.text,margin:"0 0 8px"}}>{co.name} Aptitude Test</h1>
+        <p style={{color:C.muted,marginBottom:24}}>{co.desc}</p>
+        <div style={{background:C.card,borderRadius:14,padding:20,border:`1px solid ${C.border}`,marginBottom:24}}>
+          {[["Questions",`${Math.min(NUM_Q,allQs.length)} MCQs`],["Time",`${Math.round(TIME/60)} minutes`],["Negative Marking","None"],["Pattern",co.full]].map(([k,v])=>(
+            <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}`}}>
+              <span style={{color:C.muted,fontSize:14}}>{k}</span><span style={{fontWeight:700,color:C.text,fontSize:14}}>{v}</span>
+            </div>
+          ))}
+        </div>
+        <Btn size="lg" onClick={start} style={{width:"100%"}}>Start Test 🚀</Btn>
+      </div>
+    </div>
+  );
+
+  if(submitted){
+    const score=questions.reduce((s,q,i)=>s+(selected[i]===q.ans?1:0),0);
+    const pct=Math.round((score/questions.length)*100);
+    return (
+      <div className="fade">
+        <h2 style={{fontSize:24,fontWeight:800,color:C.text,marginBottom:4}}>Test Complete! 🎉</h2>
+        <div style={{background:C.card,borderRadius:16,padding:28,border:`1px solid ${C.border}`,marginBottom:24,maxWidth:400}}>
+          <div style={{fontSize:48,fontWeight:900,color:pct>=70?C.green:pct>=40?C.warn:C.danger,textAlign:"center"}}>{pct}%</div>
+          <div style={{textAlign:"center",color:C.muted,marginBottom:16}}>{score}/{questions.length} correct</div>
+          <div style={{height:8,background:C.card2,borderRadius:4}}>
+            <div style={{height:"100%",width:`${pct}%`,background:pct>=70?C.green:pct>=40?C.warn:C.danger,borderRadius:4,transition:"width 1s"}}/>
+          </div>
+        </div>
+        <div style={{maxWidth:700}}>
+          {questions.map((q,i)=>{ const correct=selected[i]===q.ans; return (
+            <div key={i} style={{background:C.card,borderRadius:12,padding:18,marginBottom:12,border:`1.5px solid ${correct?"#16a34a":"#dc2626"}`}}>
+              <div style={{fontWeight:600,color:C.text,marginBottom:10,fontSize:14}}>{i+1}. {q.q}</div>
+              {q.opts.map((opt,j)=>(
+                <div key={j} style={{padding:"6px 12px",borderRadius:8,marginBottom:4,fontSize:13,
+                  background:j===q.ans?"#16a34a15":j===selected[i]&&!correct?"#dc262615":"transparent",
+                  color:j===q.ans?C.green:j===selected[i]&&!correct?C.danger:C.soft,
+                  fontWeight:j===q.ans||j===selected[i]?700:400}}>
+                  {j===q.ans?"✓ ":j===selected[i]&&!correct?"✗ ":""}{opt}
+                </div>
+              ))}
+              <div style={{fontSize:12,color:C.muted,marginTop:8,padding:"8px 12px",background:C.card2,borderRadius:8}}>💡 {q.exp}</div>
+            </div>
+          );})}
+        </div>
+        <div style={{display:"flex",gap:12,marginTop:16}}>
+          <Btn onClick={start}>Retake Test</Btn>
+          <Btn variant="ghost" onClick={onBack}>Back</Btn>
+        </div>
+      </div>
+    );
+  }
+
+  const q=questions[current];
+  const mins=Math.floor(timeLeft/60).toString().padStart(2,"0");
+  const secs=(timeLeft%60).toString().padStart(2,"0");
+
+  return (
+    <div className="fade" style={{maxWidth:700}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
+        <div style={{fontWeight:700,color:C.text}}>{co.emoji} {co.name} Aptitude</div>
+        <div className={timeLeft<60?"timer-warn":""} style={{background:timeLeft<60?C.danger:C.blue,color:"#fff",padding:"6px 16px",borderRadius:20,fontWeight:700,fontSize:14}}>⏱ {mins}:{secs}</div>
+      </div>
+      <div style={{height:6,background:C.card2,borderRadius:3,marginBottom:24}}>
+        <div style={{height:"100%",width:`${((current+1)/questions.length)*100}%`,background:C.blue,borderRadius:3,transition:"width .3s"}}/>
+      </div>
+      <div style={{background:C.card,borderRadius:16,padding:28,border:`1px solid ${C.border}`,marginBottom:20}}>
+        <div style={{fontSize:12,color:C.muted,fontWeight:600,marginBottom:8}}>Question {current+1} of {questions.length} · {q.topic}</div>
+        <div style={{fontSize:16,fontWeight:600,color:C.text,lineHeight:1.6,marginBottom:20}}>{q.q}</div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {q.opts.map((opt,i)=>(
+            <button key={i} onClick={()=>setSelected(s=>({...s,[current]:i}))}
+              style={{padding:"12px 16px",borderRadius:10,border:`2px solid ${selected[current]===i?C.blue:C.border}`,
+                background:selected[current]===i?`${C.blue}15`:"#fff",color:C.text,cursor:"pointer",
+                textAlign:"left",fontFamily:"'Inter',sans-serif",fontSize:14,fontWeight:selected[current]===i?700:400,transition:"all .15s"}}>
+              <span style={{color:C.blue,fontWeight:700,marginRight:8}}>{String.fromCharCode(65+i)}.</span>{opt}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <Btn variant="ghost" onClick={()=>setCurrent(c=>Math.max(0,c-1))} disabled={current===0}>← Prev</Btn>
+        <span style={{color:C.muted,fontSize:13}}>{Object.keys(selected).length}/{questions.length} answered</span>
+        {current<questions.length-1?<Btn onClick={()=>setCurrent(c=>c+1)}>Next →</Btn>:<Btn variant="green" onClick={submit}>Submit Test ✓</Btn>}
+      </div>
+    </div>
+  );
+}
+
+// ─── CODING TAB ────────────────────────────────────────────────────────────
+function CodingTab({ company, onBack, user }) {
+  const [difficulty, setDifficulty] = useState("easy");
+  const [selected, setSelected] = useState(null);
+  const [lang, setLang] = useState("javascript");
+  const [code, setCode] = useState("");
+  const [results, setResults] = useState(null);
+  const [showSolution, setShowSolution] = useState(false);
+
+  const allProblems = CODING_BANK[difficulty]||[];
+  const problems = company ? allProblems.filter(p=>p.companies.includes(company)) : allProblems;
+
+  const selectProblem = (p) => { setSelected(p); setCode(LANGUAGES.find(l=>l.id===lang)?.template||""); setResults(null); setShowSolution(false); };
+
+  const runCode = () => {
+    if(!selected||lang!=="javascript"){setResults([{pass:false,error:"Live execution supports JavaScript only."}]);return;}
+    try { setResults(runCodeJS(code,selected.testCases)); } catch(e){setResults([{pass:false,error:e.message}]);}
+  };
+
+  if(selected) return (
+    <div className="fade">
+      <button onClick={()=>setSelected(null)} style={{background:"none",border:"none",color:C.blue,cursor:"pointer",fontSize:14,marginBottom:20,fontFamily:"'Inter',sans-serif",fontWeight:600}}>← Problem List</button>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,minHeight:"70vh"}}>
+        <div style={{background:C.card,borderRadius:14,padding:24,border:`1px solid ${C.border}`,overflowY:"auto",maxHeight:"80vh"}}>
+          <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+            <Tag color={selected.difficulty==="Easy"?C.green:selected.difficulty==="Medium"?C.warn:C.danger}>{selected.difficulty}</Tag>
+            <Tag color={C.purple}>{selected.topic}</Tag>
+          </div>
+          <h2 style={{fontWeight:800,color:C.text,marginBottom:16,fontSize:18}}>{selected.title}</h2>
+          <pre style={{whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif",fontSize:14,color:C.soft,lineHeight:1.7,marginBottom:16}}>{selected.description}</pre>
+          <h4 style={{color:C.text,marginBottom:8}}>Examples:</h4>
+          {selected.examples.map((ex,i)=>(
+            <div key={i} style={{background:C.card2,borderRadius:8,padding:12,marginBottom:8,fontSize:13}}>
+              <div><b>Input:</b> <code>{ex.input}</code></div>
+              <div><b>Output:</b> <code>{ex.output}</code></div>
+            </div>
+          ))}
+          {selected.hint&&<div style={{background:`${C.warn}15`,border:`1px solid ${C.warn}30`,borderRadius:8,padding:12,marginTop:12,fontSize:13,color:C.warn}}>💡 {selected.hint}</div>}
+          <div style={{marginTop:16,fontSize:12,color:C.muted}}>⏱ {selected.time_complexity} · 💾 {selected.space_complexity}</div>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {LANGUAGES.map(l=>(
+              <Btn key={l.id} size="sm" variant={lang===l.id?"primary":"ghost"} onClick={()=>{setLang(l.id);setCode(l.template);setResults(null);}}>
+                {l.icon} {l.label}
+              </Btn>
+            ))}
+          </div>
+          <textarea className="code-editor" value={code} onChange={e=>setCode(e.target.value)}
+            style={{flex:1,minHeight:320,background:"#0f172a",color:"#e2e8f0",border:`1px solid ${C.border}`,borderRadius:12,padding:16,resize:"vertical",outline:"none"}}/>
+          <div style={{display:"flex",gap:10}}>
+            <Btn onClick={runCode} variant="green">▶ Run Code</Btn>
+            <Btn variant="ghost" onClick={()=>setShowSolution(s=>!s)}>{showSolution?"Hide":"Show"} Solution</Btn>
+          </div>
+          {showSolution&&(
+            <div style={{background:"#0f172a",borderRadius:12,padding:16,border:`1px solid ${C.border}`}}>
+              <div style={{color:C.muted,fontSize:12,marginBottom:8}}>Solution ({lang}):</div>
+              <pre style={{color:"#e2e8f0",fontSize:12,margin:0,whiteSpace:"pre-wrap",fontFamily:"'JetBrains Mono',monospace"}}>
+                {selected[`solution_${lang==="javascript"?"js":lang==="python"?"py":lang==="java"?"java":"cpp"}`]||selected.solution_js}
+              </pre>
+            </div>
+          )}
+          {results&&(
+            <div style={{background:C.card,borderRadius:12,padding:16,border:`1px solid ${C.border}`}}>
+              <div style={{fontWeight:700,color:C.text,marginBottom:10}}>Results: {results.filter(r=>r.pass).length}/{results.length} passed</div>
+              {results.map((r,i)=>(
+                <div key={i} style={{padding:"8px 12px",borderRadius:8,marginBottom:6,fontSize:12,background:r.pass?"#16a34a15":"#dc262615",border:`1px solid ${r.pass?"#16a34a":"#dc2626"}30`}}>
+                  <span style={{fontWeight:700,color:r.pass?C.green:C.danger}}>{r.pass?"✓":"✗"} Test {i+1}</span>
+                  {!r.pass&&<span style={{color:C.muted,marginLeft:8}}>Expected: {r.expected} | Got: {r.error||r.got}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="fade">
+      {onBack&&<button onClick={onBack} style={{background:"none",border:"none",color:C.blue,cursor:"pointer",fontSize:14,marginBottom:20,fontFamily:"'Inter',sans-serif",fontWeight:600}}>← Back</button>}
+      <h1 style={{fontSize:26,fontWeight:800,color:C.text,marginBottom:6}}>{company?`${ALL_COMPANIES[company]?.name} Coding`:"Coding Practice"}</h1>
+      <p style={{color:C.muted,marginBottom:20}}>Practice DSA problems with live code execution</p>
+      <div style={{display:"flex",gap:10,marginBottom:24}}>
+        {["easy","medium","hard"].map(d=>(
+          <Btn key={d} size="sm" variant={difficulty===d?"primary":"ghost"} onClick={()=>setDifficulty(d)}>
+            {d==="easy"?"🟢":d==="medium"?"🟡":"🔴"} {d.charAt(0).toUpperCase()+d.slice(1)}
+          </Btn>
+        ))}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14}}>
+        {(problems.length?problems:allProblems).map(p=>(
+          <div key={p.id} className="hover-card" onClick={()=>selectProblem(p)}
+            style={{background:C.card,borderRadius:14,padding:20,border:`1px solid ${C.border}`}}>
+            <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+              <Tag color={p.difficulty==="Easy"?C.green:p.difficulty==="Medium"?C.warn:C.danger}>{p.difficulty}</Tag>
+              <Tag color={C.purple}>{p.topic}</Tag>
+            </div>
+            <div style={{fontWeight:700,color:C.text,marginBottom:6}}>{p.title}</div>
+            <div style={{fontSize:12,color:C.muted}}>⏱ {p.time_complexity}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── RESUME TAB ────────────────────────────────────────────────────────────
+function ResumeTab({ user }) {
+  const [resumeText, setResumeText] = useState("");
+  const [jobRole, setJobRole] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState("");
+  const [activeSection, setActiveSection] = useState("upload");
+
+  const analyze = async () => {
+    if(!resumeText.trim()) return;
+    setLoading(true); setResult("");
+    try {
+      const res = await callAI(`Analyze this resume for a ${jobRole||"software engineer"} role. Give: 1) Score/10, 2) Top 3 strengths, 3) Top 3 improvements, 4) ATS keywords to add.\n\nResume:\n${resumeText.slice(0,3000)}`,1500);
+      setResult(res);
+    } catch(e){setResult("Error: "+e.message);}
+    setLoading(false);
+  };
+
+  return (
+    <div className="fade">
+      <h1 style={{fontSize:26,fontWeight:800,color:C.text,marginBottom:6}}>AI Resume Builder</h1>
+      <p style={{color:C.muted,marginBottom:24}}>Get AI-powered feedback and improve your resume</p>
+      <div style={{display:"flex",gap:10,marginBottom:24}}>
+        {["upload","analyze","tips"].map(s=>(
+          <Btn key={s} size="sm" variant={activeSection===s?"primary":"ghost"} onClick={()=>setActiveSection(s)}>
+            {s==="upload"?"📤 Upload":s==="analyze"?"🔍 Analyze":"💡 Tips"}
+          </Btn>
+        ))}
+      </div>
+      {activeSection==="upload"&&(
+        <div style={{maxWidth:600}}>
+          <div style={{background:C.card,borderRadius:14,padding:24,border:`1px solid ${C.border}`,marginBottom:16}}>
+            <h3 style={{fontWeight:700,color:C.text,marginBottom:12}}>Paste Your Resume</h3>
+            <textarea value={resumeText} onChange={e=>setResumeText(e.target.value)} placeholder="Paste your resume text here..."
+              style={{...inp,minHeight:300,resize:"vertical",fontFamily:"'Inter',sans-serif"}}/>
+          </div>
+          <input placeholder="Target job role (e.g. Software Engineer)" value={jobRole} onChange={e=>setJobRole(e.target.value)} style={{...inp,marginBottom:16}}/>
+          <Btn onClick={()=>{setActiveSection("analyze");analyze();}} disabled={!resumeText.trim()} style={{width:"100%"}}>Analyze Resume →</Btn>
+        </div>
+      )}
+      {activeSection==="analyze"&&(
+        <div style={{maxWidth:700}}>
+          {!result&&!loading&&(
+            <div style={{marginBottom:16}}>
+              <textarea value={resumeText} onChange={e=>setResumeText(e.target.value)} placeholder="Paste your resume..."
+                style={{...inp,minHeight:200,resize:"vertical",fontFamily:"'Inter',sans-serif",marginBottom:12}}/>
+              <input placeholder="Target job role" value={jobRole} onChange={e=>setJobRole(e.target.value)} style={{...inp,marginBottom:12}}/>
+              <Btn onClick={analyze} loading={loading} disabled={!resumeText.trim()}>Analyze with AI</Btn>
+            </div>
+          )}
+          {loading&&<div style={{display:"flex",gap:12,alignItems:"center",color:C.muted}}><SpinIcon/>Analyzing your resume...</div>}
+          {result&&(
+            <div style={{background:C.card,borderRadius:14,padding:24,border:`1px solid ${C.border}`}}>
+              <h3 style={{fontWeight:700,color:C.text,marginBottom:16}}>Analysis Results</h3>
+              <pre style={{whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif",fontSize:14,color:C.soft,lineHeight:1.7}}>{result}</pre>
+              <div style={{display:"flex",gap:10,marginTop:16}}>
+                <Btn onClick={()=>{setResult("");analyze();}}>Re-analyze</Btn>
+                <Btn variant="ghost" onClick={()=>setResult("")}>Clear</Btn>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {activeSection==="tips"&&(
+        <div style={{maxWidth:700,display:"grid",gap:16}}>
+          {[{icon:"🎯",title:"ATS Optimization",tips:["Use exact keywords from job description","Avoid tables and graphics","Use standard section headings","Save as PDF"]},{icon:"📊",title:"Quantify Achievements",tips:["Add numbers: 'Improved performance by 40%'","Mention team sizes","Include project impact","Use action verbs"]},{icon:"💻",title:"Tech Resume Essentials",tips:["List tech stack prominently","Include GitHub/portfolio links","Show projects with outcomes","Highlight relevant coursework"]},{icon:"📝",title:"Format & Structure",tips:["Keep to 1 page for freshers","Use consistent formatting","Reverse chronological order","Clear contact info at top"]}].map(s=>(
+            <div key={s.title} style={{background:C.card,borderRadius:14,padding:20,border:`1px solid ${C.border}`}}>
+              <h3 style={{fontWeight:700,color:C.text,marginBottom:12}}>{s.icon} {s.title}</h3>
+              {s.tips.map(t=>(
+                <div key={t} style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:8,fontSize:14,color:C.soft}}>
+                  <span style={{color:C.green,flexShrink:0}}>✓</span>{t}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── JOBS TAB ──────────────────────────────────────────────────────────────
+function JobsTab({ user }) {
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("software engineer");
+  const [searched, setSearched] = useState(false);
+
+  const fetchJobs = async () => {
+    setLoading(true); setSearched(true);
+    try {
+      const res = await fetch(`https://api.adzuna.com/v1/api/jobs/in/search/1?app_id=${ADZUNA_ID}&app_key=${ADZUNA_KEY}&results_per_page=20&what=${encodeURIComponent(search)}&content-type=application/json`);
+      const data = await res.json();
+      setJobs(data.results||[]);
+    } catch(e) {
+      setJobs([
+        {id:"1",title:"Software Engineer",company:{display_name:"TCS"},location:{display_name:"Bangalore"},salary_min:600000,salary_max:1200000,redirect_url:"#",description:"Looking for software engineers with 0-2 years experience..."},
+        {id:"2",title:"Data Analyst",company:{display_name:"Infosys"},location:{display_name:"Hyderabad"},salary_min:500000,salary_max:900000,redirect_url:"#",description:"Data analyst role for freshers..."},
+        {id:"3",title:"Frontend Developer",company:{display_name:"Wipro"},location:{display_name:"Pune"},salary_min:550000,salary_max:1000000,redirect_url:"#",description:"React developer with 1+ year experience..."},
+      ]);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="fade">
+      <h1 style={{fontSize:26,fontWeight:800,color:C.text,marginBottom:6}}>Job Board</h1>
+      <p style={{color:C.muted,marginBottom:24}}>Find the latest openings at top companies</p>
+      <div style={{display:"flex",gap:12,marginBottom:28,maxWidth:600}}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}
+          placeholder="Search jobs..." style={{...inp,flex:1}}/>
+        <Btn onClick={fetchJobs} loading={loading}>Search</Btn>
+      </div>
+      {!searched&&(
+        <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:24}}>
+          {["Software Engineer","Data Analyst","Frontend Developer","Backend Developer","DevOps","Machine Learning"].map(r=>(
+            <button key={r} onClick={()=>setSearch(r)} style={{background:C.card,border:`1px solid ${C.border}`,color:C.soft,padding:"6px 14px",borderRadius:20,cursor:"pointer",fontSize:13,fontFamily:"'Inter',sans-serif"}}>{r}</button>
+          ))}
+        </div>
+      )}
+      {loading&&<div style={{display:"flex",gap:12,alignItems:"center",color:C.muted}}><SpinIcon/>Searching jobs...</div>}
+      <div style={{display:"grid",gap:14}}>
+        {jobs.map(job=>(
+          <div key={job.id} style={{background:C.card,borderRadius:14,padding:20,border:`1px solid ${C.border}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8}}>
+              <div>
+                <h3 style={{fontWeight:700,color:C.text,margin:"0 0 4px",fontSize:16}}>{job.title}</h3>
+                <div style={{color:C.muted,fontSize:13}}>{job.company?.display_name} · {job.location?.display_name}</div>
+              </div>
+              {job.salary_min&&<Tag color={C.green}>₹{Math.round(job.salary_min/100000)}L - ₹{Math.round(job.salary_max/100000)}L</Tag>}
+            </div>
+            {job.description&&<p style={{color:C.soft,fontSize:13,marginTop:10,lineHeight:1.5}}>{job.description.slice(0,200)}...</p>}
+            <div style={{marginTop:12}}><a href={job.redirect_url} target="_blank" rel="noreferrer"><Btn size="sm">Apply Now →</Btn></a></div>
+          </div>
+        ))}
+      </div>
+      {searched&&!loading&&!jobs.length&&<div style={{textAlign:"center",color:C.muted,padding:40}}>No jobs found. Try a different search.</div>}
+    </div>
+  );
 }
 // ─── ROOT ─────────────────────────────────────────────────────────────────
 export default function App() {
