@@ -124,11 +124,11 @@ const Tag = ({ children, color=C.blue, bg }) => (
 async function callAI(prompt, maxTokens=1500, mode="json", retries=3) {
   for (let attempt=0; attempt<=retries; attempt++) {
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+     const res = await fetch("/api/ai", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
-          model:"claude-sonnet-4-6",
+          model:"llama-3.3-70b-versatile",
           max_tokens:maxTokens,
           messages:[{role:"user",content:prompt}]
         }),
