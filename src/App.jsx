@@ -581,7 +581,7 @@ const PROBLEMS = {
     },
     { id:"m3", title:"Maximum Subarray (Kadane's)", topic:"Dynamic Programming", companies:["amazon","microsoft","google","flipkart"],
       description:"Find contiguous subarray with largest sum.\n\nExamples:\n  Input: \"-2 1 -3 4 -1 2 1 -5 4\"  →  Output: \"6\"\n  Input: \"1\"                       →  Output: \"1\"\n  Input: \"-1 -2 -3\"               →  Output: \"-1\"",
-      templates:{javascript:"const nums=require('fs').readFileSync('/dev/stdin','utf8').trim().split(' ').map(Number);\nlet max=nums[0],cur=nums[0];\nfor(let i=1;i<nums.length;i++){cur=Math.max(nums[i],cur+nums[i]);max=Math.max(max,cur);}\nconsole.log(max);",python:"nums=list(map(int,input().split()))\nmax_s=cur=nums[0]\nfor n in nums[1:]:\n    cur=max(n,cur+n)\n    max_s=max(max_s,cur)\nprint(max_s)",java:"import java.util.*;\npublic class Main{public static void main(String[]a){Scanner sc=new Scanner(System.in);List<Integer>l=new ArrayList<>();while(sc.hasNextInt())l.add(sc.nextInt());int max=l.get(0),cur=l.get(0);for(int i=1;i<l.size();i++){cur=Math.max(l.get(i),cur+l.get(i));max=Math.max(max,cur);}System.out.println(max);}}",cpp:"#include<bits/stdc++.h>\nusing namespace std;\nint main(){vector<int>v;int x;while(cin>>x)v.push_back(x);int max=v[0],cur=v[0];for(int i=1;i<v.size();i++){cur=max_element=std::max(v[i],cur+v[i]);max=std::max(max,cur);}cout<<max<<endl;}",c:"#include<stdio.h>\n#include<limits.h>\nint main(){int a[100001],n=0;while(scanf(\"%d\",&a[n])==1)n++;int max=a[0],cur=a[0];for(int i=1;i<n;i++){cur=cur+a[i]>a[i]?cur+a[i]:a[i];max=cur>max?cur:max;}printf(\"%d\\n\",max);}"}
+      templates:{javascript:"const nums=require('fs').readFileSync('/dev/stdin','utf8').trim().split(' ').map(Number);\nlet max=nums[0],cur=nums[0];\nfor(let i=1;i<nums.length;i++){cur=Math.max(nums[i],cur+nums[i]);max=Math.max(max,cur);}\nconsole.log(max);",python:"nums=list(map(int,input().split()))\nmax_s=cur=nums[0]\nfor n in nums[1:]:\n    cur=max(n,cur+n)\n    max_s=max(max_s,cur)\nprint(max_s)",java:"import java.util.*;\npublic class Main{public static void main(String[]a){Scanner sc=new Scanner(System.in);List<Integer>l=new ArrayList<>();while(sc.hasNextInt())l.add(sc.nextInt());int max=l.get(0),cur=l.get(0);for(int i=1;i<l.size();i++){cur=Math.max(l.get(i),cur+l.get(i));max=Math.max(max,cur);}System.out.println(max);}}",cpp:"#include<bits/stdc++.h>\nusing namespace std;\nint main(){vector<int>v;int x;while(cin>>x)v.push_back(x);int max=v[0],cur=v[0];for(int i=1;i<v.size();i++){cur=std::max(v[i],cur+v[i]);max=std::max(max,cur);}cout<<max<<endl;}",c:"#include<stdio.h>\n#include<limits.h>\nint main(){int a[100001],n=0;while(scanf(\"%d\",&a[n])==1)n++;int max=a[0],cur=a[0];for(int i=1;i<n;i++){cur=cur+a[i]>a[i]?cur+a[i]:a[i];max=cur>max?cur:max;}printf(\"%d\\n\",max);}"}
     },
     { id:"m4", title:"Binary Search", topic:"Searching", companies:["amazon","microsoft","google","tcs"],
       description:"Implement binary search. First line: sorted space-separated array. Second line: target.\nPrint index (0-based) or -1 if not found.\n\nExamples:\n  Input:\n    1 3 5 7 9 11\n    7\n  Output: 3",
@@ -1500,11 +1500,8 @@ export function CodingTab({ company, onBack, user }) {
   const [showApproach, setShowApproach] = useState(false);
 
   // Merge all problems
-  const ALL_PROBLEMS = {
-    easy: [...(window.__PROBLEMS?.easy || [])],
-    medium: [...(window.__PROBLEMS?.medium || [])],
-    hard: [...(window.__PROBLEMS?.hard || []), ...HARD_REMAINING],
-  };
+// Use PROBLEMS directly
+  const ALL_PROBLEMS = PROBLEMS;
 
   const problems = difficulty === "easy" ? ALL_PROBLEMS.easy
     : difficulty === "medium" ? ALL_PROBLEMS.medium
