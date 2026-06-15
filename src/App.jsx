@@ -1,5 +1,4 @@
-
-
+mkdir -p /home/claude && cat > /home/claude/App.jsx << 'ENDOFFILE'
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -1459,4 +1458,5 @@ export default function App(){
   if(page==="auth")return<AuthPage onLogin={u=>{setUser(u);setPage("app");}} onBack={()=>setPage("landing")}/>;
   return<MainApp user={user} onLogout={()=>supabase.auth.signOut()}/>;
 }
-
+ENDOFFILE
+echo "Done. Lines: $(wc -l < /home/claude/App.jsx)"
