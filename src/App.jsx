@@ -1459,5 +1459,4 @@ export default function App(){
   if(page==="auth")return<AuthPage onLogin={u=>{setUser(u);setPage("app");}} onBack={()=>setPage("landing")}/>;
   return<MainApp user={user} onLogout={()=>supabase.auth.signOut()}/>;
 }
-Done. Lines: 1459
-Done
+
