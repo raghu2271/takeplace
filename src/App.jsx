@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -8,9 +9,9 @@ const ADZUNA_ID  = "845f6cff";
 const ADZUNA_KEY = "1255514b43792f219448b455d585c3ea";
 const supabase   = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ── CALL AI VIA BACKEND (fixes 401) ────────────────────────────────────────
+// ── CALL AI VIA BACKEND ─────────────────────────────────────────────────────
 async function callGroq(prompt, maxTokens = 2000, systemMsg = "") {
-  const sys = systemMsg || "You are an expert ATS analyst and resume reviewer. Respond with valid JSON only. No markdown, no explanation.";
+  const sys = systemMsg || "You are an expert technical interviewer and hiring panel lead. Respond with valid JSON only. No markdown, no explanation.";
   const res = await fetch("/api/ai", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -30,32 +31,33 @@ async function callGroq(prompt, maxTokens = 2000, systemMsg = "") {
   return data.content?.[0]?.text || "";
 }
 
-async function callGroqText(prompt, maxTokens = 2000) {
-  return callGroq(prompt, maxTokens, "You are an expert resume writer. Write clear, professional, ATS-optimized content. Return plain text only.");
-}
-
 // ── DESIGN TOKENS ───────────────────────────────────────────────────────────
 const C = {
   bg:"#ffffff", bg2:"#f8fafc", bg3:"#f1f5f9",
-  blue:"#2563eb", blueL:"#3b82f6", blueD:"#1d4ed8", bluePale:"#eff6ff",
+  ink:"#0b1120", inkSoft:"#1e293b",
+  navy:"#0f1d3d", navyL:"#16285a",
+  amber:"#d97706", amberL:"#f59e0b", amberPale:"#fff7ed",
+  teal:"#0d9488", tealL:"#14b8a6", tealPale:"#f0fdfa",
+  blue:"#2563eb", blueL:"#3b82f6", bluePale:"#eff6ff",
   green:"#16a34a", greenD:"#14532d", greenPale:"#f0fdf4",
-  purple:"#7c3aed", purpleD:"#5b21b6", purplePale:"#f5f3ff",
   red:"#dc2626", redPale:"#fef2f2",
   yellow:"#d97706", yellowPale:"#fffbeb",
-  text:"#0f172a", muted:"#64748b", soft:"#94a3b8", border:"#e2e8f0",
-  gold:"#f59e0b",
+  purple:"#7c3aed", purpleD:"#5b21b6", purplePale:"#f5f3ff",
+  muted:"#64748b", soft:"#94a3b8", border:"#e2e8f0",
 };
 
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&display=swap');
   *{box-sizing:border-box;margin:0;padding:0;}
   html{scroll-behavior:smooth;}
-  body{font-family:'Inter',sans-serif;color:#0f172a;background:#fff;-webkit-font-smoothing:antialiased;}
+  body{font-family:'Inter',sans-serif;color:#0b1120;background:#fff;-webkit-font-smoothing:antialiased;}
   ::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px;}
   @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   @keyframes spin{to{transform:rotate(360deg)}}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  @keyframes pulseRing{0%{box-shadow:0 0 0 0 rgba(217,119,6,.45)}70%{box-shadow:0 0 0 14px rgba(217,119,6,0)}100%{box-shadow:0 0 0 0 rgba(217,119,6,0)}}
+  @keyframes talkBar{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
   @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
   .fade{animation:fadeUp .4s ease forwards;}
   .fadeIn{animation:fadeIn .3s ease forwards;}
@@ -66,42 +68,40 @@ const CSS = `
   input:focus,textarea:focus{outline:none;border-color:#2563eb!important;box-shadow:0 0 0 3px #2563eb18!important;}
   button:active{transform:scale(.97);}
   a{text-decoration:none;color:inherit;}
-  /* BOTTOM NAV safe area */
   .bottom-nav{padding-bottom:env(safe-area-inset-bottom,0px);}
+  .bar{width:4px;border-radius:2px;background:#fff;display:inline-block;transform-origin:center;}
 `;
 
-// ── HELPERS ──────────────────────────────────────────────────────────────────
 const inp = {
   width:"100%", background:"#fff", border:`1.5px solid ${C.border}`,
-  borderRadius:10, padding:"12px 14px", color:C.text, fontSize:14,
+  borderRadius:10, padding:"12px 14px", color:C.ink, fontSize:14,
   fontFamily:"'Inter',sans-serif", outline:"none", transition:"all .2s",
 };
 
-const Spin = ({size=18,color=C.blue}) => (
+const Spin = ({size=18,color=C.amber}) => (
   <span className="spin" style={{width:size,height:size,border:`2.5px solid ${color}25`,borderTopColor:color,borderRadius:"50%",display:"inline-block",flexShrink:0}}/>
 );
 
 function Btn({children,onClick,v="primary",style={},disabled=false,loading=false}){
   const vs={
-    primary:{background:`linear-gradient(135deg,${C.blue},${C.blueL})`,color:"#fff",fontWeight:700,boxShadow:`0 2px 12px ${C.blue}40`},
+    primary:{background:`linear-gradient(135deg,${C.navy},${C.navyL})`,color:"#fff",fontWeight:700},
     ghost:{background:"transparent",color:C.muted,border:`1.5px solid ${C.border}`},
-    green:{background:`linear-gradient(135deg,${C.greenD},${C.green})`,color:"#fff",fontWeight:700,boxShadow:`0 2px 12px ${C.green}40`},
-    purple:{background:`linear-gradient(135deg,${C.purpleD},${C.purple})`,color:"#fff",fontWeight:700},
-    gold:{background:"linear-gradient(135deg,#b45309,#d97706,#f59e0b)",color:"#fff",fontWeight:800,boxShadow:"0 4px 20px #d9770640"},
-    cta:{background:`linear-gradient(135deg,${C.blueD},${C.blue},${C.blueL})`,backgroundSize:"200%",color:"#fff",fontWeight:800,fontSize:15,boxShadow:`0 4px 24px ${C.blue}50`},
+    amber:{background:`linear-gradient(135deg,#92400e,${C.amber},${C.amberL})`,color:"#fff",fontWeight:800,boxShadow:`0 4px 20px ${C.amber}40`},
+    teal:{background:`linear-gradient(135deg,#065f5b,${C.teal},${C.tealL})`,color:"#fff",fontWeight:700,boxShadow:`0 2px 12px ${C.teal}40`},
     danger:{background:"linear-gradient(135deg,#991b1b,#dc2626)",color:"#fff",fontWeight:700},
+    dark:{background:`linear-gradient(135deg,${C.ink},${C.inkSoft})`,color:"#fff",fontWeight:700},
   };
   return (
     <button onClick={disabled||loading?undefined:onClick} disabled={disabled||loading}
       style={{padding:"11px 22px",borderRadius:10,border:"none",cursor:disabled||loading?"not-allowed":"pointer",
         fontFamily:"'Inter',sans-serif",fontSize:14,transition:"all .2s",opacity:disabled?0.5:1,
         display:"inline-flex",alignItems:"center",justifyContent:"center",gap:8,...vs[v],...style}}>
-      {loading?<><Spin size={14} color={v==="ghost"?C.blue:"#fff"}/> Loading...</>:children}
+      {loading?<><Spin size={14} color={v==="ghost"?C.amber:"#fff"}/> Loading...</>:children}
     </button>
   );
 }
 
-const Tag = ({children,color=C.blue,bg}) => (
+const Tag = ({children,color=C.amber,bg}) => (
   <span style={{background:bg||`${color}12`,color,fontSize:11,padding:"3px 10px",borderRadius:20,fontWeight:700,border:`1px solid ${color}25`,whiteSpace:"nowrap"}}>{children}</span>
 );
 
@@ -127,7 +127,7 @@ function ScoreRing({score,size=88,color,label}){
 function Bar({score,color}){
   return(
     <div style={{background:C.border,borderRadius:4,height:5,overflow:"hidden",marginTop:4}}>
-      <div style={{height:"100%",width:`${score}%`,background:color||C.blue,borderRadius:4,transition:"width 1.2s ease"}}/>
+      <div style={{height:"100%",width:`${score}%`,background:color||C.amber,borderRadius:4,transition:"width 1.2s ease"}}/>
     </div>
   );
 }
@@ -141,134 +141,582 @@ function safeJSON(raw,fallback={}){
   }
 }
 
-// ── PDF / DOCX EXTRACTION ────────────────────────────────────────────────────
-async function extractPDF(file){
-  if(!window.pdfjsLib){
-    await new Promise((res,rej)=>{
-      const s=document.createElement("script");
-      s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-      s.onload=res;s.onerror=rej;document.head.appendChild(s);
-    });
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-  }
-  const ab=await file.arrayBuffer();
-  const pdf=await window.pdfjsLib.getDocument({data:ab}).promise;
-  let text="";
-  for(let i=1;i<=Math.min(pdf.numPages,5);i++){
-    const page=await pdf.getPage(i);
-    const c=await page.getTextContent();
-    text+=c.items.map(x=>x.str).join(" ")+"\n";
-  }
-  return text.trim();
+function fmtTime(s){
+  const m=Math.floor(s/60), sec=s%60;
+  return `${m}:${sec.toString().padStart(2,"0")}`;
 }
 
-async function extractDOCX(file){
-  if(!window.mammoth){
-    await new Promise((res,rej)=>{
-      const s=document.createElement("script");
-      s.src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js";
-      s.onload=res;s.onerror=rej;document.head.appendChild(s);
+// ═══════════════════════════════════════════════════════════════════════════
+// ROLE LIBRARY — 26 roles across tech, business, and core engineering
+// ═══════════════════════════════════════════════════════════════════════════
+const ROLES = [
+  {id:"sde",      title:"Software Engineer",        icon:"💻", cat:"Engineering", focus:"DSA, problem solving, system design basics"},
+  {id:"frontend", title:"Frontend Developer",        icon:"🎨", cat:"Engineering", focus:"React, JS, CSS, performance, accessibility"},
+  {id:"backend",  title:"Backend Developer",         icon:"🗄️", cat:"Engineering", focus:"APIs, databases, system design, scaling"},
+  {id:"fullstack",title:"Full Stack Developer",      icon:"🧩", cat:"Engineering", focus:"End-to-end app design, REST/GraphQL, deployment"},
+  {id:"android",  title:"Android Developer",         icon:"🤖", cat:"Engineering", focus:"Kotlin, lifecycle, architecture, Play Store"},
+  {id:"ios",       title:"iOS Developer",            icon:"📱", cat:"Engineering", focus:"Swift, UIKit/SwiftUI, memory, App Store"},
+  {id:"devops",   title:"DevOps Engineer",           icon:"⚙️", cat:"Engineering", focus:"CI/CD, containers, IaC, monitoring"},
+  {id:"cloud",    title:"Cloud Engineer",            icon:"☁️", cat:"Engineering", focus:"AWS/Azure/GCP, networking, cost, security"},
+  {id:"qa",       title:"QA / Test Engineer",        icon:"🧪", cat:"Engineering", focus:"Test design, automation, bug triage"},
+  {id:"dba",      title:"Database Administrator",    icon:"🗃️", cat:"Engineering", focus:"SQL tuning, indexing, backups, replication"},
+  {id:"sysadmin", title:"System Administrator",      icon:"🖥️", cat:"Engineering", focus:"Linux, networking, uptime, incident response"},
+  {id:"security", title:"Cybersecurity Analyst",     icon:"🛡️", cat:"Engineering", focus:"Threats, vulnerabilities, incident handling"},
+  {id:"ds",       title:"Data Scientist",            icon:"📊", cat:"Data", focus:"Statistics, modeling, experiment design"},
+  {id:"da",       title:"Data Analyst",              icon:"📈", cat:"Data", focus:"SQL, dashboards, business metrics"},
+  {id:"mle",      title:"Machine Learning Engineer", icon:"🧠", cat:"Data", focus:"ML pipelines, model deployment, evaluation"},
+  {id:"pm",       title:"Product Manager",           icon:"🧭", cat:"Business", focus:"Prioritization, metrics, stakeholder mgmt"},
+  {id:"ba",       title:"Business Analyst",          icon:"🧾", cat:"Business", focus:"Requirements gathering, process mapping"},
+  {id:"opsmgr",   title:"Operations Manager",        icon:"🏭", cat:"Business", focus:"Process efficiency, KPIs, team coordination"},
+  {id:"finance",  title:"Finance Analyst",           icon:"💹", cat:"Business", focus:"Financial modeling, reporting, forecasting"},
+  {id:"sales",    title:"Sales Executive",           icon:"🤝", cat:"Business", focus:"Pitching, objection handling, pipeline"},
+  {id:"marketing",title:"Digital Marketing Exec.",   icon:"📣", cat:"Business", focus:"Campaigns, SEO/SEM, analytics"},
+  {id:"hr",       title:"HR Generalist",             icon:"🧑‍💼", cat:"Business", focus:"Hiring, policy, employee relations"},
+  {id:"support",  title:"Customer Success",          icon:"🎧", cat:"Business", focus:"De-escalation, retention, communication"},
+  {id:"uiux",     title:"UI/UX Designer",            icon:"✏️", cat:"Design", focus:"User research, wireframes, design critique"},
+  {id:"mech",     title:"Mechanical Engineer",       icon:"🔧", cat:"Core", focus:"Design, materials, manufacturing"},
+  {id:"civil",    title:"Civil Engineer",            icon:"🏗️", cat:"Core", focus:"Structures, site planning, codes"},
+];
+const CATS = ["All","Engineering","Data","Business","Design","Core"];
+
+const FALLBACK_QUESTIONS = [
+  {q:"Tell me about yourself and why you're a fit for this role.",type:"Intro"},
+  {q:"Walk me through a challenging problem you solved recently and how you approached it.",type:"Behavioral"},
+  {q:"What are the core technical skills this role requires, and how strong are you in each?",type:"Technical"},
+  {q:"Describe a time you disagreed with a teammate or manager. How did you handle it?",type:"Behavioral"},
+  {q:"How would you approach your first 30 days in this role?",type:"Situational"},
+  {q:"Do you have any questions for us, and is there anything else you'd like us to know?",type:"Closing"},
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INTERVIEW ROOM — the core new feature
+// ═══════════════════════════════════════════════════════════════════════════
+function InterviewMock(){
+  const [screen,setScreen]=useState("roles");       // roles | brief | live | report
+  const [catFilter,setCatFilter]=useState("All");
+  const [role,setRole]=useState(null);
+  const [difficulty,setDifficulty]=useState("Mid-level");
+  const [questions,setQuestions]=useState([]);
+  const [qIndex,setQIndex]=useState(0);
+  const [answers,setAnswers]=useState([]);          // {question,type,answer,seconds}
+  const [genErr,setGenErr]=useState("");
+  const [loadingQs,setLoadingQs]=useState(false);
+
+  // live interview state
+  const [aiSpeaking,setAiSpeaking]=useState(false);
+  const [listening,setListening]=useState(false);
+  const [liveText,setLiveText]=useState("");
+  const [timeLeft,setTimeLeft]=useState(90);
+  const [phase,setPhase]=useState("idle");          // idle | speaking | answering | done-q
+  const [genReport,setGenReport]=useState(false);
+  const [report,setReport]=useState(null);
+
+  const recogRef=useRef(null);
+  const transcriptRef=useRef("");
+  const timerRef=useRef(null);
+  const QUESTION_TIME=90;
+
+  const speechOK = typeof window!=="undefined" && (window.SpeechRecognition||window.webkitSpeechRecognition);
+  const ttsOK = typeof window!=="undefined" && window.speechSynthesis;
+
+  useEffect(()=>()=>{ clearInterval(timerRef.current); stopRecognition(); window.speechSynthesis?.cancel(); },[]);
+
+  const filteredRoles = catFilter==="All" ? ROLES : ROLES.filter(r=>r.cat===catFilter);
+
+  // ── pick a role → generate questions ──
+  const pickRole=async(r)=>{
+    setRole(r); setScreen("brief"); setGenErr(""); setLoadingQs(true); setQuestions([]);
+    try{
+      const raw=await callGroq(`You are conducting a real, spoken job interview for the role of "${r.title}" (focus areas: ${r.focus}). Difficulty: ${difficulty}.
+Generate exactly 6 interview questions an interviewer would ask out loud, in this order: 1 warm intro question, 3 role-specific technical/practical questions matched to the focus areas, 1 behavioral/situational question, 1 closing question.
+Questions must sound natural when spoken aloud (no bullet symbols, no code blocks).
+Return ONLY this JSON: {"questions":[{"q":"<question text>","type":"Intro|Technical|Behavioral|Situational|Closing"}]}`,900);
+      const data=safeJSON(raw,null);
+      const qs = data?.questions?.length===6 ? data.questions : FALLBACK_QUESTIONS;
+      setQuestions(qs);
+    }catch(e){
+      setGenErr("Couldn't generate custom questions, using a standard set instead.");
+      setQuestions(FALLBACK_QUESTIONS);
+    }
+    setLoadingQs(false);
+  };
+
+  // ── speech synthesis (AI asks the question) ──
+  const speak=(text)=>new Promise((resolve)=>{
+    if(!ttsOK){ resolve(); return; }
+    window.speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.rate=0.98; u.pitch=0.95;
+    const voices=window.speechSynthesis.getVoices();
+    const v=voices.find(v=>/en-(US|GB|IN)/i.test(v.lang)&&/Male|David|Daniel|Google/i.test(v.name)) || voices.find(v=>/en/i.test(v.lang));
+    if(v) u.voice=v;
+    setAiSpeaking(true);
+    u.onend=()=>{ setAiSpeaking(false); resolve(); };
+    u.onerror=()=>{ setAiSpeaking(false); resolve(); };
+    window.speechSynthesis.speak(u);
+  });
+
+  const stopRecognition=()=>{
+    try{ recogRef.current?.stop(); }catch{}
+    setListening(false);
+  };
+
+  const startRecognition=()=>{
+    if(!speechOK){ return; }
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    const rec=new SR();
+    rec.continuous=true; rec.interimResults=true; rec.lang="en-US";
+    transcriptRef.current="";
+    rec.onresult=(e)=>{
+      let finalT="", interimT="";
+      for(let i=0;i<e.results.length;i++){
+        if(e.results[i].isFinal) finalT+=e.results[i][0].transcript+" ";
+        else interimT+=e.results[i][0].transcript;
+      }
+      transcriptRef.current=finalT;
+      setLiveText((finalT+interimT).trim());
+    };
+    rec.onerror=()=>{};
+    rec.onend=()=>{ if(phase==="answering") { try{rec.start();}catch{} } }; // keep listening through pauses
+    recogRef.current=rec;
+    rec.start();
+    setListening(true);
+  };
+
+  const beginQuestion=async(idx)=>{
+    setPhase("speaking"); setLiveText(""); transcriptRef.current="";
+    await speak(questions[idx].q);
+    setPhase("answering"); setTimeLeft(QUESTION_TIME); setListening(true);
+    startRecognition();
+    clearInterval(timerRef.current);
+    timerRef.current=setInterval(()=>{
+      setTimeLeft(t=>{
+        if(t<=1){ clearInterval(timerRef.current); finishAnswer(idx); return 0; }
+        return t-1;
+      });
+    },1000);
+  };
+
+  const finishAnswer=(idx)=>{
+    clearInterval(timerRef.current);
+    stopRecognition();
+    setPhase("done-q");
+    const finalAnswer=(transcriptRef.current||liveText||"").trim() || "(no answer captured)";
+    setAnswers(prev=>{
+      const next=[...prev];
+      next[idx]={question:questions[idx].q, type:questions[idx].type, answer:finalAnswer, seconds:QUESTION_TIME-timeLeft};
+      return next;
     });
+    setTimeout(()=>{
+      if(idx+1<questions.length){ setQIndex(idx+1); beginQuestion(idx+1); }
+      else { wrapInterview(idx,finalAnswer); }
+    },900);
+  };
+
+  const startInterview=()=>{
+    setScreen("live"); setAnswers([]); setQIndex(0);
+    setTimeout(()=>beginQuestion(0),400);
+  };
+
+  const wrapInterview=async(lastIdx,lastAnswer)=>{
+    setPhase("idle");
+    setGenReport(true);
+    const finalAnswers=answers.slice(); finalAnswers[lastIdx]={question:questions[lastIdx].q,type:questions[lastIdx].type,answer:lastAnswer,seconds:0};
+    try{
+      const transcript=finalAnswers.map((a,i)=>`Q${i+1} (${a.type}): ${a.question}\nCandidate answer: ${a.answer}`).join("\n\n");
+      const raw=await callGroq(`You are a strict but fair senior hiring panelist who just finished interviewing a candidate for "${role.title}" (${difficulty} level, focus: ${role.focus}).
+Here is the full interview transcript:
+${transcript.slice(0,4000)}
+
+Score honestly based on substance, not effort. Return ONLY this JSON:
+{
+  "overallScore": <0-100>,
+  "verdict": "<Strong Hire|Hire|Borderline|No Hire>",
+  "communicationScore": <0-100>,
+  "technicalScore": <0-100>,
+  "confidenceScore": <0-100>,
+  "structureScore": <0-100>,
+  "summary": "<3 sentence honest overall assessment, speak directly to the candidate as 'you'>",
+  "perQuestion": [{"question":"<short version>","score":<0-100>,"feedback":"<1-2 sentence specific feedback>"}],
+  "strengths": ["<strength 1>","<strength 2>"],
+  "improvements": ["<specific improvement 1>","<specific improvement 2>","<specific improvement 3>"]
+}`,2200);
+      const data=safeJSON(raw,null);
+      if(!data?.overallScore) throw new Error("bad report");
+      setReport(data);
+    }catch(e){
+      setReport({overallScore:0,verdict:"—",communicationScore:0,technicalScore:0,confidenceScore:0,structureScore:0,
+        summary:"We couldn't generate feedback this time — please try the interview again.",perQuestion:[],strengths:[],improvements:[]});
+    }
+    setGenReport(false);
+    setScreen("report");
+  };
+
+  const restart=()=>{
+    window.speechSynthesis?.cancel(); stopRecognition(); clearInterval(timerRef.current);
+    setScreen("roles"); setRole(null); setQuestions([]); setAnswers([]); setQIndex(0); setReport(null);
+  };
+
+  const sc=s=>s>=75?C.green:s>=50?C.yellow:C.red;
+
+  // ── SCREEN: ROLE PICKER ──
+  if(screen==="roles") return(
+    <div>
+      <div style={{marginBottom:16}}>
+        <div style={{fontWeight:800,fontSize:20,color:C.ink,marginBottom:4}}>🎤 AI Mock Interview</div>
+        <div style={{color:C.muted,fontSize:13}}>Pick a role. The AI interviewer will sit across from you, ask real questions out loud, and you answer by speaking — just like the real thing.</div>
+      </div>
+      {!speechOK&&(
+        <div style={{background:C.yellowPale,border:"1px solid #fde68a",borderRadius:10,padding:"10px 14px",marginBottom:12,color:C.yellow,fontSize:12}}>
+          ⚠ Voice recognition isn't supported in this browser. For the full spoken experience, use Chrome on desktop or Android.
+        </div>
+      )}
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
+        {CATS.map(c=>(
+          <button key={c} onClick={()=>setCatFilter(c)}
+            style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${catFilter===c?C.amber:C.border}`,background:catFilter===c?C.amberPale:"#fff",color:catFilter===c?C.amber:C.muted,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>
+            {c}
+          </button>
+        ))}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:12}}>
+        {filteredRoles.map(r=>(
+          <div key={r.id} className="lift" onClick={()=>pickRole(r)}
+            style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:16,padding:18,boxShadow:"0 1px 6px rgba(0,0,0,.04)"}}>
+            <div style={{fontSize:30,marginBottom:8}}>{r.icon}</div>
+            <div style={{fontWeight:700,fontSize:14,color:C.ink,marginBottom:4}}>{r.title}</div>
+            <div style={{color:C.muted,fontSize:11.5,lineHeight:1.6,marginBottom:8}}>{r.focus}</div>
+            <Tag color={C.teal}>{r.cat}</Tag>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ── SCREEN: BRIEFING ──
+  if(screen==="brief") return(
+    <div className="fade" style={{maxWidth:520,margin:"0 auto"}}>
+      <button onClick={()=>setScreen("roles")} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginBottom:16,fontFamily:"'Inter',sans-serif"}}>← Choose a different role</button>
+      <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:20,padding:26,boxShadow:"0 4px 20px rgba(0,0,0,.06)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+          <div style={{fontSize:36}}>{role.icon}</div>
+          <div>
+            <div style={{fontWeight:800,fontSize:18,color:C.ink}}>{role.title}</div>
+            <div style={{color:C.muted,fontSize:12}}>{role.focus}</div>
+          </div>
+        </div>
+        <div style={{marginBottom:16}}>
+          <div style={{fontWeight:700,fontSize:13,color:C.ink,marginBottom:8}}>Difficulty</div>
+          <div style={{display:"flex",gap:8}}>
+            {["Entry-level","Mid-level","Senior"].map(d=>(
+              <button key={d} onClick={()=>setDifficulty(d)}
+                style={{flex:1,padding:"9px",borderRadius:10,border:`1.5px solid ${difficulty===d?C.amber:C.border}`,background:difficulty===d?C.amberPale:"#fff",color:difficulty===d?C.amber:C.muted,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>
+                {d}
+              </button>
+            ))}
+          </div>
+        </div>
+        {loadingQs?(
+          <div style={{textAlign:"center",padding:"24px 0"}}>
+            <Spin size={28}/>
+            <div style={{color:C.muted,fontSize:13,marginTop:10}}>Preparing your interviewer's questions...</div>
+          </div>
+        ):(
+          <>
+            {genErr&&<div style={{background:C.yellowPale,border:"1px solid #fde68a",borderRadius:8,padding:"8px 12px",fontSize:12,color:C.yellow,marginBottom:12}}>{genErr}</div>}
+            <div style={{background:C.bg2,borderRadius:12,padding:14,marginBottom:18,fontSize:12.5,color:C.muted,lineHeight:1.8}}>
+              <strong style={{color:C.ink}}>How this works:</strong> The AI interviewer will speak each of {questions.length||6} questions out loud. When it finishes, your mic turns on and you have {QUESTION_TIME} seconds to answer — speak naturally, like you would in a real interview. Your full answers are reviewed afterward for a complete feedback report.
+            </div>
+            <Btn v="amber" onClick={startInterview} disabled={!questions.length} style={{width:"100%",padding:"14px",fontSize:15}}>
+              🎙️ Enter the Interview Room
+            </Btn>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  // ── SCREEN: LIVE INTERVIEW ROOM ──
+  if(screen==="live"){
+    const q=questions[qIndex];
+    const pct=(timeLeft/QUESTION_TIME)*100;
+    const timeColor = pct>40?C.teal:pct>15?C.yellow:C.red;
+    return(
+      <div className="fade">
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <Tag color={C.navy} bg={`${C.navy}10`}>{role.icon} {role.title}</Tag>
+          <Tag color={C.muted}>Question {qIndex+1} / {questions.length}</Tag>
+        </div>
+
+        {/* THE INTERVIEW DESK — signature visual: two seats facing each other */}
+        <div style={{background:`linear-gradient(180deg,${C.navy},${C.navyL})`,borderRadius:24,padding:"28px 20px",position:"relative",overflow:"hidden",marginBottom:14}}>
+          <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at 50% 0%, rgba(255,255,255,.06), transparent 60%)"}}/>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:16,position:"relative",zIndex:1}}>
+            {/* AI seat */}
+            <div style={{flex:1,textAlign:"center"}}>
+              <div style={{
+                width:84,height:84,borderRadius:"50%",margin:"0 auto 10px",
+                background:"linear-gradient(135deg,#1f2c52,#33406e)",
+                display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,
+                border:`3px solid ${aiSpeaking?C.amber:"rgba(255,255,255,.15)"}`,
+                animation:aiSpeaking?"pulseRing 1.4s infinite":"none",
+              }}>🧑‍💼</div>
+              <div style={{color:"#fff",fontWeight:700,fontSize:13}}>Interviewer</div>
+              <div style={{color:aiSpeaking?C.amberL:"rgba(255,255,255,.4)",fontSize:11,fontWeight:600,marginTop:2}}>
+                {aiSpeaking?"Speaking...":"Listening to you"}
+              </div>
+              {aiSpeaking&&(
+                <div style={{display:"flex",justifyContent:"center",gap:3,marginTop:8,height:16,alignItems:"center"}}>
+                  {[0,1,2,3,4].map(i=>(
+                    <span key={i} className="bar" style={{height:16,background:C.amberL,animation:`talkBar ${0.5+i*0.07}s ease-in-out infinite`}}/>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{color:"rgba(255,255,255,.3)",fontSize:22}}>↔</div>
+
+            {/* User seat */}
+            <div style={{flex:1,textAlign:"center"}}>
+              <div style={{
+                width:84,height:84,borderRadius:"50%",margin:"0 auto 10px",
+                background:"linear-gradient(135deg,#0f5249,#127268)",
+                display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,
+                border:`3px solid ${listening?C.tealL:"rgba(255,255,255,.15)"}`,
+                animation:listening?"pulseRing 1.4s infinite":"none",
+              }}>🧑</div>
+              <div style={{color:"#fff",fontWeight:700,fontSize:13}}>You</div>
+              <div style={{color:listening?C.tealL:"rgba(255,255,255,.4)",fontSize:11,fontWeight:600,marginTop:2}}>
+                {listening?"Mic live — answer now":"Standing by"}
+              </div>
+              {listening&&(
+                <div style={{display:"flex",justifyContent:"center",gap:3,marginTop:8,height:16,alignItems:"center"}}>
+                  {[0,1,2,3,4].map(i=>(
+                    <span key={i} className="bar" style={{height:16,background:C.tealL,animation:`talkBar ${0.4+i*0.09}s ease-in-out infinite`}}/>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Question + timer */}
+          <div style={{marginTop:22,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:14,padding:"14px 16px",position:"relative",zIndex:1}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <Tag color={C.amberL} bg="rgba(245,158,11,.15)">{q?.type}</Tag>
+              {phase==="answering"&&<span style={{color:timeColor,fontWeight:800,fontSize:13}}>⏱ {fmtTime(timeLeft)}</span>}
+            </div>
+            <div style={{color:"#fff",fontSize:15,lineHeight:1.6,fontWeight:500}}>{q?.q}</div>
+            {phase==="answering"&&(
+              <div style={{height:4,background:"rgba(255,255,255,.15)",borderRadius:3,marginTop:12,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${pct}%`,background:timeColor,borderRadius:3,transition:"width 1s linear"}}/>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Live transcript */}
+        <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:16,minHeight:90,marginBottom:14}}>
+          <div style={{fontWeight:700,fontSize:12,color:C.muted,marginBottom:6}}>YOUR LIVE ANSWER</div>
+          <div style={{color:liveText?C.ink:C.soft,fontSize:13.5,lineHeight:1.8,fontStyle:liveText?"normal":"italic"}}>
+            {phase==="speaking"&&"The interviewer is asking the question..."}
+            {phase==="answering"&&(liveText||"Start speaking — your words will appear here in real time...")}
+            {phase==="done-q"&&"Got it — moving to the next question..."}
+          </div>
+        </div>
+
+        {phase==="answering"&&(
+          <Btn v="dark" onClick={()=>finishAnswer(qIndex)} style={{width:"100%",padding:"13px"}}>✅ I'm done answering</Btn>
+        )}
+        {!speechOK && phase==="answering" && (
+          <textarea
+            placeholder="Voice recognition unavailable — type your answer here instead..."
+            onChange={e=>{transcriptRef.current=e.target.value;setLiveText(e.target.value);}}
+            style={{...inp,minHeight:90,marginTop:10}}
+          />
+        )}
+      </div>
+    );
   }
-  const ab=await file.arrayBuffer();
-  const r=await window.mammoth.extractRawText({arrayBuffer:ab});
-  return r.value.trim();
+
+  // ── SCREEN: REPORT ──
+  if(genReport) return(
+    <div style={{textAlign:"center",padding:"80px 20px"}}>
+      <div style={{fontSize:60,marginBottom:18,animation:"float 2s ease-in-out infinite"}}>📝</div>
+      <div style={{fontWeight:800,fontSize:19,color:C.ink,marginBottom:8}}>Scoring your interview...</div>
+      <div style={{color:C.muted,fontSize:13,marginBottom:24}}>Reviewing every answer for substance, structure, and confidence</div>
+      <Spin size={36}/>
+    </div>
+  );
+
+  if(screen==="report"&&report) return(
+    <div className="fade">
+      <div style={{background:`linear-gradient(135deg,${C.navy},${C.navyL})`,borderRadius:20,padding:"24px 20px",marginBottom:16,color:"#fff"}}>
+        <div style={{textAlign:"center",marginBottom:18}}>
+          <div style={{fontSize:13,color:"rgba(255,255,255,.6)",marginBottom:4}}>{role.icon} {role.title} · {difficulty}</div>
+          <div style={{fontSize:48,fontWeight:900}}>{report.overallScore}%</div>
+          <Tag color={report.overallScore>=75?C.green:report.overallScore>=50?C.amberL:C.red} bg="rgba(255,255,255,.12)">{report.verdict}</Tag>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+          {[["Communication",report.communicationScore],["Technical",report.technicalScore],["Confidence",report.confidenceScore],["Structure",report.structureScore]].map(([l,v],i)=>(
+            <div key={i} style={{textAlign:"center",background:"rgba(255,255,255,.07)",borderRadius:10,padding:"10px 4px"}}>
+              <div style={{fontWeight:800,fontSize:16}}>{v}%</div>
+              <div style={{fontSize:9.5,color:"rgba(255,255,255,.6)",marginTop:2,fontWeight:600}}>{l}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{marginTop:16,color:"rgba(255,255,255,.85)",fontSize:13,lineHeight:1.8,textAlign:"center"}}>{report.summary}</div>
+      </div>
+
+      {report.strengths?.length>0&&(
+        <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}>
+          <div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:10}}>✅ What worked</div>
+          {report.strengths.map((s,i)=>(
+            <div key={i} style={{background:C.greenPale,borderRadius:8,padding:"9px 12px",marginBottom:6,fontSize:13,color:C.soft,border:"1px solid #bbf7d0"}}>{s}</div>
+          ))}
+        </div>
+      )}
+      {report.improvements?.length>0&&(
+        <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}>
+          <div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:10}}>🎯 What to work on</div>
+          {report.improvements.map((s,i)=>(
+            <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",background:C.bg2,borderRadius:8,padding:"9px 12px",marginBottom:6,border:`1px solid ${C.border}`}}>
+              <span style={{color:C.amber,fontWeight:800}}>→</span>
+              <span style={{color:C.soft,fontSize:13}}>{s}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {report.perQuestion?.length>0&&(
+        <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}>
+          <div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:10}}>🔍 Question-by-question</div>
+          {report.perQuestion.map((p,i)=>(
+            <div key={i} style={{background:C.bg2,borderRadius:10,padding:12,marginBottom:8,border:`1px solid ${C.border}`}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,gap:8}}>
+                <div style={{fontWeight:600,color:C.ink,fontSize:12.5}}>Q{i+1}. {p.question}</div>
+                <div style={{fontWeight:800,fontSize:13,color:sc(p.score),flexShrink:0}}>{p.score}%</div>
+              </div>
+              <div style={{color:C.soft,fontSize:12.5,lineHeight:1.7}}>{p.feedback}</div>
+              <Bar score={p.score} color={sc(p.score)}/>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{display:"flex",gap:10,marginTop:8}}>
+        <Btn v="amber" onClick={()=>pickRole(role)} style={{flex:1,padding:"13px"}}>🔁 Retry This Role</Btn>
+        <Btn v="ghost" onClick={restart} style={{flex:1,padding:"13px"}}>🎲 Try Another Role</Btn>
+      </div>
+    </div>
+  );
+
+  return null;
 }
 
-// ── PDF DOWNLOAD ─────────────────────────────────────────────────────────────
-async function downloadJakesPDF(parsed, filename="TakePlace_Resume.pdf"){
-  if(!window.jspdf){
-    await new Promise((res,rej)=>{
-      const s=document.createElement("script");
-      s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-      s.onload=res;s.onerror=rej;document.head.appendChild(s);
-    });
-  }
-  const {jsPDF}=window.jspdf;
-  const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
-  const W=210,marginL=15,marginR=15,usable=W-marginL-marginR;
-  let y=18;
+// ═══════════════════════════════════════════════════════════════════════════
+// JOBS TAB
+// ═══════════════════════════════════════════════════════════════════════════
+function JobsTab(){
+  const [jobs,setJobs]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [search,setSearch]=useState(()=>sessionStorage.getItem("tp_s")||"software engineer fresher");
+  const [location,setLocation]=useState(()=>sessionStorage.getItem("tp_l")||"hyderabad");
+  const [expanded,setExpanded]=useState(null);
+  const [saved,setSaved]=useState([]);
 
-  doc.setFont("helvetica","bold");doc.setFontSize(18);doc.setTextColor(15,23,42);
-  doc.text(parsed.name||"Your Name",W/2,y,{align:"center"});y+=7;
-  doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(100,116,139);
-  const contact=[parsed.phone,parsed.email,parsed.linkedin,parsed.github,parsed.location].filter(Boolean).join(" | ");
-  doc.text(contact,W/2,y,{align:"center"});y+=4;
-  doc.setDrawColor(37,99,235);doc.setLineWidth(0.5);doc.line(marginL,y,W-marginR,y);y+=5;
+  useEffect(()=>{fetchJobs();},[]);
 
-  const sectionHeader=(title)=>{
-    if(y>270){doc.addPage();y=18;}
-    doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(15,23,42);
-    doc.text(title.toUpperCase(),marginL,y);y+=1.5;
-    doc.setDrawColor(200,210,220);doc.setLineWidth(0.3);doc.line(marginL,y,W-marginR,y);y+=4;
-  };
-  const bodyText=(text,bold=false,size=9)=>{
-    if(y>272){doc.addPage();y=18;}
-    doc.setFont("helvetica",bold?"bold":"normal");doc.setFontSize(size);
-    doc.setTextColor(bold?15:71,bold?23:85,bold?42:99);
-    doc.splitTextToSize(text,usable).forEach(l=>{if(y>272){doc.addPage();y=18;}doc.text(l,marginL,y);y+=4.2;});
-  };
-  const bulletLine=(text)=>{
-    if(y>272){doc.addPage();y=18;}
-    doc.setFont("helvetica","normal");doc.setFontSize(8.8);doc.setTextColor(71,85,99);
-    const lines=doc.splitTextToSize("• "+text,usable-4);
-    lines.forEach((l,i)=>{if(y>272){doc.addPage();y=18;}doc.text(l,marginL+(i>0?4:0),y);y+=4;});
-  };
-  const rowLine=(left,right,leftBold=false)=>{
-    if(y>272){doc.addPage();y=18;}
-    doc.setFont("helvetica",leftBold?"bold":"normal");doc.setFontSize(9);doc.setTextColor(15,23,42);
-    doc.text(left,marginL,y);
-    doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(100,116,139);
-    doc.text(right,W-marginR,y,{align:"right"});y+=4.5;
+  const fetchJobs=async(q=search,loc=location)=>{
+    setLoading(true);
+    sessionStorage.setItem("tp_s",q);sessionStorage.setItem("tp_l",loc);
+    try{
+      const url=`https://api.adzuna.com/v1/api/jobs/in/search/1?app_id=${ADZUNA_ID}&app_key=${ADZUNA_KEY}&results_per_page=20&what=${encodeURIComponent(q)}&where=${encodeURIComponent(loc)}&sort_by=date&content-type=application/json`;
+      const res=await fetch(url);
+      const data=await res.json();
+      setJobs(data.results?.length?data.results.map(j=>({
+        id:j.id,title:j.title,company:j.company?.display_name||"Company",
+        location:j.location?.display_name||loc,
+        salary:j.salary_min?`₹${Math.round(j.salary_min/100000)}–${Math.round((j.salary_max||j.salary_min*1.4)/100000)} LPA`:"Competitive",
+        description:j.description||"",desc200:(j.description||"").slice(0,200),
+        url:j.redirect_url,
+        posted:new Date(j.created).toLocaleDateString("en-IN",{day:"numeric",month:"short"}),
+        category:j.category?.label||"Technology",
+      })):[]);
+    }catch{}
+    setLoading(false);
   };
 
-  if(parsed.education?.length){sectionHeader("Education");parsed.education.forEach(e=>{rowLine(e.institution||"",e.years||"",true);if(e.degree)bodyText(e.degree+" "+(e.gpa||""),false,8.8);y+=1;});}
-  if(parsed.experience?.length){sectionHeader("Experience");parsed.experience.forEach(exp=>{rowLine(exp.title||"",exp.dates||"",true);if(exp.company)bodyText(exp.company+" — "+exp.location,false,8.5);exp.bullets?.forEach(b=>bulletLine(b));y+=2;});}
-  if(parsed.projects?.length){sectionHeader("Projects");parsed.projects.forEach(p=>{rowLine((p.name||"")+(p.tech?" | "+p.tech:""),p.year||"",true);p.bullets?.forEach(b=>bulletLine(b));y+=2;});}
-  if(parsed.skills){
-    sectionHeader("Technical Skills");
-    Object.entries(parsed.skills).forEach(([cat,val])=>{
-      if(y>272){doc.addPage();y=18;}
-      doc.setFont("helvetica","bold");doc.setFontSize(8.8);doc.setTextColor(15,23,42);
-      doc.text(cat+": ",marginL,y);
-      doc.setFont("helvetica","normal");doc.setTextColor(71,85,99);
-      const lw=doc.getTextWidth(cat+": ");
-      const lines=doc.splitTextToSize(val,usable-lw);
-      doc.text(lines[0],marginL+lw,y);
-      if(lines.length>1)lines.slice(1).forEach(l=>{y+=4;doc.text(l,marginL,y);});
-      y+=4.5;
-    });
-  }
-  if(parsed.certifications?.length){sectionHeader("Certifications & Achievements");parsed.certifications.forEach(c=>bulletLine(c));}
-  doc.save(filename);
-}
+  const quickRoles=["React Developer","Node.js","Data Analyst","Python","Java","Full Stack","DevOps","AI ML"];
 
-async function downloadJakesDOCX(parsed, filename="TakePlace_Resume.docx"){
-  if(!window.docx){
-    await new Promise((res,rej)=>{
-      const s=document.createElement("script");
-      s.src="https://unpkg.com/docx@8.2.2/build/index.umd.js";
-      s.onload=res;s.onerror=rej;document.head.appendChild(s);
-    });
-  }
-  const {Document,Packer,Paragraph,TextRun,AlignmentType,BorderStyle,TabStopType,TabStopPosition}=window.docx;
-  const children=[];
-  const HR=()=>new Paragraph({border:{bottom:{style:BorderStyle.SINGLE,size:4,color:"2563EB",space:1}},spacing:{after:60},children:[]});
-  const SH=(title)=>[new Paragraph({spacing:{before:120,after:20},children:[new TextRun({text:title.toUpperCase(),bold:true,size:20,font:"Calibri",color:"0F172A"})]}),HR()];
+  return(
+    <div>
+      <div style={{fontWeight:800,fontSize:20,color:C.ink,marginBottom:4}}>🔥 Live Job Feed</div>
+      <div style={{color:C.muted,fontSize:13,marginBottom:14}}>Real jobs from top Indian companies · Updated daily. Practiced the role in Interview Mocks? Apply here next.</div>
+      <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:16,marginBottom:14}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+          <input style={inp} placeholder="Role..." value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}/>
+          <input style={inp} placeholder="City..." value={location} onChange={e=>setLocation(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}/>
+        </div>
+        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+          {quickRoles.map(r=>(
+            <button key={r} onClick={()=>{setSearch(r);fetchJobs(r,location);}}
+              style={{padding:"4px 10px",borderRadius:20,border:`1px solid ${C.border}`,background:search===r?`${C.amber}10`:"#f8fafc",color:search===r?C.amber:C.muted,fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600}}>
+              {r}
+            </button>
+          ))}
+        </div>
+        <Btn v="dark" onClick={()=>fetchJobs()} style={{width:"100%"}}>🔍 Search Jobs</Btn>
+      </div>
 
-  children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},children:[new TextRun({text:parsed.name||"Your Name",bold:true,size:30,font:"Calibri",color:"0F172A"})]}));
-  const contact=[parsed.phone,parsed.email,parsed.linkedin,parsed.github,parsed.location].filter(Boolean).join(" | ");
-  children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:80},children:[new TextRun({text:contact,size:16,font:"Calibri",color:"64748B"})]}));
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <div style={{fontWeight:700,fontSize:15,color:C.ink}}>Results</div>
+        {!loading&&jobs.length>0&&(
+          <div style={{display:"flex",alignItems:"center",gap:5,background:C.greenPale,borderRadius:20,padding:"4px 10px",border:"1px solid #bbf7d0"}}>
+            <div style={{width:6,height:6,borderRadius:"50%",background:C.green,animation:"pulse 1.5s infinite"}}/>
+            <span style={{color:C.green,fontSize:11,fontWeight:700}}>{jobs.length} live jobs</span>
+          </div>
+        )}
+      </div>
 
-  if(parsed.education?.length){SH("Education").forEach(p=>children.push(p));parsed.education.forEach(e=>{children.push(new Paragraph({tabStops:[{type:TabStopType.RIGHT,position:TabStopPosition.MAX}],spacing:{after:20},children:[new TextRun({text:e.institution||"",bold:true,size:18,font:"Calibri"}),new TextRun({text:"\t"+(e.years||""),size:16,font:"Calibri",color:"64748B"})]}));if(e.degree)children.push(new Paragraph({spacing:{after:60},children:[new TextRun({text:e.degree+" "+(e.gpa||""),size:16,font:"Calibri",color:"475569"})]}));});}
-  if(parsed.experience?.length){SH("Experience").forEach(p=>children.push(p));parsed.experience.forEach(exp=>{children.push(new Paragraph({tabStops:[{type:TabStopType.RIGHT,position:TabStopPosition.MAX}],spacing:{after:20},children:[new TextRun({text:exp.title||"",bold:true,size:18,font:"Calibri"}),new TextRun({text:"\t"+(exp.dates||""),size:16,font:"Calibri",color:"64748B"})]}));if(exp.company)children.push(new Paragraph({spacing:{after:20},children:[new TextRun({text:exp.company+(exp.location?" — "+exp.location:""),size:16,font:"Calibri",italics:true,color:"475569"})]}));exp.bullets?.forEach(b=>children.push(new Paragraph({bullet:{level:0},spacing:{after:20},children:[new TextRun({text:b,size:17,font:"Calibri",color:"1E293B"})]})));children.push(new Paragraph({spacing:{after:60},children:[]}));});}
-  if(parsed.projects?.length){SH("Projects").forEach(p=>children.push(p));parsed.projects.forEach(p=>{children.push(new Paragraph({tabStops:[{type:TabStopType.RIGHT,position:TabStopPosition.MAX}],spacing:{after:20},children:[new TextRun({text:(p.name||"")+(p.tech?" | "+p.tech:""),bold:true,size:18,font:"Calibri"}),new TextRun({text:"\t"+(p.year||""),size:16,font:"Calibri",color:"64748B"})]}));p.bullets?.forEach(b=>children.push(new Paragraph({bullet:{level:0},spacing:{after:20},children:[new TextRun({text:b,size:17,font:"Calibri",color:"1E293B"})]})));children.push(new Paragraph({spacing:{after:60},children:[]}));});}
-  if(parsed.skills){SH("Technical Skills").forEach(p=>children.push(p));Object.entries(parsed.skills).forEach(([cat,val])=>{children.push(new Paragraph({spacing:{after:30},children:[new TextRun({text:cat+": ",bold:true,size:17,font:"Calibri"}),new TextRun({text:val,size:17,font:"Calibri",color:"475569"})]}));});}
-  if(parsed.certifications?.length){SH("Certifications & Achievements").forEach(p=>children.push(p));parsed.certifications.forEach(c=>children.push(new Paragraph({bullet:{level:0},spacing:{after:20},children:[new TextRun({text:c,size:17,font:"Calibri",color:"1E293B"})]})));}
-
-  const doc=new Document({sections:[{properties:{page:{size:{width:12240,height:15840},margin:{top:720,right:900,bottom:720,left:900}}},children}]});
-  const blob=await Packer.toBlob(doc);
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+      {loading&&<div style={{textAlign:"center",padding:"60px 0"}}><Spin size={36}/></div>}
+      {!loading&&jobs.map((job,i)=>{
+        const isExp=expanded===job.id;
+        const isSaved=saved.includes(job.id);
+        return(
+          <div key={job.id} className="fade lift" style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:16,marginBottom:8,borderLeft:`3px solid ${C.amber}`,animationDelay:`${i*.04}s`,boxShadow:"0 1px 6px rgba(0,0,0,.04)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700,fontSize:14,color:C.ink}}>{job.title}</div>
+                <div style={{color:C.muted,fontSize:12,marginTop:1}}>{job.company} · {job.location}</div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{color:C.green,fontWeight:800,fontSize:13}}>{job.salary}</div>
+                <div style={{color:C.muted,fontSize:11,marginTop:1}}>{job.posted}</div>
+              </div>
+            </div>
+            <div style={{color:C.muted,fontSize:12,lineHeight:1.7,marginBottom:10,background:C.bg2,borderRadius:8,padding:"8px 10px"}}>
+              {isExp?job.description.replace(/<[^>]+>/g,""):job.desc200.replace(/<[^>]+>/g,"")+(job.description.length>200?"...":"")}
+              {job.description.length>200&&(
+                <button onClick={()=>setExpanded(isExp?null:job.id)} style={{background:"none",border:"none",color:C.amber,fontSize:11,cursor:"pointer",marginLeft:4,fontFamily:"'Inter',sans-serif",fontWeight:600}}>
+                  {isExp?"Less ▲":"More ▼"}
+                </button>
+              )}
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <Tag color={C.teal}>{job.category}</Tag>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={()=>setSaved(s=>s.includes(job.id)?s.filter(x=>x!==job.id):[...s,job.id])}
+                  style={{padding:"6px 10px",borderRadius:8,border:`1.5px solid ${isSaved?C.amber:C.border}`,background:isSaved?C.amberPale:"transparent",cursor:"pointer",fontSize:11,fontWeight:600,color:isSaved?C.amber:C.muted,fontFamily:"'Inter',sans-serif"}}>
+                  {isSaved?"★":"☆"}
+                </button>
+                <Btn v="dark" onClick={()=>window.open(job.url,"_blank")} style={{fontSize:12,padding:"7px 16px"}}>Apply →</Btn>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      {!loading&&jobs.length===0&&<div style={{textAlign:"center",padding:"60px 0",color:C.muted}}>No jobs found. Try a different role or city.</div>}
+    </div>
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -278,157 +726,97 @@ function LandingPage({onStart}){
   const [scrolled,setScrolled]=useState(false);
   useEffect(()=>{const h=()=>setScrolled(window.scrollY>50);window.addEventListener("scroll",h);return()=>window.removeEventListener("scroll",h);},[]);
 
-  const stats=[{n:"50K+",l:"Active Users"},{n:"94%",l:"ATS Pass Rate"},{n:"3.2×",l:"More Interviews"},{n:"Free",l:"To Get Started"}];
-  const features=[
-    {icon:"⚡",title:"Live Job Feed",desc:"Real jobs from top Indian companies updated daily. Filter by role, city, salary in seconds."},
-    {icon:"🧠",title:"Deep ATS Analysis",desc:"Section-by-section resume audit. Keyword gap finder. ATS score + JD match % + shortlist rate."},
-    {icon:"🎯",title:"Project Relevance AI",desc:"AI judges every project against the JD. Keep, remove, or reframe — with reasons."},
-    {icon:"✨",title:"Jake's Resume Rewriter",desc:"One click converts your resume into a clean Jake's template with action verbs and JD keywords."},
-    {icon:"📥",title:"Download PDF & DOCX",desc:"Download your optimized resume as a real formatted PDF or Word doc — not plain text."},
-    {icon:"🏢",title:"Company Mock Tests",desc:"30+ company-specific aptitude and coding mock tests. TCS, Infosys, Amazon, Google and more."},
-  ];
-  const plans=[
-    {name:"Free",price:"₹0",period:"/month",color:C.blue,features:["5 resume analyses/month","Live job feed","Basic ATS score","3 company mock tests"],cta:"Get Started Free",v:"primary"},
-    {name:"Pro",price:"₹299",period:"/month",color:C.purple,popular:true,features:["Unlimited resume analyses","Deep section-by-section audit","Jake's resume rewriter","PDF & DOCX download","All 30+ company tests","Priority AI processing"],cta:"Start Pro — ₹299/mo",v:"purple"},
-    {name:"Premium",price:"₹599",period:"/month",color:C.gold,features:["Everything in Pro","1-on-1 resume review","Mock interview prep","LinkedIn optimization","Dedicated support","Career roadmap"],cta:"Go Premium",v:"gold"},
-  ];
   const reviews=[
-    {name:"Priya M.",role:"SDE at Wipro",text:"Score jumped from 42% to 91% after optimization. Got 4 interview calls in 2 weeks.",avatar:"PM",stars:5},
-    {name:"Arun K.",role:"Data Analyst at TCS",text:"The section-by-section audit showed exactly why I was getting rejected. Life changing.",avatar:"AK",stars:5},
-    {name:"Sneha R.",role:"Full Stack Dev at Infosys",text:"Jake's resume template is chef's kiss. Recruiter called within 3 days of submitting.",avatar:"SR",stars:5},
+    {name:"Priya M.",role:"SDE @ Wipro",text:"It actually spoke the questions out loud and made me answer in real time — way more nerve-testing than a PDF of questions. I walked into my real interview calm.",avatar:"PM"},
+    {name:"Arun K.",role:"Data Analyst @ TCS",text:"The feedback report broke down exactly where I rambled and where I sounded confident. Did three rounds before my actual interview.",avatar:"AK"},
+    {name:"Sneha R.",role:"Full Stack Dev @ Infosys",text:"26 roles to pick from — found the exact one I was interviewing for. Felt like a real panel was sitting across from me.",avatar:"SR"},
   ];
 
   return(
-    <div style={{background:"#fff",color:C.text,fontFamily:"'Inter',sans-serif",overflowX:"hidden"}}>
+    <div style={{background:"#fff",color:C.ink,fontFamily:"'Inter',sans-serif",overflowX:"hidden"}}>
       <style>{CSS}</style>
       <nav style={{position:"fixed",top:0,left:0,right:0,zIndex:1000,background:scrolled?"rgba(255,255,255,.96)":"transparent",backdropFilter:scrolled?"blur(20px)":"none",borderBottom:scrolled?`1px solid ${C.border}`:"none",transition:"all .3s",padding:"0 24px"}}>
         <div style={{maxWidth:1100,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:64}}>
-          <div style={{fontWeight:900,fontSize:22,color:C.blue,display:"flex",alignItems:"center",gap:6}}>⚡ TakePlace</div>
+          <div style={{fontWeight:900,fontSize:22,color:C.navy,display:"flex",alignItems:"center",gap:6}}>🎤 TakePlace</div>
           <div style={{display:"flex",gap:12,alignItems:"center"}}>
-            <a href="#features" style={{color:C.muted,fontSize:14,fontWeight:500,display:"none"}}>Features</a>
-            <a href="#pricing" style={{color:C.muted,fontSize:14,fontWeight:500,display:"none"}}>Pricing</a>
             <Btn v="ghost" onClick={onStart} style={{padding:"8px 18px",fontSize:13}}>Sign In</Btn>
-            <Btn v="cta" onClick={onStart} style={{padding:"8px 20px",fontSize:13}}>Start Free →</Btn>
+            <Btn v="amber" onClick={onStart} style={{padding:"8px 20px",fontSize:13}}>Start Mock Interview →</Btn>
           </div>
         </div>
       </nav>
 
       {/* HERO */}
-      <section style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"120px 24px 80px",position:"relative",overflow:"hidden",background:"linear-gradient(160deg,#eff6ff 0%,#fff 45%,#f0fdf4 100%)"}}>
-        <div style={{position:"absolute",top:"8%",right:"4%",width:420,height:420,borderRadius:"50%",background:"radial-gradient(circle,#dbeafe80,transparent 70%)",pointerEvents:"none"}}/>
-        <div style={{position:"absolute",bottom:"8%",left:"4%",width:320,height:320,borderRadius:"50%",background:"radial-gradient(circle,#dcfce780,transparent 70%)",pointerEvents:"none"}}/>
-        <div style={{textAlign:"center",maxWidth:840,position:"relative",zIndex:1}}>
-          <div className="fade" style={{display:"inline-flex",alignItems:"center",gap:8,background:`${C.blue}10`,border:`1px solid ${C.blue}30`,borderRadius:20,padding:"6px 16px",marginBottom:28,fontSize:12,color:C.blue,fontWeight:700}}>
-            <span style={{width:7,height:7,borderRadius:"50%",background:C.blue,display:"inline-block",animation:"pulse 1.5s infinite"}}/>
-            India's #1 AI Job Platform for Freshers
+      <section style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"120px 24px 80px",position:"relative",overflow:"hidden",background:`linear-gradient(165deg,${C.navy} 0%,${C.navyL} 55%,#1d2b52 100%)`,color:"#fff"}}>
+        <div style={{position:"absolute",top:"10%",right:"6%",width:380,height:380,borderRadius:"50%",background:"radial-gradient(circle,rgba(245,158,11,.18),transparent 70%)",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",bottom:"6%",left:"4%",width:300,height:300,borderRadius:"50%",background:"radial-gradient(circle,rgba(20,184,166,.18),transparent 70%)",pointerEvents:"none"}}/>
+        <div style={{textAlign:"center",maxWidth:780,position:"relative",zIndex:1}}>
+          <div className="fade" style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(245,158,11,.12)",border:"1px solid rgba(245,158,11,.35)",borderRadius:20,padding:"6px 16px",marginBottom:28,fontSize:12,color:C.amberL,fontWeight:700}}>
+            <span style={{width:7,height:7,borderRadius:"50%",background:C.amberL,display:"inline-block",animation:"pulse 1.5s infinite"}}/>
+            A real spoken interview. Not a quiz.
           </div>
-          <h1 className="fade" style={{fontWeight:900,fontSize:"clamp(36px,6vw,68px)",lineHeight:1.08,marginBottom:24,color:C.text,animationDelay:".1s"}}>
-            Land Your Dream Job<br/>
-            <span style={{background:`linear-gradient(135deg,${C.blue},${C.purple})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>10× Faster with AI</span>
+          <h1 className="fade" style={{fontFamily:"'Fraunces',serif",fontWeight:700,fontSize:"clamp(36px,6vw,62px)",lineHeight:1.1,marginBottom:22,animationDelay:".1s"}}>
+            Sit across from an AI<br/>interviewer who actually<br/>
+            <span style={{color:C.amberL}}>asks, listens, and scores you.</span>
           </h1>
-          <p className="fade" style={{fontSize:17,color:C.muted,lineHeight:1.8,marginBottom:44,maxWidth:600,margin:"0 auto 44px",animationDelay:".2s"}}>
-            Deep ATS analysis · Jake's resume rewriter · Live job feed · 30+ company mock tests.<br/>
-            <strong style={{color:C.text}}>Built by a fresher who felt the pain. Zero fluff.</strong>
+          <p className="fade" style={{fontSize:16,color:"rgba(255,255,255,.75)",lineHeight:1.8,marginBottom:40,maxWidth:560,margin:"0 auto 40px",animationDelay:".2s"}}>
+            Pick from 26 real roles. The interviewer speaks every question out loud. You answer by talking, on the clock, like the real thing — then get a full feedback report.
           </p>
           <div className="fade" style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap",animationDelay:".3s"}}>
-            <Btn v="cta" onClick={onStart} style={{padding:"15px 36px",fontSize:16,borderRadius:12}}>🚀 Start Free — No Credit Card</Btn>
-            <Btn v="ghost" onClick={()=>document.getElementById("features")?.scrollIntoView({behavior:"smooth"})} style={{padding:"15px 28px",fontSize:16,borderRadius:12}}>See Features ↓</Btn>
-          </div>
-          <div className="fade" style={{display:"flex",justifyContent:"center",marginTop:60,background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:20,overflow:"hidden",maxWidth:560,margin:"60px auto 0",boxShadow:"0 4px 28px rgba(0,0,0,.07)",animationDelay:".4s"}}>
-            {stats.map((s,i)=>(
-              <div key={i} style={{flex:1,padding:"20px 8px",borderRight:i<stats.length-1?`1px solid ${C.border}`:"none",textAlign:"center"}}>
-                <div style={{fontWeight:900,fontSize:24,color:C.blue}}>{s.n}</div>
-                <div style={{fontSize:10,color:C.muted,marginTop:2,fontWeight:600}}>{s.l}</div>
-              </div>
-            ))}
+            <Btn v="amber" onClick={onStart} style={{padding:"15px 36px",fontSize:16,borderRadius:12}}>🎙️ Start Your Mock Interview</Btn>
+            <Btn v="ghost" onClick={onStart} style={{padding:"15px 28px",fontSize:16,borderRadius:12,color:"#fff",border:"1.5px solid rgba(255,255,255,.3)"}}>Browse Live Jobs →</Btn>
           </div>
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
-      <section style={{padding:"80px 24px",maxWidth:1100,margin:"0 auto"}}>
-        <div style={{textAlign:"center",marginBottom:56}}>
-          <div style={{fontSize:11,color:C.blue,fontWeight:800,letterSpacing:3,marginBottom:12,textTransform:"uppercase"}}>How It Works</div>
-          <h2 style={{fontWeight:900,fontSize:36,color:C.text}}>Three Steps to More Interviews</h2>
+      {/* TWO PILLARS */}
+      <section style={{padding:"80px 24px",maxWidth:1000,margin:"0 auto"}}>
+        <div style={{textAlign:"center",marginBottom:50}}>
+          <div style={{fontSize:11,color:C.amber,fontWeight:800,letterSpacing:3,marginBottom:12,textTransform:"uppercase"}}>Just two things, done extremely well</div>
+          <h2 style={{fontFamily:"'Fraunces',serif",fontWeight:700,fontSize:34,color:C.ink}}>Practice the interview. Then go get it.</h2>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:20}}>
-          {[
-            {icon:"📋",t:"Paste JD + Upload Resume",d:"Drop the job description and upload your resume (PDF, DOCX). Takes 30 seconds."},
-            {icon:"🧠",t:"AI Audits Every Section",d:"AI reads each section, scores ATS readiness, finds every keyword gap and weak area."},
-            {icon:"✨",t:"Download Jake's Resume",d:"Get a fully rewritten Jake-format resume. Download as PDF or DOCX and apply with confidence."},
-          ].map((s,i)=>(
-            <div key={i} className="lift" style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:20,padding:32,boxShadow:"0 2px 12px rgba(0,0,0,.05)"}}>
-              <div style={{fontSize:40,marginBottom:16}}>{s.icon}</div>
-              <div style={{fontWeight:800,fontSize:17,color:C.text,marginBottom:10}}>{s.t}</div>
-              <div style={{color:C.muted,fontSize:14,lineHeight:1.75}}>{s.d}</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(320px,1fr))",gap:24}}>
+          <div className="lift" style={{background:`linear-gradient(160deg,${C.navy},${C.navyL})`,borderRadius:24,padding:32,color:"#fff"}}>
+            <div style={{fontSize:42,marginBottom:14}}>🎤</div>
+            <div style={{fontWeight:800,fontSize:20,marginBottom:10}}>AI Mock Interviews</div>
+            <div style={{color:"rgba(255,255,255,.75)",fontSize:14,lineHeight:1.85,marginBottom:18}}>
+              26+ roles, from Software Engineer to Civil Engineer. The AI sits in the interviewer's seat, asks role-specific questions out loud, listens to your spoken answer in real time on a countdown clock, then scores you on communication, technical depth, confidence, and structure.
             </div>
-          ))}
-        </div>
-      </section>
-
-      {/* FEATURES */}
-      <section id="features" style={{padding:"80px 24px",background:"#f8fafc"}}>
-        <div style={{maxWidth:1100,margin:"0 auto"}}>
-          <div style={{textAlign:"center",marginBottom:56}}>
-            <div style={{fontSize:11,color:C.green,fontWeight:800,letterSpacing:3,marginBottom:12,textTransform:"uppercase"}}>Features</div>
-            <h2 style={{fontWeight:900,fontSize:36,color:C.text}}>Everything You Need to Get Hired</h2>
+            <ul style={{color:"rgba(255,255,255,.65)",fontSize:13,lineHeight:2,paddingLeft:18}}>
+              <li>Spoken questions, spoken answers — no typing</li>
+              <li>Live transcript as you talk</li>
+              <li>Per-question + overall feedback report</li>
+            </ul>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(290px,1fr))",gap:18}}>
-            {features.map((f,i)=>(
-              <div key={i} className="lift" style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:18,padding:26,display:"flex",gap:16,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}>
-                <div style={{fontSize:32,flexShrink:0}}>{f.icon}</div>
-                <div>
-                  <div style={{fontWeight:700,fontSize:15,color:C.text,marginBottom:6}}>{f.title}</div>
-                  <div style={{color:C.muted,fontSize:13,lineHeight:1.75}}>{f.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* PRICING */}
-      <section id="pricing" style={{padding:"80px 24px",maxWidth:1100,margin:"0 auto"}}>
-        <div style={{textAlign:"center",marginBottom:56}}>
-          <div style={{fontSize:11,color:C.purple,fontWeight:800,letterSpacing:3,marginBottom:12,textTransform:"uppercase"}}>Pricing</div>
-          <h2 style={{fontWeight:900,fontSize:36,color:C.text}}>Simple. Transparent. Affordable.</h2>
-          <p style={{color:C.muted,fontSize:15,marginTop:10}}>Start free. Upgrade when you're ready.</p>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(270px,1fr))",gap:22,alignItems:"start"}}>
-          {plans.map((p,i)=>(
-            <div key={i} style={{background:"#fff",border:`2px solid ${p.popular?p.color:C.border}`,borderRadius:24,padding:30,position:"relative",boxShadow:p.popular?`0 12px 40px ${p.color}25`:"0 2px 8px rgba(0,0,0,.05)"}}>
-              {p.popular&&<div style={{position:"absolute",top:-13,left:"50%",transform:"translateX(-50%)",background:`linear-gradient(135deg,${C.purpleD},${C.purple})`,color:"#fff",fontSize:11,fontWeight:800,padding:"4px 16px",borderRadius:20}}>⭐ MOST POPULAR</div>}
-              <div style={{fontSize:13,fontWeight:800,color:p.color,marginBottom:6,letterSpacing:1}}>{p.name.toUpperCase()}</div>
-              <div style={{fontWeight:900,fontSize:38,color:C.text}}>{p.price}<span style={{fontSize:13,fontWeight:400,color:C.muted}}>{p.period}</span></div>
-              <div style={{height:1,background:C.border,margin:"18px 0"}}/>
-              {p.features.map((f,j)=>(
-                <div key={j} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:12}}>
-                  <span style={{color:p.color,fontWeight:800,fontSize:13,flexShrink:0}}>✓</span>
-                  <span style={{color:C.soft,fontSize:13}}>{f}</span>
-                </div>
-              ))}
-              <Btn v={p.v} onClick={onStart} style={{width:"100%",padding:"12px",marginTop:10,borderRadius:12,fontSize:14}}>{p.cta}</Btn>
+          <div className="lift" style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:24,padding:32,boxShadow:"0 2px 16px rgba(0,0,0,.05)"}}>
+            <div style={{fontSize:42,marginBottom:14}}>🔥</div>
+            <div style={{fontWeight:800,fontSize:20,marginBottom:10,color:C.ink}}>Live Job Feed</div>
+            <div style={{color:C.muted,fontSize:14,lineHeight:1.85,marginBottom:18}}>
+              Real, currently-open roles from companies across India, updated daily. Filter by role and city, see salary ranges upfront, and apply directly — no fake listings.
             </div>
-          ))}
+            <ul style={{color:C.soft,fontSize:13,lineHeight:2,paddingLeft:18}}>
+              <li>Updated daily from live company postings</li>
+              <li>Filter by role, city, salary band</li>
+              <li>One-tap apply on the original listing</li>
+            </ul>
+          </div>
         </div>
       </section>
 
       {/* REVIEWS */}
-      <section style={{padding:"80px 24px",background:"#f8fafc"}}>
+      <section style={{padding:"80px 24px",background:C.bg2}}>
         <div style={{maxWidth:1100,margin:"0 auto"}}>
-          <div style={{textAlign:"center",marginBottom:56}}>
-            <div style={{fontSize:11,color:C.gold,fontWeight:800,letterSpacing:3,marginBottom:12,textTransform:"uppercase"}}>Success Stories</div>
-            <h2 style={{fontWeight:900,fontSize:36,color:C.text}}>They Got Hired. You're Next.</h2>
+          <div style={{textAlign:"center",marginBottom:50}}>
+            <div style={{fontSize:11,color:C.teal,fontWeight:800,letterSpacing:3,marginBottom:12,textTransform:"uppercase"}}>Before they walked into the real one</div>
+            <h2 style={{fontFamily:"'Fraunces',serif",fontWeight:700,fontSize:32,color:C.ink}}>They rehearsed here first.</h2>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(270px,1fr))",gap:18}}>
             {reviews.map((r,i)=>(
               <div key={i} className="lift" style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:20,padding:26,boxShadow:"0 2px 12px rgba(0,0,0,.05)"}}>
-                <div style={{color:C.gold,fontSize:15,marginBottom:10}}>{"★".repeat(r.stars)}</div>
                 <div style={{color:C.soft,fontSize:14,lineHeight:1.8,marginBottom:18}}>{r.text}</div>
                 <div style={{display:"flex",alignItems:"center",gap:12}}>
-                  <div style={{width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${C.blue},${C.blueL})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:"#fff"}}>{r.avatar}</div>
+                  <div style={{width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${C.navy},${C.navyL})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:"#fff"}}>{r.avatar}</div>
                   <div>
-                    <div style={{fontWeight:700,color:C.text,fontSize:14}}>{r.name}</div>
+                    <div style={{fontWeight:700,color:C.ink,fontSize:14}}>{r.name}</div>
                     <div style={{color:C.muted,fontSize:12}}>{r.role}</div>
                   </div>
                 </div>
@@ -440,18 +828,18 @@ function LandingPage({onStart}){
 
       {/* CTA */}
       <section style={{padding:"80px 24px",textAlign:"center"}}>
-        <div style={{maxWidth:580,margin:"0 auto",background:`linear-gradient(135deg,${C.blueD},${C.blue})`,borderRadius:28,padding:"56px 36px",boxShadow:`0 20px 60px ${C.blue}35`}}>
-          <div className="float" style={{fontSize:52,marginBottom:14}}>⚡</div>
-          <h2 style={{fontWeight:900,fontSize:32,color:"#fff",marginBottom:10}}>It's Your Time. TakePlace.</h2>
-          <p style={{color:"#bfdbfe",fontSize:15,marginBottom:32,lineHeight:1.7}}>Join 50,000+ freshers who landed interviews faster with AI-powered resume optimization.</p>
-          <Btn v="ghost" onClick={onStart} style={{padding:"14px 44px",fontSize:15,borderRadius:12,background:"#fff",color:C.blue,fontWeight:800,border:"none"}}>Start Free Now →</Btn>
+        <div style={{maxWidth:580,margin:"0 auto",background:`linear-gradient(135deg,${C.navy},${C.navyL})`,borderRadius:28,padding:"56px 36px"}}>
+          <div className="float" style={{fontSize:48,marginBottom:14}}>🎤</div>
+          <h2 style={{fontFamily:"'Fraunces',serif",fontWeight:700,fontSize:30,color:"#fff",marginBottom:10}}>It's Your Time. TakePlace.</h2>
+          <p style={{color:"rgba(255,255,255,.7)",fontSize:15,marginBottom:32,lineHeight:1.7}}>Sit through one real mock interview, get scored, and apply with confidence.</p>
+          <Btn v="amber" onClick={onStart} style={{padding:"14px 44px",fontSize:15,borderRadius:12}}>Start Free Now →</Btn>
         </div>
       </section>
 
       <footer style={{borderTop:`1px solid ${C.border}`,padding:"24px",textAlign:"center",background:"#fff"}}>
         <div style={{color:C.muted,fontSize:12}}>
           © 2026 TakePlace · Built by Raghu Dadigela ·{" "}
-          <a href="mailto:support@takeplace.in" style={{color:C.blue,fontWeight:600}}>support@takeplace.in</a>
+          <a href="mailto:support@takeplace.in" style={{color:C.navy,fontWeight:600}}>support@takeplace.in</a>
         </div>
       </footer>
     </div>
@@ -496,16 +884,16 @@ function AuthPage({onLogin,onBack}){
   };
 
   return(
-    <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#eff6ff 0%,#fff 60%,#f0fdf4 100%)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+    <div style={{minHeight:"100vh",background:`linear-gradient(160deg,${C.navy} 0%,${C.navyL} 60%,#1d2b52 100%)`,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
       <style>{CSS}</style>
-      <div className="fade" style={{width:"100%",maxWidth:400,background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:24,padding:"32px",boxShadow:"0 20px 60px rgba(37,99,235,.12)"}}>
+      <div className="fade" style={{width:"100%",maxWidth:400,background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:24,padding:"32px",boxShadow:"0 20px 60px rgba(0,0,0,.3)"}}>
         <button onClick={onBack} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginBottom:20,fontFamily:"'Inter',sans-serif",display:"flex",alignItems:"center",gap:4}}>← Back</button>
         <div style={{textAlign:"center",marginBottom:24}}>
-          <div style={{fontSize:40,marginBottom:6}}>⚡</div>
-          <div style={{fontWeight:900,fontSize:24,color:C.blue}}>TakePlace</div>
+          <div style={{fontSize:40,marginBottom:6}}>🎤</div>
+          <div style={{fontWeight:900,fontSize:24,color:C.navy}}>TakePlace</div>
           <div style={{color:C.muted,fontSize:13,marginTop:4}}>{mode==="login"?"Welcome back 👋":"Create your free account ✨"}</div>
         </div>
-        <button onClick={handleGoogle} disabled={gLoading} style={{width:"100%",padding:"12px",borderRadius:10,border:`1.5px solid ${C.border}`,background:"#fff",color:C.text,fontSize:14,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
+        <button onClick={handleGoogle} disabled={gLoading} style={{width:"100%",padding:"12px",borderRadius:10,border:`1.5px solid ${C.border}`,background:"#fff",color:C.ink,fontSize:14,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
           {gLoading?<Spin size={16}/>:<svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>}
           Continue with Google
         </button>
@@ -515,7 +903,7 @@ function AuthPage({onLogin,onBack}){
         <div style={{display:"flex",background:C.bg2,borderRadius:10,padding:4,marginBottom:18}}>
           {["login","register"].map(m=>(
             <button key={m} onClick={()=>{setMode(m);setErr("");setMsg("");}}
-              style={{flex:1,padding:"9px",borderRadius:8,border:"none",cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,transition:"all .2s",background:mode===m?"#fff":"transparent",color:mode===m?C.blue:C.muted,boxShadow:mode===m?"0 1px 4px rgba(0,0,0,.08)":"none"}}>
+              style={{flex:1,padding:"9px",borderRadius:8,border:"none",cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,transition:"all .2s",background:mode===m?"#fff":"transparent",color:mode===m?C.navy:C.muted,boxShadow:mode===m?"0 1px 4px rgba(0,0,0,.08)":"none"}}>
               {m==="login"?"Sign In":"Register"}
             </button>
           ))}
@@ -527,7 +915,7 @@ function AuthPage({onLogin,onBack}){
         </div>
         {err&&<div style={{color:C.red,fontSize:12,marginTop:10,background:C.redPale,padding:"8px 12px",borderRadius:8}}>⚠ {err}</div>}
         {msg&&<div style={{color:C.green,fontSize:12,marginTop:10,background:C.greenPale,padding:"8px 12px",borderRadius:8}}>{msg}</div>}
-        <Btn v="cta" onClick={handle} loading={loading} style={{width:"100%",marginTop:16,padding:"13px",fontSize:15}}>
+        <Btn v="amber" onClick={handle} loading={loading} style={{width:"100%",marginTop:16,padding:"13px",fontSize:15}}>
           {mode==="login"?"Sign In →":"Create Account →"}
         </Btn>
       </div>
@@ -536,615 +924,19 @@ function AuthPage({onLogin,onBack}){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// RESUME ANALYZER
-// ═══════════════════════════════════════════════════════════════════════════
-function ResumeAnalyzer(){
-  const [jd,setJd]=useState(()=>localStorage.getItem("tp_jd")||"");
-  const [resume,setResume]=useState(()=>localStorage.getItem("tp_resume")||"");
-  const [fileName,setFileName]=useState(()=>localStorage.getItem("tp_fn")||"");
-  const [step,setStep]=useState("input");
-  const [analysis,setAnalysis]=useState(null);
-  const [parsed,setParsed]=useState(null);
-  const [activeTab,setActiveTab]=useState("overview");
-  const [err,setErr]=useState("");
-  const [dlLoading,setDlLoading]=useState("");
-  const fileRef=useRef();
-
-  const handleFile=async(e)=>{
-    const f=e.target.files[0];if(!f)return;
-    setFileName(f.name);localStorage.setItem("tp_fn",f.name);setErr("");
-    try{
-      let text="";
-      if(f.type==="application/pdf"||f.name.endsWith(".pdf")) text=await extractPDF(f);
-      else if(f.name.endsWith(".docx")) text=await extractDOCX(f);
-      else{const r=new FileReader();r.onload=ev=>{setResume(ev.target.result);localStorage.setItem("tp_resume",ev.target.result);};r.readAsText(f);return;}
-      setResume(text);localStorage.setItem("tp_resume",text);
-    }catch(e2){setErr("Could not read file: "+e2.message);}
-  };
-
-  const runAnalysis=async()=>{
-    if(!jd.trim()||!resume.trim()){setErr("Please fill both JD and resume.");return;}
-    setStep("analyzing");setErr("");setAnalysis(null);setParsed(null);
-    try{
-      const raw=await callGroq(`You are a senior ATS recruiter and hiring manager. Do a deep, honest analysis.
-
-JD (first 700 chars): ${jd.trim().slice(0,700)}
-RESUME (first 900 chars): ${resume.trim().slice(0,900)}
-
-Return ONLY this exact JSON:
-{
-  "matchScore": <0-100 integer>,
-  "atsScore": <0-100 integer>,
-  "shortlistRate": <0-35 integer>,
-  "verdict": "<Strong Match|Good Match|Partial Match|Weak Match>",
-  "recruiterTake": "<recruiter 6-second impression>",
-  "summary": "<2 sentence honest assessment>",
-  "sectionAudit": {
-    "header": {"score":<0-100>,"status":"<good|warning|poor>","note":"<feedback>"},
-    "summary": {"score":<0-100>,"status":"<good|warning|poor>","note":"<feedback>"},
-    "education": {"score":<0-100>,"status":"<good|warning|poor>","note":"<feedback>"},
-    "experience": {"score":<0-100>,"status":"<good|warning|poor>","note":"<feedback>"},
-    "projects": {"score":<0-100>,"status":"<good|warning|poor>","note":"<feedback>"},
-    "skills": {"score":<0-100>,"status":"<good|warning|poor>","note":"<feedback>"}
-  },
-  "strongMatches": [{"skill":"<name>","reason":"<why>","strength":<0-100>}],
-  "missingKeywords": [{"keyword":"<name>","importance":"High|Medium|Low","tip":"<where to add>"}],
-  "weakAreas": [{"area":"<name>","detail":"<problem>","fix":"<exact fix>"}],
-  "projectFit": [{"name":"<project>","relevance":<0-100>,"keep":<true|false>,"reason":"<why>","suggestion":"<improvement>"}],
-  "skillsToAdd": ["<skill1>","<skill2>","<skill3>"],
-  "improvements": ["<action 1>","<action 2>","<action 3>","<action 4>"]
-}`,2000);
-      const data=safeJSON(raw,null);
-      if(!data?.matchScore) throw new Error("Analysis failed — please try again.");
-      setAnalysis(data);setStep("results");setActiveTab("overview");
-    }catch(e){setErr(e.message);setStep("input");}
-  };
-
-  const runOptimize=async()=>{
-    setStep("optimizing");
-    try{
-      const praw=await callGroq(`Parse this resume into structured JSON for Jake's resume template.
-
-RESUME: ${resume.trim().slice(0,1200)}
-JD KEYWORDS: ${jd.trim().slice(0,400)}
-
-Return ONLY this JSON (optimize bullets with action verbs and metrics):
-{
-  "name":"<full name>",
-  "phone":"<phone>",
-  "email":"<email>",
-  "linkedin":"<linkedin>",
-  "github":"<github>",
-  "location":"<city, country>",
-  "education":[{"institution":"<name>","years":"<Sep 2022 – May 2026>","degree":"<B.Tech – CSE>","gpa":"CGPA: 8.49/10"}],
-  "experience":[{"title":"<role>","company":"<company>","location":"<city>","dates":"<Dec 2025 – Mar 2026>","bullets":["<action verb + achievement + metric>"]}],
-  "projects":[{"name":"<name>","tech":"<React.js, Node.js>","year":"<2026>","bullets":["<what it does + metric>"]}],
-  "skills":{"Frontend":"<list>","Backend":"<list>","Database":"<list>","Tools":"<list>"},
-  "certifications":["<cert 1>","<cert 2>"]
-}`,2200);
-      const p=safeJSON(praw,null);
-      if(!p?.name) throw new Error("Could not parse resume — try again.");
-      setParsed(p);setStep("preview");setActiveTab("preview");
-    }catch(e){setErr(e.message);setStep("results");setActiveTab("overview");}
-  };
-
-  const handleDownload=async(type)=>{
-    if(!parsed)return;
-    setDlLoading(type);
-    try{
-      if(type==="pdf") await downloadJakesPDF(parsed,"TakePlace_Optimized_Resume.pdf");
-      else await downloadJakesDOCX(parsed,"TakePlace_Optimized_Resume.docx");
-    }catch(e){setErr("Download error: "+e.message);}
-    setDlLoading("");
-  };
-
-  const sc=s=>s>=75?C.green:s>=50?C.yellow:C.red;
-  const statusColor=s=>s==="good"?C.green:s==="warning"?C.yellow:C.red;
-  const statusIcon=s=>s==="good"?"✅":s==="warning"?"⚠️":"❌";
-  const a=analysis;
-
-  if(step==="input") return(
-    <div>
-      <div style={{marginBottom:20}}>
-        <div style={{fontWeight:800,fontSize:20,color:C.text,marginBottom:4}}>⚡ AI Resume Analyzer</div>
-        <div style={{color:C.muted,fontSize:13}}>Paste JD + upload resume → Deep audit · ATS score · Jake's resume rewrite · PDF/DOCX download</div>
-      </div>
-      {err&&<div style={{background:C.redPale,border:"1px solid #fecaca",borderRadius:10,padding:"10px 14px",marginBottom:12,color:C.red,fontSize:13}}>⚠ {err}</div>}
-      <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}>
-        <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:8,display:"flex",alignItems:"center",gap:8}}>
-          📋 Job Description
-          {jd&&<Tag color={jd.split(/\s+/).filter(Boolean).length>150?C.green:C.yellow}>{jd.split(/\s+/).filter(Boolean).length} words</Tag>}
-        </div>
-        <textarea value={jd} onChange={e=>{setJd(e.target.value);localStorage.setItem("tp_jd",e.target.value);}}
-          placeholder="Paste the full job description here..."
-          style={{...inp,minHeight:150,resize:"vertical",lineHeight:1.8}}/>
-      </div>
-      <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:18}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-          <div style={{fontWeight:700,color:C.text,fontSize:14}}>📄 Your Resume</div>
-          <button onClick={()=>fileRef.current.click()} style={{padding:"7px 14px",borderRadius:8,border:`1.5px solid ${C.blue}40`,background:`${C.blue}08`,color:C.blue,fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600}}>📁 Upload PDF/DOCX</button>
-        </div>
-        <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" onChange={handleFile} style={{display:"none"}}/>
-        {fileName&&<div style={{background:C.greenPale,border:"1px solid #bbf7d0",borderRadius:8,padding:"6px 12px",marginBottom:8,fontSize:12,color:C.green}}>✅ {fileName} loaded</div>}
-        <textarea value={resume} onChange={e=>{setResume(e.target.value);localStorage.setItem("tp_resume",e.target.value);}}
-          placeholder="Paste resume text OR upload a file above..."
-          style={{...inp,minHeight:180,resize:"vertical",lineHeight:1.8}}/>
-      </div>
-      <Btn v="cta" onClick={runAnalysis} disabled={!jd.trim()||!resume.trim()} style={{width:"100%",padding:"14px",fontSize:15,borderRadius:12}}>
-        🔍 Analyze & Audit Resume
-      </Btn>
-    </div>
-  );
-
-  if(step==="analyzing") return(
-    <div style={{textAlign:"center",padding:"80px 20px"}}>
-      <div style={{fontSize:68,marginBottom:18,animation:"float 2s ease-in-out infinite"}}>🧠</div>
-      <div style={{fontWeight:800,fontSize:20,color:C.text,marginBottom:10}}>Deep Analyzing Your Resume...</div>
-      <div style={{color:C.muted,fontSize:14,marginBottom:28,lineHeight:1.9}}>Auditing each section · Scoring ATS readiness · Finding keyword gaps</div>
-      <Spin size={40} color={C.blue}/>
-    </div>
-  );
-
-  if(step==="optimizing") return(
-    <div style={{textAlign:"center",padding:"80px 20px"}}>
-      <div style={{fontSize:68,marginBottom:18,animation:"float 2s ease-in-out infinite"}}>✨</div>
-      <div style={{fontWeight:800,fontSize:20,color:C.text,marginBottom:10}}>Building Your Jake's Resume...</div>
-      <div style={{color:C.muted,fontSize:14,marginBottom:28,lineHeight:1.9}}>Rewriting bullets · Adding JD keywords · Structuring Jake's format</div>
-      <Spin size={40} color={C.purple}/>
-    </div>
-  );
-
-  const tabs=[
-    ["overview","📊 Overview"],["sections","🔍 Sections"],["gaps","⚠️ Gaps"],["projects","🏗️ Projects"],
-    ...(parsed?[["preview","✨ Resume"]]:[]),
-  ];
-
-  return(
-    <div className="fade">
-      {err&&<div style={{background:C.redPale,border:"1px solid #fecaca",borderRadius:10,padding:"10px 14px",marginBottom:12,color:C.red,fontSize:13}}>⚠ {err}</div>}
-
-      {/* SCORE HERO */}
-      <div style={{background:"linear-gradient(135deg,#eff6ff,#f0fdf4)",border:`1.5px solid ${C.blue}20`,borderRadius:18,padding:"24px 20px",marginBottom:14}}>
-        <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:20,marginBottom:18,flexWrap:"wrap"}}>
-          <ScoreRing score={a.matchScore} label="JD Match"/>
-          <div style={{width:1,height:70,background:C.border}}/>
-          <ScoreRing score={a.atsScore} color={C.blue} label="ATS Score"/>
-          <div style={{width:1,height:70,background:C.border}}/>
-          <div style={{textAlign:"center"}}>
-            <div style={{width:80,height:80,borderRadius:"50%",border:`5px solid ${C.purple}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:`${C.purple}08`}}>
-              <div style={{fontWeight:900,fontSize:18,color:C.purple}}>{a.shortlistRate}%</div>
-            </div>
-            <div style={{color:C.muted,fontSize:11,fontWeight:600,marginTop:4}}>Shortlist Rate</div>
-          </div>
-        </div>
-        <div style={{textAlign:"center"}}>
-          <div style={{display:"inline-block",padding:"5px 18px",borderRadius:20,background:a.matchScore>=75?C.greenPale:a.matchScore>=50?C.yellowPale:C.redPale,color:sc(a.matchScore),fontWeight:800,fontSize:13,marginBottom:8,border:`1px solid ${sc(a.matchScore)}30`}}>
-            {a.verdict}
-          </div>
-          <div style={{color:C.soft,fontSize:13,lineHeight:1.8,maxWidth:500,margin:"0 auto 8px"}}>{a.summary}</div>
-          {a.recruiterTake&&(
-            <div style={{background:"#fff",border:`1px solid ${C.blue}20`,borderRadius:10,padding:"9px 16px",fontSize:12,color:C.soft,fontStyle:"italic",maxWidth:480,margin:"0 auto"}}>
-              💼 <strong style={{color:C.blue,fontStyle:"normal"}}>Recruiter:</strong> {a.recruiterTake}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* TAB NAV */}
-      <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
-        {tabs.map(([k,l])=>(
-          <button key={k} onClick={()=>setActiveTab(k)}
-            style={{padding:"8px 14px",borderRadius:20,whiteSpace:"nowrap",border:`1.5px solid ${activeTab===k?C.blue:C.border}`,background:activeTab===k?`${C.blue}10`:"#fff",color:activeTab===k?C.blue:C.muted,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:activeTab===k?700:400,fontSize:12,transition:"all .2s"}}>
-            {l}
-          </button>
-        ))}
-      </div>
-
-      {/* OVERVIEW */}
-      {activeTab==="overview"&&(
-        <div className="fade">
-          {a.strongMatches?.length>0&&(
-            <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}>
-              <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:12,display:"flex",alignItems:"center",gap:8}}>✅ Strong Matches <Tag color={C.green}>{a.strongMatches.length}</Tag></div>
-              {a.strongMatches.map((m,i)=>(
-                <div key={i} style={{marginBottom:10,background:C.greenPale,borderRadius:10,padding:12,border:"1px solid #bbf7d0"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                    <div style={{fontWeight:700,color:C.text,fontSize:13}}>{m.skill}</div>
-                    <div style={{fontWeight:800,fontSize:14,color:sc(m.strength)}}>{m.strength}%</div>
-                  </div>
-                  <div style={{color:C.muted,fontSize:12,marginBottom:5}}>{m.reason}</div>
-                  <Bar score={m.strength} color={C.green}/>
-                </div>
-              ))}
-            </div>
-          )}
-          {a.skillsToAdd?.length>0&&(
-            <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}>
-              <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:12}}>🎯 Add These Skills</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-                {a.skillsToAdd.map((s,i)=><Tag key={i} color={C.purple}>+ {s}</Tag>)}
-              </div>
-            </div>
-          )}
-          {a.improvements?.length>0&&(
-            <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}>
-              <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:12}}>📝 What to Improve</div>
-              {a.improvements.map((imp,i)=>(
-                <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:8,background:C.bg2,borderRadius:8,padding:"9px 12px",border:`1px solid ${C.border}`}}>
-                  <span style={{color:C.blue,flexShrink:0,fontWeight:800}}>→</span>
-                  <span style={{color:C.soft,fontSize:13}}>{imp}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {a.weakAreas?.length>0&&(
-            <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18}}>
-              <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:12}}>⚡ Weak Areas</div>
-              {a.weakAreas.map((w,i)=>(
-                <div key={i} style={{background:C.yellowPale,borderRadius:10,padding:12,marginBottom:8,border:"1px solid #fef08a"}}>
-                  <div style={{fontWeight:700,color:C.yellow,fontSize:13,marginBottom:4}}>{w.area}</div>
-                  <div style={{color:C.soft,fontSize:12,lineHeight:1.7,marginBottom:4}}>{w.detail}</div>
-                  {w.fix&&<div style={{color:C.green,fontSize:12,fontWeight:600}}>✅ Fix: {w.fix}</div>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* SECTIONS */}
-      {activeTab==="sections"&&(
-        <div className="fade">
-          <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18}}>
-            <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:4}}>🔍 Section-by-Section Audit</div>
-            <div style={{color:C.muted,fontSize:12,marginBottom:16}}>Every section scored individually</div>
-            {a.sectionAudit&&Object.entries(a.sectionAudit).map(([key,sec])=>(
-              <div key={key} style={{marginBottom:14,background:C.bg2,borderRadius:12,padding:14,border:`1.5px solid ${statusColor(sec.status)}25`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <span>{statusIcon(sec.status)}</span>
-                    <span style={{fontWeight:700,color:C.text,fontSize:13,textTransform:"capitalize"}}>{key}</span>
-                  </div>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <Tag color={statusColor(sec.status)}>{sec.status.toUpperCase()}</Tag>
-                    <span style={{fontWeight:800,fontSize:14,color:statusColor(sec.status)}}>{sec.score}%</span>
-                  </div>
-                </div>
-                <div style={{color:C.soft,fontSize:12,lineHeight:1.7,marginBottom:6}}>{sec.note}</div>
-                <Bar score={sec.score} color={statusColor(sec.status)}/>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* GAPS */}
-      {activeTab==="gaps"&&(
-        <div className="fade">
-          <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18}}>
-            <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:4,display:"flex",alignItems:"center",gap:8}}>
-              ⚠️ Missing Keywords <Tag color={C.red}>{a.missingKeywords?.length||0} gaps</Tag>
-            </div>
-            <div style={{color:C.muted,fontSize:12,marginBottom:14}}>Keywords in JD missing from your resume</div>
-            {a.missingKeywords?.map((m,i)=>(
-              <div key={i} style={{background:C.redPale,borderRadius:10,padding:12,marginBottom:10,border:`1px solid ${m.importance==="High"?C.red:m.importance==="Medium"?C.yellow:C.green}30`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                  <div style={{fontWeight:700,color:C.text,fontSize:13}}>🔍 {m.keyword}</div>
-                  <Tag color={m.importance==="High"?C.red:m.importance==="Medium"?C.yellow:C.green}>{m.importance}</Tag>
-                </div>
-                <div style={{color:C.soft,fontSize:12}}>💡 {m.tip}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* PROJECTS */}
-      {activeTab==="projects"&&(
-        <div className="fade">
-          <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18}}>
-            <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:4}}>🏗️ Project Relevance Check</div>
-            <div style={{color:C.muted,fontSize:12,marginBottom:14}}>Which projects to keep, remove, or reframe</div>
-            {a.projectFit?.map((p,i)=>(
-              <div key={i} style={{background:p.keep?C.greenPale:C.bg2,borderRadius:12,padding:14,marginBottom:10,border:`1.5px solid ${p.keep?"#bbf7d0":C.border}`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                  <div style={{fontWeight:700,color:C.text,fontSize:14}}>{p.name}</div>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <Tag color={sc(p.relevance)}>{p.relevance}%</Tag>
-                    <Tag color={p.keep?C.green:C.muted}>{p.keep?"✓ Keep":"Skip"}</Tag>
-                  </div>
-                </div>
-                <div style={{color:C.soft,fontSize:12,marginBottom:8}}>{p.reason}</div>
-                <Bar score={p.relevance} color={sc(p.relevance)}/>
-                {p.suggestion&&(
-                  <div style={{marginTop:10,background:`${C.purple}08`,border:`1px solid ${C.purple}20`,borderRadius:8,padding:"9px 12px",fontSize:12,color:C.soft}}>
-                    💡 <strong style={{color:C.purple}}>Tip:</strong> {p.suggestion}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* PREVIEW — Jake's Resume */}
-      {activeTab==="preview"&&parsed&&(
-        <div className="fade">
-          <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:18}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14,flexWrap:"wrap",gap:10}}>
-              <div>
-                <div style={{fontWeight:700,color:C.text,fontSize:14}}>✨ Your Jake's Resume</div>
-                <div style={{color:C.muted,fontSize:12,marginTop:2}}>ATS-optimized · Action verbs · JD keyword-matched</div>
-              </div>
-              <div style={{display:"flex",gap:8}}>
-                <Btn v="purple" onClick={()=>handleDownload("pdf")} loading={dlLoading==="pdf"} style={{padding:"8px 14px",fontSize:12}}>⬇ PDF</Btn>
-                <Btn v="green" onClick={()=>handleDownload("docx")} loading={dlLoading==="docx"} style={{padding:"8px 14px",fontSize:12}}>⬇ DOCX</Btn>
-              </div>
-            </div>
-            {/* Resume preview */}
-            <div style={{background:"#fff",border:`2px solid ${C.border}`,borderRadius:10,padding:"28px 30px",fontFamily:"'Times New Roman', serif",lineHeight:1.4,boxShadow:"0 4px 16px rgba(0,0,0,.06)"}}>
-              <div style={{textAlign:"center",marginBottom:10}}>
-                <div style={{fontWeight:700,fontSize:20,color:"#0f172a",marginBottom:3}}>{parsed.name}</div>
-                <div style={{fontSize:10,color:"#64748b"}}>{[parsed.phone,parsed.email,parsed.linkedin,parsed.github,parsed.location].filter(Boolean).join(" | ")}</div>
-              </div>
-              <div style={{borderTop:"2px solid #2563eb",marginBottom:8}}/>
-              {parsed.education?.length>0&&(<>
-                <div style={{fontWeight:700,fontSize:10,color:"#0f172a",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Education</div>
-                <div style={{borderTop:"1px solid #e2e8f0",marginBottom:7}}/>
-                {parsed.education.map((e,i)=>(<div key={i} style={{marginBottom:7}}>
-                  <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontWeight:700,fontSize:11}}>{e.institution}</span><span style={{fontSize:10,color:"#64748b"}}>{e.years}</span></div>
-                  <div style={{fontSize:10,color:"#475569",fontStyle:"italic"}}>{e.degree} {e.gpa}</div>
-                </div>))}
-              </>)}
-              {parsed.experience?.length>0&&(<>
-                <div style={{fontWeight:700,fontSize:10,color:"#0f172a",textTransform:"uppercase",letterSpacing:1,marginBottom:3,marginTop:9}}>Experience</div>
-                <div style={{borderTop:"1px solid #e2e8f0",marginBottom:7}}/>
-                {parsed.experience.map((e,i)=>(<div key={i} style={{marginBottom:9}}>
-                  <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontWeight:700,fontSize:11}}>{e.title}</span><span style={{fontSize:10,color:"#64748b"}}>{e.dates}</span></div>
-                  <div style={{fontSize:10,color:"#64748b",fontStyle:"italic",marginBottom:3}}>{e.company}{e.location?" — "+e.location:""}</div>
-                  {e.bullets?.map((b,j)=><div key={j} style={{fontSize:10,color:"#475569",paddingLeft:10,marginBottom:2}}>• {b}</div>)}
-                </div>))}
-              </>)}
-              {parsed.projects?.length>0&&(<>
-                <div style={{fontWeight:700,fontSize:10,color:"#0f172a",textTransform:"uppercase",letterSpacing:1,marginBottom:3,marginTop:9}}>Projects</div>
-                <div style={{borderTop:"1px solid #e2e8f0",marginBottom:7}}/>
-                {parsed.projects.map((p,i)=>(<div key={i} style={{marginBottom:9}}>
-                  <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontWeight:700,fontSize:11}}>{p.name}{p.tech?" | "+p.tech:""}</span><span style={{fontSize:10,color:"#64748b"}}>{p.year}</span></div>
-                  {p.bullets?.map((b,j)=><div key={j} style={{fontSize:10,color:"#475569",paddingLeft:10,marginBottom:2}}>• {b}</div>)}
-                </div>))}
-              </>)}
-              {parsed.skills&&(<>
-                <div style={{fontWeight:700,fontSize:10,color:"#0f172a",textTransform:"uppercase",letterSpacing:1,marginBottom:3,marginTop:9}}>Technical Skills</div>
-                <div style={{borderTop:"1px solid #e2e8f0",marginBottom:7}}/>
-                {Object.entries(parsed.skills).map(([k,v])=>(<div key={k} style={{fontSize:10,color:"#475569",marginBottom:2}}><strong style={{color:"#0f172a"}}>{k}:</strong> {v}</div>))}
-              </>)}
-              {parsed.certifications?.length>0&&(<>
-                <div style={{fontWeight:700,fontSize:10,color:"#0f172a",textTransform:"uppercase",letterSpacing:1,marginBottom:3,marginTop:9}}>Certifications</div>
-                <div style={{borderTop:"1px solid #e2e8f0",marginBottom:7}}/>
-                {parsed.certifications.map((c,i)=><div key={i} style={{fontSize:10,color:"#475569",paddingLeft:10,marginBottom:2}}>• {c}</div>)}
-              </>)}
-            </div>
-            <div style={{marginTop:12,background:C.greenPale,border:"1px solid #bbf7d0",borderRadius:10,padding:"10px 14px",fontSize:12,color:C.soft,lineHeight:1.7}}>
-              💡 <strong style={{color:C.green}}>Tip:</strong> Download PDF for job portals. Download DOCX to edit in Google Docs.
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ACTION BUTTONS */}
-      <div style={{marginTop:14,display:"flex",gap:10,flexWrap:"wrap"}}>
-        {step==="results"&&!parsed&&(
-          <Btn v="cta" onClick={runOptimize} style={{flex:1,padding:"13px",fontSize:14,minWidth:180}}>
-            ✨ Optimize → Jake's Resume
-          </Btn>
-        )}
-        <Btn v="ghost" onClick={()=>{
-          setStep("input");setAnalysis(null);setParsed(null);setErr("");
-          setJd("");setResume("");setFileName("");
-          localStorage.removeItem("tp_jd");localStorage.removeItem("tp_resume");localStorage.removeItem("tp_fn");
-        }} style={{padding:"11px 18px",fontSize:13}}>
-          🔄 New Analysis
-        </Btn>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// JOBS TAB
-// ═══════════════════════════════════════════════════════════════════════════
-function JobsTab(){
-  const [jobs,setJobs]=useState([]);
-  const [loading,setLoading]=useState(true);
-  const [search,setSearch]=useState(()=>sessionStorage.getItem("tp_s")||"software engineer fresher");
-  const [location,setLocation]=useState(()=>sessionStorage.getItem("tp_l")||"hyderabad");
-  const [expanded,setExpanded]=useState(null);
-  const [saved,setSaved]=useState([]);
-
-  useEffect(()=>{fetchJobs();},[]);
-
-  const fetchJobs=async(q=search,loc=location)=>{
-    setLoading(true);
-    sessionStorage.setItem("tp_s",q);sessionStorage.setItem("tp_l",loc);
-    try{
-      const url=`https://api.adzuna.com/v1/api/jobs/in/search/1?app_id=${ADZUNA_ID}&app_key=${ADZUNA_KEY}&results_per_page=20&what=${encodeURIComponent(q)}&where=${encodeURIComponent(loc)}&sort_by=date&content-type=application/json`;
-      const res=await fetch(url);
-      const data=await res.json();
-      setJobs(data.results?.length?data.results.map(j=>({
-        id:j.id,title:j.title,company:j.company?.display_name||"Company",
-        location:j.location?.display_name||loc,
-        salary:j.salary_min?`₹${Math.round(j.salary_min/100000)}–${Math.round((j.salary_max||j.salary_min*1.4)/100000)} LPA`:"Competitive",
-        description:j.description||"",desc200:(j.description||"").slice(0,200),
-        url:j.redirect_url,
-        posted:new Date(j.created).toLocaleDateString("en-IN",{day:"numeric",month:"short"}),
-        category:j.category?.label||"Technology",
-      })):[]);
-    }catch{}
-    setLoading(false);
-  };
-
-  const quickRoles=["React Developer","Node.js","Data Analyst","Python","Java","Full Stack","DevOps","AI ML"];
-
-  return(
-    <div>
-      <div style={{fontWeight:800,fontSize:20,color:C.text,marginBottom:4}}>🔥 Live Job Feed</div>
-      <div style={{color:C.muted,fontSize:13,marginBottom:14}}>Real jobs from top Indian companies · Updated daily</div>
-      <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:16,marginBottom:14}}>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-          <input style={inp} placeholder="Role..." value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}/>
-          <input style={inp} placeholder="City..." value={location} onChange={e=>setLocation(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}/>
-        </div>
-        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
-          {quickRoles.map(r=>(
-            <button key={r} onClick={()=>{setSearch(r);fetchJobs(r,location);}}
-              style={{padding:"4px 10px",borderRadius:20,border:`1px solid ${C.border}`,background:search===r?`${C.blue}10`:"#f8fafc",color:search===r?C.blue:C.muted,fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600}}>
-              {r}
-            </button>
-          ))}
-        </div>
-        <Btn v="cta" onClick={()=>fetchJobs()} style={{width:"100%"}}>🔍 Search Jobs</Btn>
-      </div>
-
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <div style={{fontWeight:700,fontSize:15,color:C.text}}>Results</div>
-        {!loading&&jobs.length>0&&(
-          <div style={{display:"flex",alignItems:"center",gap:5,background:C.greenPale,borderRadius:20,padding:"4px 10px",border:"1px solid #bbf7d0"}}>
-            <div style={{width:6,height:6,borderRadius:"50%",background:C.green,animation:"pulse 1.5s infinite"}}/>
-            <span style={{color:C.green,fontSize:11,fontWeight:700}}>{jobs.length} live jobs</span>
-          </div>
-        )}
-      </div>
-
-      {loading&&<div style={{textAlign:"center",padding:"60px 0"}}><Spin size={36} color={C.blue}/></div>}
-      {!loading&&jobs.map((job,i)=>{
-        const isExp=expanded===job.id;
-        const isSaved=saved.includes(job.id);
-        return(
-          <div key={job.id} className="fade lift" style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:16,marginBottom:8,borderLeft:`3px solid ${C.blue}`,animationDelay:`${i*.04}s`,boxShadow:"0 1px 6px rgba(0,0,0,.04)"}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-              <div style={{flex:1}}>
-                <div style={{fontWeight:700,fontSize:14,color:C.text}}>{job.title}</div>
-                <div style={{color:C.muted,fontSize:12,marginTop:1}}>{job.company} · {job.location}</div>
-              </div>
-              <div style={{textAlign:"right",flexShrink:0}}>
-                <div style={{color:C.green,fontWeight:800,fontSize:13}}>{job.salary}</div>
-                <div style={{color:C.muted,fontSize:11,marginTop:1}}>{job.posted}</div>
-              </div>
-            </div>
-            <div style={{color:C.muted,fontSize:12,lineHeight:1.7,marginBottom:10,background:C.bg2,borderRadius:8,padding:"8px 10px"}}>
-              {isExp?job.description.replace(/<[^>]+>/g,""):job.desc200.replace(/<[^>]+>/g,"")+(job.description.length>200?"...":"")}
-              {job.description.length>200&&(
-                <button onClick={()=>setExpanded(isExp?null:job.id)} style={{background:"none",border:"none",color:C.blue,fontSize:11,cursor:"pointer",marginLeft:4,fontFamily:"'Inter',sans-serif",fontWeight:600}}>
-                  {isExp?"Less ▲":"More ▼"}
-                </button>
-              )}
-            </div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <Tag color={C.blue}>{job.category}</Tag>
-              <div style={{display:"flex",gap:6}}>
-                <button onClick={()=>setSaved(s=>s.includes(job.id)?s.filter(x=>x!==job.id):[...s,job.id])}
-                  style={{padding:"6px 10px",borderRadius:8,border:`1.5px solid ${isSaved?C.gold:C.border}`,background:isSaved?C.yellowPale:"transparent",cursor:"pointer",fontSize:11,fontWeight:600,color:isSaved?C.gold:C.muted,fontFamily:"'Inter',sans-serif"}}>
-                  {isSaved?"★":"☆"}
-                </button>
-                <Btn v="cta" onClick={()=>window.open(job.url,"_blank")} style={{fontSize:12,padding:"7px 16px"}}>Apply →</Btn>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-      {!loading&&jobs.length===0&&<div style={{textAlign:"center",padding:"60px 0",color:C.muted}}>No jobs found. Try a different role or city.</div>}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PROFILE TAB
-// ═══════════════════════════════════════════════════════════════════════════
-function ProfileTab({user,onLogout}){
-  const name=user?.user_metadata?.full_name||user?.email?.split("@")[0]||"User";
-  const email=user?.email||"";
-  const initials=name.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
-
-  const stats=[
-    {label:"Resumes Analyzed",val:"0",icon:"📄"},
-    {label:"Jobs Saved",val:"0",icon:"⭐"},
-    {label:"Best ATS Score",val:"—",icon:"🎯"},
-  ];
-
-  return(
-    <div>
-      <div style={{fontWeight:800,fontSize:20,color:C.text,marginBottom:18}}>👤 My Profile</div>
-      {/* Avatar card */}
-      <div style={{background:"linear-gradient(135deg,#eff6ff,#f0fdf4)",border:`1.5px solid ${C.blue}20`,borderRadius:20,padding:24,marginBottom:16,textAlign:"center"}}>
-        <div style={{width:72,height:72,borderRadius:"50%",background:`linear-gradient(135deg,${C.blue},${C.purple})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:28,color:"#fff",margin:"0 auto 12px"}}>
-          {initials}
-        </div>
-        <div style={{fontWeight:800,fontSize:18,color:C.text}}>{name}</div>
-        <div style={{color:C.muted,fontSize:13,marginTop:4}}>{email}</div>
-        <div style={{display:"inline-flex",alignItems:"center",gap:6,marginTop:10,background:C.bluePale,border:`1px solid ${C.blue}30`,borderRadius:20,padding:"4px 14px"}}>
-          <span style={{width:7,height:7,borderRadius:"50%",background:C.green,display:"inline-block"}}/>
-          <span style={{color:C.blue,fontSize:11,fontWeight:700}}>Free Plan</span>
-        </div>
-      </div>
-      {/* Stats */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
-        {stats.map((s,i)=>(
-          <div key={i} style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,padding:"16px 10px",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,.04)"}}>
-            <div style={{fontSize:24,marginBottom:4}}>{s.icon}</div>
-            <div style={{fontWeight:800,fontSize:20,color:C.text}}>{s.val}</div>
-            <div style={{color:C.muted,fontSize:10,marginTop:2,fontWeight:600}}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-      {/* Upgrade CTA */}
-      <div style={{background:`linear-gradient(135deg,${C.purpleD},${C.purple})`,borderRadius:18,padding:20,marginBottom:14,textAlign:"center"}}>
-        <div style={{fontSize:32,marginBottom:8}}>🚀</div>
-        <div style={{fontWeight:800,fontSize:16,color:"#fff",marginBottom:6}}>Upgrade to Pro</div>
-        <div style={{color:"#e9d5ff",fontSize:13,marginBottom:14}}>Unlimited analyses · All company tests · PDF/DOCX downloads</div>
-        <Btn v="ghost" style={{background:"#fff",color:C.purple,fontWeight:800,border:"none",padding:"10px 28px",fontSize:14}}>
-          Get Pro — ₹299/mo
-        </Btn>
-      </div>
-      {/* Settings */}
-      <div style={{background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:14,overflow:"hidden"}}>
-        {[
-          {icon:"📧",label:"Email Notifications",action:"Toggle"},
-          {icon:"🔒",label:"Change Password",action:"Edit"},
-          {icon:"📱",label:"App Version",action:"v2.0.0"},
-          {icon:"💬",label:"Support",action:"Chat"},
-        ].map((item,i)=>(
-          <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",borderBottom:i<3?`1px solid ${C.border}`:"none"}}>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <span style={{fontSize:18}}>{item.icon}</span>
-              <span style={{color:C.text,fontSize:14,fontWeight:500}}>{item.label}</span>
-            </div>
-            <span style={{color:C.muted,fontSize:12,fontWeight:600}}>{item.action} →</span>
-          </div>
-        ))}
-      </div>
-      <div style={{marginTop:16}}>
-        <Btn v="danger" onClick={onLogout} style={{width:"100%",padding:"13px",fontSize:14}}>
-          🚪 Sign Out
-        </Btn>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// MAIN APP — LinkedIn-style bottom nav
+// MAIN APP — just two tabs: Interview Mocks and Jobs
 // ═══════════════════════════════════════════════════════════════════════════
 function MainApp({user,onLogout}){
   const [tab,setTab]=useState(()=>parseInt(sessionStorage.getItem("tp_tab")||"0"));
+  const [menuOpen,setMenuOpen]=useState(false);
   const name=user?.user_metadata?.full_name||user?.email?.split("@")[0]||"there";
   const initials=name.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
 
   const setTabP=(t)=>{setTab(t);sessionStorage.setItem("tp_tab",t);};
 
   const TABS=[
-    {icon:"🔥",label:"Jobs",id:0},
-    {icon:"⚡",label:"Resume AI",id:1},
-    {icon:"👤",label:"Profile",id:2},
+    {icon:"🎤",label:"Interview Mocks",id:0},
+    {icon:"🔥",label:"Jobs",id:1},
   ];
 
   return(
@@ -1164,34 +956,37 @@ function MainApp({user,onLogout}){
 
       {/* TOP HEADER */}
       <div style={{background:"#fff",borderBottom:`1.5px solid ${C.border}`,padding:"0 20px",position:"sticky",top:0,zIndex:100,boxShadow:"0 1px 8px rgba(0,0,0,.05)"}}>
-        <div style={{maxWidth:860,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:58}}>
-          <div style={{fontWeight:900,fontSize:20,color:C.blue,display:"flex",alignItems:"center",gap:5}}>⚡ TakePlace</div>
-          {/* Desktop tab bar */}
+        <div style={{maxWidth:900,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:58}}>
+          <div style={{fontWeight:900,fontSize:20,color:C.navy,display:"flex",alignItems:"center",gap:5}}>🎤 TakePlace</div>
           <div className="top-tab-bar" style={{display:"none",gap:4}}>
             {TABS.map(t=>(
               <button key={t.id} onClick={()=>setTabP(t.id)}
-                style={{padding:"8px 20px",border:"none",background:"transparent",cursor:"pointer",color:tab===t.id?C.blue:C.muted,fontFamily:"'Inter',sans-serif",fontWeight:tab===t.id?700:500,fontSize:14,borderBottom:`2.5px solid ${tab===t.id?C.blue:"transparent"}`,transition:"all .2s",display:"flex",alignItems:"center",gap:5}}>
+                style={{padding:"8px 20px",border:"none",background:"transparent",cursor:"pointer",color:tab===t.id?C.amber:C.muted,fontFamily:"'Inter',sans-serif",fontWeight:tab===t.id?700:500,fontSize:14,borderBottom:`2.5px solid ${tab===t.id?C.amber:"transparent"}`,transition:"all .2s",display:"flex",alignItems:"center",gap:5}}>
                 {t.icon} {t.label}
               </button>
             ))}
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{width:34,height:34,borderRadius:"50%",background:`linear-gradient(135deg,${C.blue},${C.blueL})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:13,color:"#fff"}}>
+          <div style={{position:"relative"}}>
+            <button onClick={()=>setMenuOpen(m=>!m)} style={{width:34,height:34,borderRadius:"50%",background:`linear-gradient(135deg,${C.navy},${C.navyL})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:13,color:"#fff",border:"none",cursor:"pointer"}}>
               {initials}
-            </div>
-            <span style={{fontSize:13,color:C.soft,fontWeight:600,display:"none"}}>{name.split(" ")[0]}</span>
+            </button>
+            {menuOpen&&(
+              <div style={{position:"absolute",right:0,top:42,background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:12,boxShadow:"0 8px 24px rgba(0,0,0,.12)",padding:8,minWidth:160,zIndex:50}}>
+                <div style={{padding:"8px 10px",fontSize:12,color:C.muted,borderBottom:`1px solid ${C.border}`,marginBottom:6}}>{name}</div>
+                <button onClick={onLogout} style={{width:"100%",textAlign:"left",padding:"8px 10px",borderRadius:8,border:"none",background:"transparent",color:C.red,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>🚪 Sign Out</button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* PAGE CONTENT */}
-      <div style={{maxWidth:860,margin:"0 auto",padding:"20px 16px 20px"}}>
-        {tab===0&&<JobsTab/>}
-        {tab===1&&<ResumeAnalyzer/>}
-        {tab===2&&<ProfileTab user={user} onLogout={onLogout}/>}
+      <div style={{maxWidth:900,margin:"0 auto",padding:"20px 16px 20px"}}>
+        {tab===0&&<InterviewMock/>}
+        {tab===1&&<JobsTab/>}
       </div>
 
-      {/* MOBILE BOTTOM NAV — LinkedIn/Naukri style */}
+      {/* MOBILE BOTTOM NAV */}
       <div className="bottom-nav-wrap bottom-nav" style={{
         position:"fixed",bottom:0,left:0,right:0,
         background:"#fff",borderTop:`1.5px solid ${C.border}`,
@@ -1203,11 +998,10 @@ function MainApp({user,onLogout}){
             style={{
               flex:1,padding:"10px 4px 8px",border:"none",background:"transparent",
               cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,
-              color:tab===t.id?C.blue:C.muted,fontFamily:"'Inter',sans-serif",
+              color:tab===t.id?C.amber:C.muted,fontFamily:"'Inter',sans-serif",
               transition:"all .15s",
             }}>
-            {/* Active indicator bar on top */}
-            <div style={{width:32,height:3,borderRadius:2,background:tab===t.id?C.blue:"transparent",marginBottom:2,transition:"background .2s"}}/>
+            <div style={{width:32,height:3,borderRadius:2,background:tab===t.id?C.amber:"transparent",marginBottom:2,transition:"background .2s"}}/>
             <span style={{fontSize:22,lineHeight:1}}>{t.icon}</span>
             <span style={{fontSize:10,fontWeight:tab===t.id?700:500,letterSpacing:.3}}>{t.label}</span>
           </button>
@@ -1228,6 +1022,7 @@ export default function App(){
   useEffect(()=>{
     const s=document.createElement("style");
     s.textContent=CSS;document.head.appendChild(s);
+    if(window.speechSynthesis) window.speechSynthesis.getVoices(); // warm up voice list
     supabase.auth.getSession().then(({data:{session}})=>{
       if(session?.user){setUser(session.user);setPage("app");}
       setLoading(false);
@@ -1241,8 +1036,8 @@ export default function App(){
   if(loading)return(
     <div style={{minHeight:"100vh",background:"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
       <style>{CSS}</style>
-      <span style={{fontSize:40}}>⚡</span>
-      <Spin size={36} color={C.blue}/>
+      <span style={{fontSize:40}}>🎤</span>
+      <Spin size={36}/>
       <div style={{color:C.muted,fontSize:14,fontFamily:"'Inter',sans-serif"}}>Loading TakePlace...</div>
     </div>
   );
