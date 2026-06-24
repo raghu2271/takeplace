@@ -2313,7 +2313,7 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
       onPendingJobHandled&&onPendingJobHandled();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[]);
+  
 
   const refreshStats=()=>{
     fetchUserStats(user?.id).then(s=>setStats(s));
@@ -2440,7 +2440,7 @@ export default function App(){
     });
     return()=>subscription.unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[]);
+  
 
   const handleOnboardingComplete=async(picks)=>{
     setShowOnboarding(false);
