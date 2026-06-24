@@ -2312,8 +2312,8 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
       }
       onPendingJobHandled&&onPendingJobHandled();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  
+   // eslint-disable-next-line
+  },[]);
 
   const refreshStats=()=>{
     fetchUserStats(user?.id).then(s=>setStats(s));
@@ -2439,8 +2439,8 @@ export default function App(){
       else{setUser(null);setPage(pendingJob?"auth":"landing");setShowOnboarding(false);}
     });
     return()=>subscription.unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  
+    // eslint-disable-next-line
+  },[]);
 
   const handleOnboardingComplete=async(picks)=>{
     setShowOnboarding(false);
