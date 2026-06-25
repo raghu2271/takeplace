@@ -6,7 +6,19 @@ const SUPABASE_URL = "https://mdwxmiywtghznpwulwko.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kd3htaXl3dGdoem5wd3Vsd2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5OTkyOTIsImV4cCI6MjA5MzU3NTI5Mn0.b6yq6bIu0ntAbrrb2CP1H_alIcCTLc9sbix7tuERVAw";
 const ADZUNA_ID  = "845f6cff";
 const ADZUNA_KEY = "1255514b43792f219448b455d585c3ea";
+const RAZORPAY_KEY_ID = "rzp_live_XXXXXXXXXXXX"; // public key_id — safe to expose. Replace with your real key.
 const supabase   = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── PAYWALL / SLOT CONFIG ──────────────────────────────────────────────────────
+const TOTAL_SLOTS = 15;
+const FREE_SLOTS  = 2;
+const FOCUS_BY_SLOT = [
+  "intro + resume walkthrough","core technical fundamentals","system design basics",
+  "behavioral / teamwork","debugging & problem solving","project deep-dive",
+  "company culture fit","edge cases & tradeoffs","communication under pressure",
+  "leadership & ownership","past failures & learning","technical depth follow-ups",
+  "ambiguous requirements","conflict resolution","closing & negotiation",
+];
 
 // ── DESIGN SYSTEM v2 ──────────────────────────────────────────────────────────
 const C = {
@@ -266,6 +278,14 @@ function safeJSON(raw,fallback={}){
 }
 
 // ── AI CALL ───────────────────────────────────────────────────────────────────
+// FIX (issue #2 — always falls back to "Tell me a little about yourself"):
+// the old code only parsed Anthropic-style `data.content[0].text`. If your
+// /api/ai backend actually proxies Groq/OpenAI, the real shape is
+// `data.choices[0].message.content`, so `text` was always "", JSON parsing
+// always failed, and every single interview silently fell back to
+// FALLBACK_QUESTIONS — for every role and every company. We now check both
+// shapes, plus log to console when neither matches so this is debuggable
+// instead of silent.
 async function callGroq(prompt,maxTokens=2000,systemMsg=""){
   const sys=systemMsg||"You are an expert technical interviewer. Respond with valid JSON only. No markdown, no explanation.";
   const res=await fetch("/api/ai",{
@@ -274,7 +294,12 @@ async function callGroq(prompt,maxTokens=2000,systemMsg=""){
   });
   if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error||"AI error "+res.status);}
   const data=await res.json();
-  return data.content?.[0]?.text||"";
+  const text =
+    data.content?.[0]?.text ||                 // Anthropic-style
+    data.choices?.[0]?.message?.content ||      // OpenAI / Groq-style
+    data.text || "";
+  if(!text) console.error("AI response shape not recognized — check /api/ai output:",data);
+  return text;
 }
 
 // ── FILE EXTRACT ──────────────────────────────────────────────────────────────
@@ -375,6 +400,104 @@ async function fetchUserStats(userId){
   }catch{return{results:[],streak:{streak:0,longest:0}};}
 }
 
+// ── SUBSCRIPTION / PAYWALL HELPERS (issues #5–#9) ─────────────────────────────
+// Requires this Supabase table:
+//
+// create table user_subscriptions (
+//   id uuid default gen_random_uuid() primary key,
+//   user_id uuid references auth.users(id) not null,
+//   plan text not null,                 -- 'week' | 'month'
+//   status text not null default 'active',
+//   starts_at timestamptz not null default now(),
+//   expires_at timestamptz not null,
+//   razorpay_payment_id text,
+//   razorpay_order_id text,
+//   created_at timestamptz default now()
+// );
+// create index on user_subscriptions(user_id, status);
+async function fetchActiveSubscription(userId){
+  if(!userId)return null;
+  try{
+    const{data}=await supabase.from("user_subscriptions")
+      .select("*").eq("user_id",userId).eq("status","active")
+      .gte("expires_at",new Date().toISOString())
+      .order("expires_at",{ascending:false}).limit(1).single();
+    return data||null;
+  }catch{return null;}
+}
+
+function useSubscription(userId){
+  const[sub,setSub]=useState(null);
+  const[loading,setLoading]=useState(true);
+  const refresh=useCallback(()=>{
+    if(!userId){setSub(null);setLoading(false);return;}
+    setLoading(true);
+    fetchActiveSubscription(userId).then(s=>{setSub(s);setLoading(false);});
+  },[userId]);
+  useEffect(()=>{refresh();},[refresh]);
+  return{isPro:!!sub,plan:sub?.plan||null,expiresAt:sub?.expires_at||null,loading,refresh};
+}
+
+// ── RAZORPAY CHECKOUT (issue #9) ──────────────────────────────────────────────
+// Server-side counterparts needed (NOT in this file — separate serverless
+// functions, e.g. api/create-order.js and api/verify-payment.js):
+//
+// api/create-order.js — uses Razorpay Node SDK + RAZORPAY_KEY_SECRET (server
+// env var only) to create an order, returns { id, amount, currency, keyId }.
+//
+// api/verify-payment.js — verifies the HMAC SHA256 signature Razorpay sends
+// back using RAZORPAY_KEY_SECRET, and ONLY THEN writes an active row into
+// user_subscriptions. Never trust the client telling you "payment succeeded"
+// without verifying the signature server-side. For production robustness,
+// also configure a Razorpay webhook pointing at a third function so the
+// subscription activates even if the user closes the tab right after paying.
+function loadRazorpayScript(){
+  return new Promise((resolve)=>{
+    if(window.Razorpay){resolve(true);return;}
+    const script=document.createElement("script");
+    script.src="https://checkout.razorpay.com/v1/checkout.js";
+    script.onload=()=>resolve(true);
+    script.onerror=()=>resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
+async function startCheckout(plan,user,onSuccess){
+  if(!user){alert("Please sign in first.");return;}
+  const ok=await loadRazorpayScript();
+  if(!ok){alert("Could not load the payment gateway. Check your connection and try again.");return;}
+  try{
+    const res=await fetch("/api/create-order",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({plan,userId:user.id}),
+    });
+    if(!res.ok)throw new Error("Could not create order ("+res.status+")");
+    const order=await res.json();
+    const rzp=new window.Razorpay({
+      key:order.keyId||RAZORPAY_KEY_ID,
+      amount:order.amount,
+      currency:order.currency||"INR",
+      order_id:order.id,
+      name:"TakePlace",
+      description:plan==="week"?"TakePlace — 1 Week Pro":"TakePlace — 1 Month Pro",
+      prefill:{email:user.email||""},
+      handler:async(response)=>{
+        try{
+          const v=await fetch("/api/verify-payment",{
+            method:"POST",headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({...response,plan,userId:user.id}),
+          });
+          const vd=await v.json().catch(()=>({}));
+          if(vd.ok){onSuccess&&onSuccess();}
+          else{alert("Payment verification failed. If money was deducted, contact takeplace.in@gmail.com and we'll fix it.");}
+        }catch(e){alert("Payment verification error: "+e.message);}
+      },
+      theme:{color:"#7C6EFA"},
+    });
+    rzp.open();
+  }catch(e){alert("Could not start checkout: "+e.message);}
+}
+
 // ── SHAREABLE SCORECARD ───────────────────────────────────────────────────────
 async function generateScorecard(data){
   if(!window.html2canvas){
@@ -445,18 +568,101 @@ const TARGET_COMPANIES=[
   {name:"Deloitte",color:"#86BC25"},{name:"IBM",color:"#0043CE"},{name:"Accenture",color:"#A100FF"},
 ];
 
-// ── AI INTERVIEWER AVATAR ─────────────────────────────────────────────────────
+// ── AI INTERVIEWER AVATAR (issue #4) ──────────────────────────────────────────
+// FIX: replaced a static stock photo of a real, non-consenting stranger
+// (randomuser.me) — which also never visibly "spoke" since it only got a
+// brightness pulse — with an illustrated avatar whose mouth shape actually
+// animates between speaking/idle states. Restyle the SVG colors below to
+// match your brand if you want a different look.
 function AIFace({speaking,size=200}){
   return(
-    <div style={{position:"relative",width:size,height:size,borderRadius:"50%",overflow:"hidden"}}>
-      <img src="https://randomuser.me/api/portraits/women/65.jpg" alt="Priya Sharma"
-        style={{width:"100%",height:"100%",objectFit:"cover",display:"block",
-          filter:speaking?"brightness(1.08) saturate(1.1)":"brightness(1)",transition:"filter .4s"}}/>
+    <div style={{position:"relative",width:size,height:size,borderRadius:"50%",overflow:"hidden",background:"linear-gradient(160deg,#2A2F4A,#1A1E33)"}}>
+      <svg viewBox="0 0 200 200" width="100%" height="100%">
+        <defs>
+          <radialGradient id="skinGrad" cx="50%" cy="40%" r="60%">
+            <stop offset="0%" stopColor="#F2C9A0"/>
+            <stop offset="100%" stopColor="#D9A879"/>
+          </radialGradient>
+        </defs>
+        <ellipse cx="100" cy="100" rx="62" ry="70" fill="#3B2A22"/>
+        <ellipse cx="100" cy="108" rx="46" ry="54" fill="url(#skinGrad)"/>
+        <path d="M54 90 Q100 40 146 90 Q146 60 100 52 Q54 60 54 90Z" fill="#3B2A22"/>
+        <ellipse cx="80" cy="105" rx="4.5" ry="6" fill="#2A1B12"/>
+        <ellipse cx="120" cy="105" rx="4.5" ry="6" fill="#2A1B12"/>
+        <path d="M72 94 Q80 90 88 94" stroke="#2A1B12" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+        <path d="M112 94 Q120 90 128 94" stroke="#2A1B12" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+        <path d="M100 110 Q97 122 100 126 Q103 122 100 110" stroke="#C99066" strokeWidth="1.5" fill="none"/>
+        <path
+          d={speaking?"M84 138 Q100 152 116 138":"M84 140 Q100 144 116 140"}
+          stroke="#A85A4A" strokeWidth="3" fill={speaking?"#7A2F28":"none"} strokeLinecap="round"
+          style={{transition:"d .15s"}}
+        />
+        <path d="M40 200 Q100 168 160 200 L160 200 L40 200Z" fill="#5B4EE8"/>
+        <path d="M85 168 L100 184 L115 168" stroke="#fff" strokeWidth="2" fill="none"/>
+      </svg>
       {speaking&&(
         <div style={{position:"absolute",inset:0,borderRadius:"50%",
-          background:"radial-gradient(circle at center,transparent 60%,rgba(124,110,250,.15) 100%)",
+          background:"radial-gradient(circle at center,transparent 60%,rgba(124,110,250,.18) 100%)",
           animation:"breathe 1.4s ease-in-out infinite"}}/>
       )}
+    </div>
+  );
+}
+
+// ── SLOT GRID + UPGRADE MODAL (issues #5–#8) ──────────────────────────────────
+function SlotGrid({isPro,onSelectSlot,onUpgrade,completedSlots=[],loadingSlot=null}){
+  return(
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:10}}>
+      {Array.from({length:TOTAL_SLOTS},(_,i)=>{
+        const slot=i+1;
+        const unlocked=isPro||slot<=FREE_SLOTS;
+        const done=completedSlots.includes(slot);
+        const isLoading=loadingSlot===slot;
+        return(
+          <div key={slot}
+            onClick={()=>unlocked?onSelectSlot(slot):onUpgrade()}
+            className="lift"
+            style={{
+              background:done?C.greenPale:unlocked?C.bgCard:"rgba(255,255,255,.02)",
+              border:`1px solid ${done?C.green+"40":unlocked?C.violet+"30":C.border}`,
+              borderRadius:14,padding:"16px 8px",textAlign:"center",position:"relative",cursor:"pointer"
+            }}>
+            {isLoading?<Spin size={18}/>:(
+              <>
+                {!unlocked&&<div style={{position:"absolute",top:6,right:6,fontSize:12}}>🔒</div>}
+                {done&&<div style={{position:"absolute",top:6,right:6,fontSize:12,color:C.green}}>✓</div>}
+                <div style={{fontSize:20,fontWeight:900,color:unlocked?C.violetL:C.muted,fontFamily:"'JetBrains Mono',monospace"}}>{slot}</div>
+                <div style={{fontSize:9,color:C.muted,marginTop:2}}>{unlocked?"Mock interview":"Locked"}</div>
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function UpgradeModal({onClose,onChoosePlan,checkingOut}){
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:20,padding:28,maxWidth:380,width:"100%"}}>
+        <div style={{fontWeight:900,fontSize:20,color:C.ink,marginBottom:6,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🔒 Unlock all 15 mock interviews</div>
+        <div style={{color:C.soft,fontSize:13,marginBottom:20,lineHeight:1.7}}>You've used your 2 free mocks for this role. Unlock all 15 — different questions every time, matched to your resume and target company.</div>
+        {[
+          {plan:"week",label:"1 Week",price:"₹49",desc:"All 15 slots, every role, 7 days"},
+          {plan:"month",label:"1 Month",price:"₹199",desc:"All 15 slots, every role, 30 days",popular:true},
+        ].map(p=>(
+          <button key={p.plan} disabled={checkingOut} onClick={()=>onChoosePlan(p.plan)}
+            style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 16px",borderRadius:12,border:`1.5px solid ${p.popular?C.violet:C.border}`,background:p.popular?C.violetPale:"transparent",marginBottom:10,cursor:checkingOut?"not-allowed":"pointer",opacity:checkingOut?.6:1,fontFamily:"'Inter',sans-serif"}}>
+            <div>
+              <div style={{fontWeight:700,color:C.ink,fontSize:14}}>{p.label} {p.popular&&<span style={{color:C.violetL,fontSize:10}}>★ BEST VALUE</span>}</div>
+              <div style={{color:C.soft,fontSize:11.5,marginTop:2}}>{p.desc}</div>
+            </div>
+            <div style={{fontWeight:900,fontSize:18,color:C.violetL,fontFamily:"'JetBrains Mono',monospace"}}>{p.price}</div>
+          </button>
+        ))}
+        <button onClick={onClose} style={{width:"100%",background:"none",border:"none",color:C.muted,fontSize:12,marginTop:6,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>Maybe later</button>
+      </div>
     </div>
   );
 }
@@ -465,11 +671,6 @@ function AIFace({speaking,size=200}){
 function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening,liveText,interimText,timeLeft,feedback,loadingFeedback,onFinish,onNext,onEnd,onToggleMic,micMuted,fillerCount,liveMetrics}){
   const videoRef=useRef(null);
   const streamRef=useRef(null);
-  // FIX (camera not showing): keep the actual MediaStream in state instead of
-  // trying to assign it to videoRef the instant getUserMedia resolves — at that
-  // moment the <video> tag hasn't mounted yet (it's gated behind camReady), so
-  // the ref was always null and srcObject never got attached. We now attach
-  // the stream in a separate effect that re-runs once the element exists.
   const [camStream,setCamStream]=useState(null);
   const [camErr,setCamErr]=useState(false);
   const camReady=!!camStream;
@@ -490,10 +691,17 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
     return()=>{active=false;streamRef.current?.getTracks().forEach(t=>t.stop());};
   },[]);
 
+  // FIX (issue #1 — camera not showing even after permission granted): the
+  // <video> tag now always mounts (see render below), so this effect's
+  // videoRef.current is never null by the time camStream resolves. We also
+  // retry play() on loadedmetadata in case autoplay was blocked once.
   useEffect(()=>{
     if(camStream&&videoRef.current){
-      videoRef.current.srcObject=camStream;
-      videoRef.current.play().catch(()=>{});
+      const v=videoRef.current;
+      v.srcObject=camStream;
+      const tryPlay=()=>v.play().catch(()=>{});
+      v.onloadedmetadata=tryPlay;
+      tryPlay();
     }
   },[camStream]);
 
@@ -651,11 +859,19 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
         </div>
 
         <div style={{position:"absolute",top:80,right:20,width:152,height:108,borderRadius:12,overflow:"hidden",border:"1px solid rgba(255,255,255,.12)",background:"#111",zIndex:15,boxShadow:"0 8px 32px rgba(0,0,0,.6)"}}>
-          {camReady?<video ref={videoRef} muted playsInline autoPlay style={{width:"100%",height:"100%",objectFit:"cover",transform:"scaleX(-1)"}}/>
-          :<div style={{width:"100%",height:"100%",background:"#0d1220",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:5}}>
-            <span style={{fontSize:24}}>🧑</span>
-            <span style={{color:"rgba(255,255,255,.3)",fontSize:9,textAlign:"center",padding:"0 8px"}}>{camErr?"Camera blocked — check browser permissions":"Loading…"}</span>
-          </div>}
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            autoPlay
+            style={{width:"100%",height:"100%",objectFit:"cover",transform:"scaleX(-1)",display:camReady?"block":"none"}}
+          />
+          {!camReady&&(
+            <div style={{width:"100%",height:"100%",background:"#0d1220",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:5}}>
+              <span style={{fontSize:24}}>🧑</span>
+              <span style={{color:"rgba(255,255,255,.3)",fontSize:9,textAlign:"center",padding:"0 8px"}}>{camErr?"Camera blocked — check browser permissions":"Loading…"}</span>
+            </div>
+          )}
           {micMuted&&<div style={{position:"absolute",top:6,right:6,background:C.red,borderRadius:"50%",width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9}}>🔇</div>}
           <div style={{position:"absolute",bottom:5,left:7,background:"rgba(0,0,0,.55)",borderRadius:5,padding:"2px 6px",fontSize:9,color:"rgba(255,255,255,.65)",fontWeight:700}}>You</div>
         </div>
@@ -692,6 +908,9 @@ function Dashboard({user,onStartInterview,onGoToJobs,stats}){
   const prevScore=scores[1]||0;
   const delta=latestScore-prevScore;
   const avgScore=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):0;
+  const{isPro}=useSubscription(user?.id);
+  const[showUpgrade,setShowUpgrade]=useState(false);
+  const[checkingOut,setCheckingOut]=useState(false);
 
   const skillAvg={
     technical: results.length?Math.round(results.reduce((a,r)=>a+(r.technical_score||0),0)/results.length):0,
@@ -706,6 +925,12 @@ function Dashboard({user,onStartInterview,onGoToJobs,stats}){
 
   const hour=new Date().getHours();
   const greeting=hour<12?"Good morning":hour<17?"Good afternoon":"Good evening";
+
+  const handleChoosePlan=async(plan)=>{
+    setCheckingOut(true);
+    await startCheckout(plan,user,()=>{setShowUpgrade(false);setCheckingOut(false);window.location.reload();});
+    setCheckingOut(false);
+  };
 
   return(
     <div className="fade" style={{paddingBottom:20}}>
@@ -737,6 +962,17 @@ function Dashboard({user,onStartInterview,onGoToJobs,stats}){
           </div>
         </div>
       </div>
+
+      {!isPro&&(
+        <div onClick={()=>setShowUpgrade(true)} className="lift" style={{background:`linear-gradient(135deg,${C.gold}15,${C.violet}10)`,border:`1px solid ${C.gold}30`,borderRadius:16,padding:"16px 20px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",cursor:"pointer"}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:14,color:C.ink}}>🔓 Unlock all 15 mock interviews per role</div>
+            <div style={{color:C.soft,fontSize:12,marginTop:2}}>Free plan includes 2 mocks per role · ₹49/week or ₹199/month for all 15</div>
+          </div>
+          <Tag color={C.gold}>Upgrade →</Tag>
+        </div>
+      )}
+      {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut}/>}
 
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:12,marginBottom:16}}>
         {[
@@ -834,9 +1070,37 @@ function Dashboard({user,onStartInterview,onGoToJobs,stats}){
   );
 }
 
+// ── PER-QUESTION FEEDBACK CARD ────────────────────────────────────────────────
+// FIX (issue #3 — blank/black page after report): the old code called
+// `useState` INSIDE a `.map()` callback while rendering perQuestion. That
+// violates React's Rules of Hooks (hooks can't be called conditionally or
+// inside loops) and crashes the whole app to a blank screen with no visible
+// error in production. Extracting a real component fixes it.
+function QuestionFeedbackCard({p,i,sc}){
+  const[exp,setExp]=useState(false);
+  return(
+    <div style={{background:"rgba(255,255,255,.02)",borderRadius:10,padding:"14px",marginBottom:9,border:`1px solid ${C.border}`}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6,gap:8}}>
+        <div style={{fontWeight:600,color:C.ink,fontSize:12.5}}>Q{i+1}. {p.question}</div>
+        <div className="mono" style={{fontWeight:700,fontSize:13,color:sc(p.score),flexShrink:0}}>{p.score}%</div>
+      </div>
+      <div style={{color:C.soft,fontSize:12.5,lineHeight:1.7,marginBottom:6}}>{p.feedback}</div>
+      <Bar pct={p.score} color={sc(p.score)}/>
+      {p.idealAnswer&&(
+        <>
+          <button onClick={()=>setExp(e=>!e)} style={{background:"none",border:"none",color:C.violet,fontSize:11,cursor:"pointer",marginTop:8,fontFamily:"'Inter',sans-serif",fontWeight:700}}>
+            {exp?"▲ Hide ideal answer":"▼ See ideal answer"}
+          </button>
+          {exp&&<div style={{background:C.violetPale,border:`1px solid ${C.violet}15`,borderRadius:8,padding:"10px 12px",marginTop:8,fontSize:12,color:C.ink2,lineHeight:1.7}}>{p.idealAnswer}</div>}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── RESUME INTERVIEW TAB ──────────────────────────────────────────────────────
 function ResumeInterviewTab({user,onInterviewComplete,prefillCompany,prefillRole}){
-  const[step,setStep]=useState("setup");
+  const[step,setStep]=useState("setup"); // setup -> analyzing -> slots -> room -> genreport -> report
   const[resumeText,setResumeText]=useState("");
   const[company,setCompany]=useState(prefillCompany||"");
   const[jobTitle,setJobTitle]=useState(prefillRole||"");
@@ -844,6 +1108,10 @@ function ResumeInterviewTab({user,onInterviewComplete,prefillCompany,prefillRole
   const[fileName,setFileName]=useState("");
   const[profile,setProfile]=useState(null);
   const[questions,setQuestions]=useState([]);
+  const[questionsBySlot,setQuestionsBySlot]=useState({});
+  const[activeSlot,setActiveSlot]=useState(null);
+  const[completedSlots,setCompletedSlots]=useState([]);
+  const[slotLoading,setSlotLoading]=useState(null);
   const[genErr,setGenErr]=useState("");
   const[qIndex,setQIndex]=useState(0);
   const[answers,setAnswers]=useState([]);
@@ -860,15 +1128,13 @@ function ResumeInterviewTab({user,onInterviewComplete,prefillCompany,prefillRole
   const[fillerCount,setFillerCount]=useState(0);
   const[liveMetrics,setLiveMetrics]=useState({pace:50,clarity:60});
   const[sharingCard,setSharingCard]=useState(false);
+  const[showUpgrade,setShowUpgrade]=useState(false);
+  const[checkingOut,setCheckingOut]=useState(false);
+
+  const{isPro,refresh:refreshSub}=useSubscription(user?.id);
 
   const recogRef=useRef(null);
   const finalRef=useRef("");
-  // FIX (double / repeated transcript text): mobile browsers auto-stop the
-  // SpeechRecognition session after a short pause even with continuous=true,
-  // which used to wipe e.results and made the old code re-render duplicated
-  // words. We now accumulate ONLY new finalized chunks (via e.resultIndex)
-  // into finalChunksRef, and silently restart the recognizer on auto-stop
-  // without resetting that accumulator — so nothing repeats and nothing is lost.
   const finalChunksRef=useRef([]);
   const manualStopRef=useRef(false);
   const phaseRef=useRef("idle");
@@ -911,40 +1177,58 @@ function ResumeInterviewTab({user,onInterviewComplete,prefillCompany,prefillRole
     }catch(e2){setGenErr("Could not read file: "+e2.message);}
   };
 
+  // Step 1: analyze resume into a profile only (lightweight, fast).
+  // Slot-specific questions are generated on demand when a slot is opened —
+  // see generateSlotQuestions below.
   const analyze=async()=>{
     if(!resumeText.trim())return;
     setStep("analyzing");setGenErr("");
     try{
       const raw=await callGroq(
         `You are a senior ${jobTitle||"tech"} interviewer${company?` at ${company}`:""}.
-Experience level: ${difficulty}.
-Read this resume carefully. Generate exactly 8 highly personalized interview questions.
+Read this resume carefully and extract a candidate profile.
 Resume:
 ---
 ${resumeText.slice(0,3500)}
 ---
-Rules:
-- Reference specific projects, companies, technologies from THIS resume
-- Mix: 1 intro, 4 technical (dig into actual tech stack/projects), 2 behavioral, 1 closing
-${company?`- Ask what drew them to ${company} specifically`:""}
-- Progressive difficulty
-- CRITICAL: each question must be ONE short, natural, SPOKEN sentence (max ~18 words) — exactly how a real interviewer talks out loud. No compound/multi-part questions, no written-style long sentences.
 Return ONLY:
-{"profile":{"name":"<from resume or Candidate>","topSkills":["s1","s2","s3","s4"],"keyProjects":["p1","p2","p3"],"experienceLevel":"<Fresher|Junior|Mid>","university":"<if found>"},"questions":[{"q":"<short personalized spoken question, max 18 words>","type":"Intro|Technical|Behavioral|Closing","whyAsked":"<1 sentence>","keywords":["k1","k2","k3"]}]}`,
-        2200
+{"profile":{"name":"<from resume or Candidate>","topSkills":["s1","s2","s3","s4"],"keyProjects":["p1","p2","p3"],"experienceLevel":"<Fresher|Junior|Mid>","university":"<if found>"}}`,
+        900
       );
       const data=safeJSON(raw,null);
-      if(!data?.questions?.length)throw new Error("parse fail");
-      setProfile(data.profile);
-      setQuestions(data.questions);
-      setStep("brief");
+      const prof=data?.profile||{name:"Candidate",topSkills:[],keyProjects:[],experienceLevel:difficulty};
+      setProfile(prof);
+      setStep("slots");
     }catch(e){
       console.error(e);
-      setGenErr("⚠ AI unavailable — using standard questions.");
-      setQuestions(FALLBACK_QUESTIONS.map(q=>({...q,keywords:[]})));
+      setGenErr("⚠ AI unavailable — profile extraction skipped, but you can still practice.");
       setProfile({name:"Candidate",topSkills:[],keyProjects:[],experienceLevel:difficulty});
-      setStep("brief");
+      setStep("slots");
     }
+  };
+
+  const generateSlotQuestions=async(slot)=>{
+    const focus=FOCUS_BY_SLOT[(slot-1)%FOCUS_BY_SLOT.length];
+    const raw=await callGroq(
+      `You are a senior ${jobTitle||"tech"} interviewer${company?` at ${company}`:""}.
+Experience level: ${difficulty}. This specific mock session's focus area: ${focus}.
+Candidate resume context — skills: ${profile?.topSkills?.join(", ")||"N/A"}; projects: ${profile?.keyProjects?.join(", ")||"N/A"}.
+Resume excerpt:
+---
+${resumeText.slice(0,2500)}
+---
+Generate exactly 8 highly personalized interview questions for THIS mock session, all angled toward: ${focus}.
+Rules:
+- Reference specific projects, companies, technologies from the resume where relevant
+- Mix: 1 intro, 4 technical, 2 behavioral, 1 closing — all themed around "${focus}"
+${company?`- Ask what drew them to ${company} specifically at least once`:""}
+- CRITICAL: each question must be ONE short, natural, SPOKEN sentence (max ~18 words) — exactly how a real interviewer talks out loud.
+Return ONLY:
+{"questions":[{"q":"<short personalized spoken question, max 18 words>","type":"Intro|Technical|Behavioral|Closing","whyAsked":"<1 sentence>","keywords":["k1","k2","k3"]}]}`,
+      1800
+    );
+    const data=safeJSON(raw,null);
+    return data?.questions?.length?data.questions:FALLBACK_QUESTIONS.map(q=>({...q,keywords:[]}));
   };
 
   const speak=useCallback((text)=>new Promise(resolve=>{
@@ -989,8 +1273,6 @@ Return ONLY:
     rec.onerror=()=>{};
     rec.onend=()=>{
       setListening(false);
-      // Auto-restart seamlessly if the browser cut the session on its own
-      // (common on Android Chrome) and the user hasn't actually finished.
       if(!manualStopRef.current&&phaseRef.current==="answering"){
         try{rec.start();setListening(true);}catch{}
       }
@@ -1053,9 +1335,36 @@ Return ONLY: {"score":<0-100>,"tip":"<2-3 sentence specific actionable feedback>
     else wrapUp();
   };
 
-  const startInterview=()=>{
-    setStep("room");setAnswers([]);setQIndex(0);setFeedback(null);
-    setTimeout(()=>beginQ(0),600);
+  // Step 2: pick a slot. Free slots run instantly; locked slots open the
+  // upgrade modal. Questions are generated once per slot and cached in
+  // questionsBySlot so re-opening a slot doesn't re-call the AI.
+  const selectSlot=async(slot)=>{
+    if(!isPro&&slot>FREE_SLOTS){setShowUpgrade(true);return;}
+    setActiveSlot(slot);
+    if(questionsBySlot[slot]){
+      setQuestions(questionsBySlot[slot]);
+      setStep("room");setAnswers([]);setQIndex(0);setFeedback(null);
+      setTimeout(()=>beginQ(0),600);
+      return;
+    }
+    setSlotLoading(slot);setGenErr("");
+    try{
+      const qs=await generateSlotQuestions(slot);
+      setQuestionsBySlot(prev=>({...prev,[slot]:qs}));
+      setQuestions(qs);
+      setSlotLoading(null);
+      setStep("room");setAnswers([]);setQIndex(0);setFeedback(null);
+      setTimeout(()=>beginQ(0),600);
+    }catch(e){
+      setSlotLoading(null);
+      setGenErr("⚠ Could not generate this mock's questions. Try again.");
+    }
+  };
+
+  const handleChoosePlan=async(plan)=>{
+    setCheckingOut(true);
+    await startCheckout(plan,user,()=>{setShowUpgrade(false);setCheckingOut(false);refreshSub();});
+    setCheckingOut(false);
   };
 
   const wrapUp=async()=>{
@@ -1076,6 +1385,7 @@ Return ONLY:
       const data=safeJSON(raw,null);
       if(!data?.overallScore)throw new Error("bad");
       setReport(data);
+      if(activeSlot)setCompletedSlots(prev=>[...new Set([...prev,activeSlot])]);
       await saveInterviewResult(user?.id,{...data,company,role:jobTitle});
       onInterviewComplete&&onInterviewComplete();
     }catch(e){
@@ -1087,7 +1397,7 @@ Return ONLY:
   const endInterview=()=>{
     window.speechSynthesis?.cancel();stopRec();clearInterval(timerRef.current);
     if(answers.length>0)wrapUp();
-    else{setStep("setup");setPhase("idle");}
+    else{setStep("slots");setPhase("idle");}
   };
 
   const shareCard=async()=>{
@@ -1160,7 +1470,7 @@ Return ONLY:
             ["📄","Reads YOUR resume","Questions reference your actual projects"],
             ["⚡","Live confidence meter","Real-time pace, clarity, filler word detection"],
             ["⏱","90s per answer","Real time pressure, real improvement"],
-            ["📋","Shareable scorecard","Download & share to LinkedIn for virality"],
+            ["🔓","15 mocks per role","2 free, unlock all 15 from ₹49"],
           ].map(([icon,title,desc],i)=>(
             <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start"}}>
               <span style={{fontSize:18,flexShrink:0}}>{icon}</span>
@@ -1171,7 +1481,7 @@ Return ONLY:
       </div>
 
       <Btn v="violet" onClick={analyze} disabled={!resumeText.trim()} style={{width:"100%",padding:"15px",fontSize:15,borderRadius:12}}>
-        🎙️ Analyze Resume & Start Interview →
+        🎙️ Analyze Resume & Continue →
       </Btn>
     </div>
   );
@@ -1183,13 +1493,12 @@ Return ONLY:
       <div style={{color:C.soft,fontSize:14,maxWidth:340,margin:"0 auto 6px",lineHeight:1.7}}>
         Extracting your projects, skills, and experience.{company?` Researching ${company}'s interview patterns.`:""}
       </div>
-      <div style={{color:C.muted,fontSize:13,marginBottom:28}}>Generating 8 personalized questions only you can answer.</div>
       <Spin size={36}/>
     </div>
   );
 
-  if(step==="brief")return(
-    <div className="fade" style={{maxWidth:580,margin:"0 auto"}}>
+  if(step==="slots")return(
+    <div className="fade" style={{maxWidth:640,margin:"0 auto"}}>
       <button onClick={()=>setStep("setup")} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginBottom:16,fontFamily:"'Inter',sans-serif",display:"flex",alignItems:"center",gap:4}}>← Edit resume / company</button>
 
       {profile&&(
@@ -1221,31 +1530,23 @@ Return ONLY:
         </div>
       )}
 
-      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:22,marginBottom:18}}>
-        <div style={{fontWeight:700,fontSize:14,color:C.ink,marginBottom:14}}>Your personalized questions ({questions.length})</div>
-        {questions.map((q,i)=>(
-          <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start",marginBottom:12,paddingBottom:12,borderBottom:i<questions.length-1?`1px solid ${C.border}`:"none"}}>
-            <div style={{width:24,height:24,borderRadius:7,background:C.violetPale,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:C.violetL,flexShrink:0}}>{i+1}</div>
-            <div style={{flex:1}}>
-              <div style={{fontSize:13,color:C.ink2,lineHeight:1.65}}>{q.q}</div>
-              <div style={{display:"flex",gap:6,marginTop:5,flexWrap:"wrap",alignItems:"center"}}>
-                <Tag color={C.teal} size={10}>{q.type}</Tag>
-                {q.whyAsked&&<span style={{fontSize:10.5,color:C.muted,fontStyle:"italic"}}>{q.whyAsked}</span>}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
       {genErr&&<div style={{background:C.goldPale,border:`1px solid ${C.gold}25`,borderRadius:8,padding:"8px 12px",fontSize:12,color:C.gold,marginBottom:14}}>{genErr}</div>}
+
+      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:22,marginBottom:18}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
+          <div style={{fontWeight:700,fontSize:14,color:C.ink}}>Choose a mock interview</div>
+          {!isPro&&<span style={{fontSize:11,color:C.muted}}>{FREE_SLOTS} free · {TOTAL_SLOTS-FREE_SLOTS} locked</span>}
+          {isPro&&<span style={{fontSize:11,color:C.green,fontWeight:700}}>✓ All unlocked</span>}
+        </div>
+        <div style={{color:C.soft,fontSize:12,marginBottom:16}}>Each of the 15 slots is a distinct mock with different questions — themed around a different focus area, personalized to your resume and {company||"target company"}.</div>
+        <SlotGrid isPro={isPro} completedSlots={completedSlots} loadingSlot={slotLoading} onSelectSlot={selectSlot} onUpgrade={()=>setShowUpgrade(true)}/>
+      </div>
 
       <div style={{background:C.violetPale,border:`1px solid ${C.violet}15`,borderRadius:12,padding:"14px 16px",marginBottom:20,fontSize:13,color:C.soft,lineHeight:1.8}}>
         <strong style={{color:C.ink}}>How it works:</strong> Full-screen camera. Priya speaks each question aloud. 90 seconds to answer on mic. Instant AI feedback + live confidence meter. Full report with shareable scorecard at the end.
       </div>
 
-      <Btn v="violet" onClick={startInterview} style={{width:"100%",padding:"15px",fontSize:15,borderRadius:12}}>
-        🎥 Enter Interview Room →
-      </Btn>
+      {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut}/>}
     </div>
   );
 
@@ -1278,7 +1579,7 @@ Return ONLY:
         <div style={{position:"absolute",top:-60,right:-60,width:240,height:240,borderRadius:"50%",background:`radial-gradient(circle,${C.violet}10,transparent 70%)`,pointerEvents:"none"}}/>
         <div style={{textAlign:"center",marginBottom:20}}>
           <div style={{fontSize:10,color:C.muted,marginBottom:6,letterSpacing:1.5,textTransform:"uppercase",fontWeight:700}}>
-            {jobTitle||"Interview"}{company?` · ${company}`:""} · {difficulty}
+            {jobTitle||"Interview"}{company?` · ${company}`:""} · {difficulty}{activeSlot?` · Mock #${activeSlot}`:""}
           </div>
           <div className="mono" style={{fontSize:60,fontWeight:700,lineHeight:1,color:sc(report.overallScore),textShadow:`0 0 30px ${sc(report.overallScore)}50`}}>{report.overallScore}</div>
           <div style={{fontSize:13,color:C.muted,marginBottom:10}}>/ 100</div>
@@ -1345,33 +1646,15 @@ Return ONLY:
       {report.perQuestion?.length>0&&(
         <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:16}}>
           <div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:12}}>🔍 Question by question</div>
-          {report.perQuestion.map((p,i)=>{
-            const[exp,setExp]=useState(false);
-            return(
-              <div key={i} style={{background:"rgba(255,255,255,.02)",borderRadius:10,padding:"14px",marginBottom:9,border:`1px solid ${C.border}`}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:6,gap:8}}>
-                  <div style={{fontWeight:600,color:C.ink,fontSize:12.5}}>Q{i+1}. {p.question}</div>
-                  <div className="mono" style={{fontWeight:700,fontSize:13,color:sc(p.score),flexShrink:0}}>{p.score}%</div>
-                </div>
-                <div style={{color:C.soft,fontSize:12.5,lineHeight:1.7,marginBottom:6}}>{p.feedback}</div>
-                <Bar pct={p.score} color={sc(p.score)}/>
-                {p.idealAnswer&&(
-                  <>
-                    <button onClick={()=>setExp(e=>!e)} style={{background:"none",border:"none",color:C.violet,fontSize:11,cursor:"pointer",marginTop:8,fontFamily:"'Inter',sans-serif",fontWeight:700}}>
-                      {exp?"▲ Hide ideal answer":"▼ See ideal answer"}
-                    </button>
-                    {exp&&<div style={{background:C.violetPale,border:`1px solid ${C.violet}15`,borderRadius:8,padding:"10px 12px",marginTop:8,fontSize:12,color:C.ink2,lineHeight:1.7}}>{p.idealAnswer}</div>}
-                  </>
-                )}
-              </div>
-            );
-          })}
+          {report.perQuestion.map((p,i)=>(
+            <QuestionFeedbackCard key={i} p={p} i={i} sc={sc}/>
+          ))}
         </div>
       )}
 
       <div style={{display:"flex",gap:10,marginBottom:16}}>
-        <Btn v="violet" onClick={()=>{setStep("brief");setAnswers([]);setQIndex(0);setReport(null);}} style={{flex:1,padding:"13px"}}>🔁 Retry Same</Btn>
-        <Btn v="ghost" onClick={()=>{setStep("setup");setAnswers([]);setQIndex(0);setReport(null);setQuestions([]);setProfile(null);setResumeText("");setFileName("");}} style={{flex:1,padding:"13px"}}>📄 New Resume</Btn>
+        <Btn v="violet" onClick={()=>{setStep("slots");setAnswers([]);setQIndex(0);setReport(null);}} style={{flex:1,padding:"13px"}}>🔁 Pick Another Slot</Btn>
+        <Btn v="ghost" onClick={()=>{setStep("setup");setAnswers([]);setQIndex(0);setReport(null);setQuestions([]);setQuestionsBySlot({});setCompletedSlots([]);setProfile(null);setResumeText("");setFileName("");}} style={{flex:1,padding:"13px"}}>📄 New Resume</Btn>
       </div>
     </div>
   );
@@ -1381,14 +1664,17 @@ Return ONLY:
 
 // ── QUICK MOCK TAB ────────────────────────────────────────────────────────────
 function QuickMockTab({user,onInterviewComplete}){
-  const[screen,setScreen]=useState("roles");
+  const[screen,setScreen]=useState("roles"); // roles -> brief -> slots -> live -> report
   const[catFilter,setCatFilter]=useState("All");
   const[role,setRole]=useState(null);
   const[difficulty,setDifficulty]=useState("Entry-level");
   const[questions,setQuestions]=useState([]);
+  const[questionsBySlot,setQuestionsBySlot]=useState({});
+  const[activeSlot,setActiveSlot]=useState(null);
+  const[completedSlots,setCompletedSlots]=useState([]);
+  const[slotLoading,setSlotLoading]=useState(null);
   const[qIndex,setQIndex]=useState(0);
   const[answers,setAnswers]=useState([]);
-  const[loadingQs,setLoadingQs]=useState(false);
   const[genErr,setGenErr]=useState("");
   const[aiSpeaking,setAiSpeaking]=useState(false);
   const[listening,setListening]=useState(false);
@@ -1403,6 +1689,10 @@ function QuickMockTab({user,onInterviewComplete}){
   const[micMuted,setMicMuted]=useState(false);
   const[fillerCount,setFillerCount]=useState(0);
   const[liveMetrics,setLiveMetrics]=useState({pace:50,clarity:60});
+  const[showUpgrade,setShowUpgrade]=useState(false);
+  const[checkingOut,setCheckingOut]=useState(false);
+
+  const{isPro,refresh:refreshSub}=useSubscription(user?.id);
 
   const recogRef=useRef(null);
   const finalRef=useRef("");
@@ -1436,21 +1726,18 @@ function QuickMockTab({user,onInterviewComplete}){
 
   const filteredRoles=catFilter==="All"?ROLES:ROLES.filter(r=>r.cat===catFilter);
 
-  const pickRole=async(r)=>{
-    setRole(r);setScreen("brief");setGenErr("");setLoadingQs(true);setQuestions([]);
-    try{
-      const raw=await callGroq(`You are a senior ${r.title} interviewer. Difficulty: ${difficulty}. Focus: ${r.focus}.
-Generate exactly 6 spoken interview questions: 1 intro, 3 technical (specific to ${r.focus}), 1 behavioral, 1 closing.
+  const pickRole=(r)=>{
+    setRole(r);setScreen("brief");setGenErr("");
+  };
+
+  const generateSlotQuestionsQM=async(slot)=>{
+    const focus=FOCUS_BY_SLOT[(slot-1)%FOCUS_BY_SLOT.length];
+    const raw=await callGroq(`You are a senior ${role.title} interviewer. Difficulty: ${difficulty}. Core focus: ${role.focus}. This specific mock session's theme: ${focus}.
+Generate exactly 6 spoken interview questions angled toward "${focus}": 1 intro, 3 technical (specific to ${role.focus}), 1 behavioral, 1 closing.
 CRITICAL: each question must be ONE short, natural SPOKEN sentence (max ~18 words), like a real interviewer talking aloud — not a written paragraph.
 Return ONLY: {"questions":[{"q":"<short spoken question, max 18 words>","type":"Intro|Technical|Behavioral|Closing","keywords":["k1","k2"]}]}`,900);
-      const data=safeJSON(raw,null);
-      const qs=data?.questions?.length>=5?data.questions:FALLBACK_QUESTIONS.map(q=>({...q,keywords:[]}));
-      setQuestions(qs);
-    }catch{
-      setGenErr("⚠ AI unavailable — using standard questions.");
-      setQuestions(FALLBACK_QUESTIONS.map(q=>({...q,keywords:[]})));
-    }
-    setLoadingQs(false);
+    const data=safeJSON(raw,null);
+    return data?.questions?.length>=5?data.questions:FALLBACK_QUESTIONS.map(q=>({...q,keywords:[]}));
   };
 
   const speak=useCallback((text)=>new Promise(resolve=>{
@@ -1551,6 +1838,34 @@ Score strictly. Return ONLY: {"score":<0-100>,"tip":"<2-3 sentence specific feed
 
   const startInterview=()=>{setScreen("live");setAnswers([]);setQIndex(0);setFeedback(null);setTimeout(()=>beginQ(0),400);};
 
+  // Slot picker for Quick Mock — same 2-free / 13-locked model as Resume tab.
+  const selectSlot=async(slot)=>{
+    if(!isPro&&slot>FREE_SLOTS){setShowUpgrade(true);return;}
+    setActiveSlot(slot);
+    if(questionsBySlot[slot]){
+      setQuestions(questionsBySlot[slot]);
+      startInterview();
+      return;
+    }
+    setSlotLoading(slot);setGenErr("");
+    try{
+      const qs=await generateSlotQuestionsQM(slot);
+      setQuestionsBySlot(prev=>({...prev,[slot]:qs}));
+      setQuestions(qs);
+      setSlotLoading(null);
+      startInterview();
+    }catch{
+      setSlotLoading(null);
+      setGenErr("⚠ Could not generate this mock's questions. Try again.");
+    }
+  };
+
+  const handleChoosePlan=async(plan)=>{
+    setCheckingOut(true);
+    await startCheckout(plan,user,()=>{setShowUpgrade(false);setCheckingOut(false);refreshSub();});
+    setCheckingOut(false);
+  };
+
   const wrapUp=async()=>{
     setPhase("idle");setGenReport(true);
     try{
@@ -1561,6 +1876,7 @@ Return ONLY: {"overallScore":<0-100>,"verdict":"<Strong Hire|Hire|Borderline|No 
       const data=safeJSON(raw,null);
       if(!data?.overallScore)throw new Error("bad");
       setReport(data);
+      if(activeSlot)setCompletedSlots(prev=>[...new Set([...prev,activeSlot])]);
       await saveInterviewResult(user?.id,{...data,company:"",role:role.title});
       onInterviewComplete&&onInterviewComplete();
     }catch{
@@ -1569,7 +1885,7 @@ Return ONLY: {"overallScore":<0-100>,"verdict":"<Strong Hire|Hire|Borderline|No 
     setGenReport(false);setScreen("report");
   };
 
-  const restart=()=>{window.speechSynthesis?.cancel();stopRec();clearInterval(timerRef.current);setScreen("roles");setRole(null);setQuestions([]);setAnswers([]);setQIndex(0);setReport(null);setFeedback(null);};
+  const restart=()=>{window.speechSynthesis?.cancel();stopRec();clearInterval(timerRef.current);setScreen("roles");setRole(null);setQuestions([]);setQuestionsBySlot({});setCompletedSlots([]);setAnswers([]);setQIndex(0);setReport(null);setFeedback(null);};
   const sc=s=>s>=75?C.green:s>=50?C.gold:C.red;
 
   if(screen==="roles")return(
@@ -1619,13 +1935,33 @@ Return ONLY: {"overallScore":<0-100>,"verdict":"<Strong Hire|Hire|Borderline|No 
             ))}
           </div>
         </div>
-        {loadingQs?<div style={{textAlign:"center",padding:"28px 0"}}><Spin size={28}/><div style={{color:C.soft,fontSize:13,marginTop:12}}>Generating questions…</div></div>:(
-          <>
-            {genErr&&<div style={{background:C.goldPale,border:`1px solid ${C.gold}25`,borderRadius:8,padding:"8px 12px",fontSize:12,color:C.gold,marginBottom:12}}>{genErr}</div>}
-            <Btn v="violet" onClick={startInterview} disabled={!questions.length} style={{width:"100%",padding:"14px",fontSize:15,borderRadius:12}}>🎙️ Start Interview</Btn>
-          </>
-        )}
+        {genErr&&<div style={{background:C.goldPale,border:`1px solid ${C.gold}25`,borderRadius:8,padding:"8px 12px",fontSize:12,color:C.gold,marginBottom:12}}>{genErr}</div>}
+        <Btn v="violet" onClick={()=>setScreen("slots")} style={{width:"100%",padding:"14px",fontSize:15,borderRadius:12}}>Continue →</Btn>
       </div>
+    </div>
+  );
+
+  if(screen==="slots")return(
+    <div className="fade" style={{maxWidth:640,margin:"0 auto"}}>
+      <button onClick={()=>setScreen("brief")} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginBottom:16,fontFamily:"'Inter',sans-serif"}}>← Change difficulty</button>
+      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:22}}>
+        <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:18}}>
+          <div style={{width:44,height:44,background:C.violetPale,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{role.icon}</div>
+          <div>
+            <div style={{fontWeight:800,fontSize:16,color:C.ink}}>{role.title}</div>
+            <div style={{color:C.soft,fontSize:11.5,marginTop:1}}>{difficulty}</div>
+          </div>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
+          <div style={{fontWeight:700,fontSize:14,color:C.ink}}>Choose a mock interview</div>
+          {!isPro&&<span style={{fontSize:11,color:C.muted}}>{FREE_SLOTS} free · {TOTAL_SLOTS-FREE_SLOTS} locked</span>}
+          {isPro&&<span style={{fontSize:11,color:C.green,fontWeight:700}}>✓ All unlocked</span>}
+        </div>
+        <div style={{color:C.soft,fontSize:12,marginBottom:16}}>Each slot is a fresh set of 6 questions themed around a different interview focus area.</div>
+        {genErr&&<div style={{background:C.goldPale,border:`1px solid ${C.gold}25`,borderRadius:8,padding:"8px 12px",fontSize:12,color:C.gold,marginBottom:14}}>{genErr}</div>}
+        <SlotGrid isPro={isPro} completedSlots={completedSlots} loadingSlot={slotLoading} onSelectSlot={selectSlot} onUpgrade={()=>setShowUpgrade(true)}/>
+      </div>
+      {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut}/>}
     </div>
   );
 
@@ -1636,7 +1972,7 @@ Return ONLY: {"overallScore":<0-100>,"verdict":"<Strong Hire|Hire|Borderline|No 
       liveText={liveText} interimText={interimText} timeLeft={timeLeft}
       feedback={feedback} loadingFeedback={loadingFeedback}
       onFinish={finishQ} onNext={nextQ}
-      onEnd={()=>{window.speechSynthesis?.cancel();stopRec();clearInterval(timerRef.current);if(answers.length>0)wrapUp();else setScreen("roles");}}
+      onEnd={()=>{window.speechSynthesis?.cancel();stopRec();clearInterval(timerRef.current);if(answers.length>0)wrapUp();else setScreen("slots");}}
       onToggleMic={()=>setMicMuted(m=>!m)} micMuted={micMuted}
       fillerCount={fillerCount} liveMetrics={liveMetrics}
     />
@@ -1648,7 +1984,7 @@ Return ONLY: {"overallScore":<0-100>,"verdict":"<Strong Hire|Hire|Borderline|No 
     <div className="fade">
       <div style={{background:`linear-gradient(160deg,${C.bgCard},${C.bgSurf})`,border:`1px solid ${C.border}`,borderRadius:20,padding:"28px 22px",marginBottom:16}}>
         <div style={{textAlign:"center",marginBottom:20}}>
-          <div style={{fontSize:10,color:C.muted,marginBottom:6,letterSpacing:1.5,fontWeight:700,textTransform:"uppercase"}}>{role.icon} {role.title} · {difficulty}</div>
+          <div style={{fontSize:10,color:C.muted,marginBottom:6,letterSpacing:1.5,fontWeight:700,textTransform:"uppercase"}}>{role.icon} {role.title} · {difficulty}{activeSlot?` · Mock #${activeSlot}`:""}</div>
           <div className="mono" style={{fontSize:56,fontWeight:700,lineHeight:1,color:sc(report.overallScore)}}>{report.overallScore}</div>
           <div style={{fontSize:12,color:C.muted,marginBottom:10}}>/ 100</div>
           <div><span style={{background:`${sc(report.overallScore)}15`,color:sc(report.overallScore),padding:"5px 18px",borderRadius:20,fontWeight:800,fontSize:13,border:`1px solid ${sc(report.overallScore)}30`}}>{report.verdict}</span></div>
@@ -1666,7 +2002,7 @@ Return ONLY: {"overallScore":<0-100>,"verdict":"<Strong Hire|Hire|Borderline|No 
       {report.strengths?.length>0&&<div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}><div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:12}}>✅ What worked</div>{report.strengths.map((s,i)=><div key={i} style={{background:C.greenPale,borderRadius:8,padding:"10px 13px",marginBottom:7,fontSize:13,color:C.ink2,border:`1px solid ${C.green}20`,display:"flex",gap:8}}><span style={{color:C.green}}>✓</span><span>{s}</span></div>)}</div>}
       {report.improvements?.length>0&&<div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}><div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:12}}>🎯 Improve on</div>{report.improvements.map((s,i)=><div key={i} style={{background:"rgba(255,255,255,.02)",borderRadius:8,padding:"10px 13px",marginBottom:7,border:`1px solid ${C.border}`,display:"flex",gap:9}}><span style={{color:C.gold,fontWeight:800}}>→</span><span style={{color:C.ink2,fontSize:13}}>{s}</span></div>)}</div>}
       {report.perQuestion?.length>0&&<div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:16}}><div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:12}}>🔍 Q by Q</div>{report.perQuestion.map((p,i)=><div key={i} style={{background:"rgba(255,255,255,.02)",borderRadius:10,padding:"12px 14px",marginBottom:9,border:`1px solid ${C.border}`}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:5,gap:8}}><div style={{fontWeight:600,color:C.ink,fontSize:12.5}}>Q{i+1}. {p.question}</div><div className="mono" style={{fontWeight:700,fontSize:13,color:sc(p.score),flexShrink:0}}>{p.score}%</div></div><div style={{color:C.soft,fontSize:12.5,lineHeight:1.7}}>{p.feedback}</div><Bar pct={p.score} color={sc(p.score)}/></div>)}</div>}
-      <div style={{display:"flex",gap:10}}><Btn v="violet" onClick={()=>pickRole(role)} style={{flex:1,padding:"13px"}}>🔁 Retry</Btn><Btn v="ghost" onClick={restart} style={{flex:1,padding:"13px"}}>🎲 Other Role</Btn></div>
+      <div style={{display:"flex",gap:10}}><Btn v="violet" onClick={()=>setScreen("slots")} style={{flex:1,padding:"13px"}}>🔁 Pick Another Slot</Btn><Btn v="ghost" onClick={restart} style={{flex:1,padding:"13px"}}>🎲 Other Role</Btn></div>
     </div>
   );
 
@@ -1712,11 +2048,6 @@ function JobsTab({onPracticeForJob}){
     return null;
   };
 
-  // FIX (marketing share + deep link): build a link that bakes the job's
-  // company/role/apply-url into the query string. Opening that link sends a
-  // brand-new visitor straight to login/signup (App-level routing handles
-  // this — see pendingJob logic), and right after they finish auth they're
-  // dropped straight onto this exact job with the apply tab already open.
   const buildShareUrl=(job)=>{
     const params=new URLSearchParams({cmp:job.company||"",role:job.title||"",jurl:job.url||"",jid:String(job.id||"")});
     return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
@@ -1823,7 +2154,7 @@ function LandingPage({onStart}){
     {icon:"🗣️",title:"AI speaks your questions",desc:"Priya Sharma, our AI hiring manager, reads every question in natural voice. Your mic activates when she's done. Exactly like a real interview."},
     {icon:"⚡",title:"Live confidence analysis",desc:"Real-time pace, clarity, and filler word detection while you speak. See 'um' flagged instantly, pace score ticking, clarity meter live."},
     {icon:"🏢",title:"Company-style matching",desc:"Google interviews differently than TCS. Amazon's bar differs from Wipro's. We mirror each company's real culture and difficulty."},
-    {icon:"📤",title:"Shareable scorecard",desc:"Download a LinkedIn-ready PNG of your result. '89% Strong Hire in Google SDE mock' — share it and bring in your next user for free."},
+    {icon:"🔓",title:"15 mock interviews per role",desc:"2 free per role. Unlock all 15 — each with a different focus and different questions — from ₹49."},
   ];
 
   const testimonials=[
@@ -1872,7 +2203,6 @@ function LandingPage({onStart}){
               India's only AI interview with live camera + resume personalization
             </div>
 
-            {/* NEW HEADLINE (was "You already know what they'll ask.") */}
             <h1 className="fade" style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(32px,4vw,56px)",lineHeight:1.08,marginBottom:24,animationDelay:".1s",letterSpacing:"-1px",color:"#fff"}}>
               Walk in ready.<br/>
               <span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>Not nervous.</span>
@@ -1930,8 +2260,8 @@ function LandingPage({onStart}){
                 </div>
               </div>
               <div style={{padding:"24px",textAlign:"center",background:"linear-gradient(180deg,#07091A,#04060E)"}}>
-                <div style={{width:80,height:80,borderRadius:"50%",margin:"0 auto 12px",border:`2px solid ${C.violet}50`,overflow:"hidden",boxShadow:`0 0 20px ${C.violet}30`}}>
-                  <img src="https://randomuser.me/api/portraits/women/65.jpg" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                <div style={{width:80,height:80,margin:"0 auto 12px",filter:`drop-shadow(0 0 16px ${C.violet}40)`}}>
+                  <AIFace speaking={true} size={80}/>
                 </div>
                 <div style={{color:"#fff",fontWeight:700,fontSize:13,marginBottom:2}}>Priya Sharma</div>
                 <div style={{color:"rgba(255,255,255,.4)",fontSize:10,marginBottom:16}}>Senior Hiring Manager · Google</div>
@@ -1987,7 +2317,7 @@ function LandingPage({onStart}){
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:22}}>
           {[
             {n:"01",title:"Upload your resume",desc:"Paste or upload PDF/DOCX. Enter company and role. 60 seconds to set up."},
-            {n:"02",title:"Interview on camera",desc:"Priya speaks your personalized questions aloud. Answer on mic, on camera, on a 90-second clock. Live confidence meter tracks you in real time."},
+            {n:"02",title:"Pick a mock & interview on camera",desc:"2 free mocks per role, 13 more unlock with Pro. Priya speaks your personalized questions aloud — answer on mic, on camera, on a 90-second clock."},
             {n:"03",title:"Get your debrief + scorecard",desc:"Score across 5 dimensions. Per-question breakdown with ideal answers. Download a shareable PNG. Specific next steps before your real interview."},
           ].map((s,i)=>(
             <div key={i} className="lift" style={{background:C.lCard,border:`1.5px solid ${C.lBorder}`,borderRadius:20,padding:28}}>
@@ -2046,13 +2376,13 @@ function LandingPage({onStart}){
         <div style={{maxWidth:900,margin:"0 auto"}}>
           <div style={{textAlign:"center",marginBottom:52}}>
             <div style={{fontSize:10,color:C.violet,fontWeight:800,letterSpacing:3,marginBottom:10,textTransform:"uppercase"}}>Pricing</div>
-            <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:36,color:C.lText,letterSpacing:-.5}}>Start free. Upgrade when you land interviews.</h2>
+            <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:36,color:C.lText,letterSpacing:-.5}}>2 free per role. Unlock all 15 for less than a coffee.</h2>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))",gap:22,alignItems:"start"}}>
             {[
-              {name:"Free",price:"₹0",period:"/month",color:C.lText,features:["3 resume interviews/month","10 quick mock sessions","Basic per-question feedback","Live job feed","Streak tracking"],cta:"Start Free",v:"ghost",textColor:C.lText},
-              {name:"Pro",price:"₹199",period:"/month",color:C.violet,popular:true,features:["Unlimited resume interviews","All company style modes","Full detailed reports","Shareable scorecards","Score history + trajectory","Resume gap analysis","Filler word detection","AI ideal answer coach","Unlimited job saves"],cta:"Start Pro — ₹199/mo",v:"violet"},
-              {name:"Premium",price:"₹499",period:"/month",color:C.teal,features:["Everything in Pro","1 resume review/month","LinkedIn optimization","Salary negotiation script","Priority AI + support"],cta:"Go Premium",v:"teal"},
+              {name:"Free",price:"₹0",period:"",color:C.lText,features:["2 mock interviews per role","10 quick mock practice rounds","Basic per-question feedback","Live job feed","Streak tracking"],cta:"Start Free",v:"ghost"},
+              {name:"Week",price:"₹49",period:"/week",color:C.gold,features:["All 15 mocks, every role","All company style modes","Full detailed reports","Shareable scorecards","Filler word detection"],cta:"Get 1 Week — ₹49",v:"gold"},
+              {name:"Month",price:"₹199",period:"/month",color:C.violet,popular:true,features:["Everything in Week","Best value — 4× the days for 4× the price of a week","Score history + trajectory","AI ideal answer coach","Priority support"],cta:"Get 1 Month — ₹199",v:"violet"},
             ].map((p,i)=>(
               <div key={i} style={{background:C.lCard,border:p.popular?`2px solid ${C.violet}`:`1.5px solid ${C.lBorder}`,borderRadius:22,padding:28,position:"relative",boxShadow:p.popular?`0 12px 40px ${C.violet}15`:"none"}}>
                 {p.popular&&<div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)",background:`linear-gradient(135deg,${C.violetD},${C.violet})`,color:"#fff",fontSize:11,fontWeight:800,padding:"4px 16px",borderRadius:20,whiteSpace:"nowrap"}}>⭐ MOST POPULAR</div>}
@@ -2186,9 +2516,7 @@ function AuthPage({onLogin,onBack,pendingJob}){
 
   const handleGoogle=async()=>{
     setGLoading(true);setErr("");
-    // FIX (job deep link survives Google OAuth): redirect back to the FULL
-    // current URL (including ?cmp=&role=&jurl=... query params), not just the
-    // bare origin — otherwise the pending job info is lost mid-flow.
+    if(pendingJob)sessionStorage.setItem("tp_pending_job",JSON.stringify(pendingJob));
     const{error}=await supabase.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.href}});
     if(error){setErr(error.message);setGLoading(false);}
   };
@@ -2226,7 +2554,6 @@ function AuthPage({onLogin,onBack,pendingJob}){
           <div style={{color:C.soft,fontSize:13,marginTop:4}}>{mode==="login"?"Welcome back 👋":"Create your free account ✨"}</div>
         </div>
 
-        {/* Job deep-link banner */}
         {pendingJob&&(pendingJob.role||pendingJob.company)&&(
           <div style={{background:C.violetPale,border:`1px solid ${C.violet}25`,borderRadius:10,padding:"10px 14px",marginBottom:18,fontSize:12.5,color:C.violetL,textAlign:"center"}}>
             🔥 Sign in to view <strong>{pendingJob.role||"this role"}</strong>{pendingJob.company?` at ${pendingJob.company}`:""}
@@ -2299,10 +2626,9 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
     fetchUserStats(user?.id).then(s=>{setStats(s);setStatsLoading(false);});
   },[user]);
 
-  // FIX (marketing share + deep link, part 2): if this mount was triggered
-  // by a shared job link, jump straight to the Jobs tab, prefill the search
-  // so the job is easy to find, open the actual apply page in a new tab, and
-  // then clear the query string so a refresh doesn't replay this flow.
+  // Preload Razorpay checkout script early so the modal opens instantly later.
+  useEffect(()=>{loadRazorpayScript();},[]);
+
   useEffect(()=>{
     if(pendingJob&&(pendingJob.role||pendingJob.company||pendingJob.jurl)){
       setTabP(1);
@@ -2387,17 +2713,46 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
   );
 }
 
+// ── ERROR BOUNDARY ────────────────────────────────────────────────────────────
+// FIX (defense in depth for issue #3): any future render-time crash now shows
+// a friendly recoverable screen instead of a blank/black page with no clue
+// what happened.
+class ErrorBoundary extends (typeof React!=="undefined"?React.Component:Object){
+  constructor(props){
+    super(props);
+    this.state={hasError:false};
+  }
+  static getDerivedStateFromError(){return{hasError:true};}
+  componentDidCatch(err,info){console.error("App crashed:",err,info);}
+  render(){
+    if(this.state.hasError){
+      return(
+        <div style={{minHeight:"100vh",background:"#080C14",color:"#fff",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14,padding:24,textAlign:"center",fontFamily:"'Inter',sans-serif"}}>
+          <div style={{fontSize:40}}>⚠️</div>
+          <div style={{fontWeight:700,fontSize:18}}>Something went wrong</div>
+          <div style={{color:"rgba(255,255,255,.5)",fontSize:13,maxWidth:320}}>Please reload. If this keeps happening, check the browser console for the error logged above and let us know at takeplace.in@gmail.com.</div>
+          <button onClick={()=>window.location.reload()} style={{padding:"10px 24px",borderRadius:10,border:"none",background:"#7C6EFA",color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>Reload</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ── ROOT ──────────────────────────────────────────────────────────────────────
-// FIX (deep-link parsing) — reads ?cmp=&role=&jurl=&jid= from the URL once on load.
 function parseJobParams(){
   if(typeof window==="undefined")return null;
   const p=new URLSearchParams(window.location.search);
   const company=p.get("cmp")||"",role=p.get("role")||"",jurl=p.get("jurl")||"",jid=p.get("jid")||"";
-  if(!company&&!role&&!jurl&&!jid)return null;
-  return{company,role,jurl,jid};
+  if(company||role||jurl||jid)return{company,role,jurl,jid};
+  try{
+    const stashed=sessionStorage.getItem("tp_pending_job");
+    if(stashed){sessionStorage.removeItem("tp_pending_job");return JSON.parse(stashed);}
+  }catch{}
+  return null;
 }
 
-export default function App(){
+function AppInner(){
   const[user,setUser]=useState(null);
   const[loading,setLoading]=useState(true);
   const[page,setPage]=useState("landing");
@@ -2413,10 +2768,6 @@ export default function App(){
     }
   };
 
-  // FIX (onboarding asked every time): "already onboarded" is now a permanent
-  // flag stored on the Supabase user (user_metadata.onboarded), not derived
-  // from whether they've completed an interview yet. Once true, it's true
-  // forever for that account, on any device.
   const routeAfterAuth=(u)=>{
     setUser(u);
     setPage("app");
@@ -2467,4 +2818,12 @@ export default function App(){
   );
 
   return<MainApp user={user} onLogout={()=>supabase.auth.signOut()} pendingJob={pendingJob} onPendingJobHandled={clearJobParams}/>;
+}
+
+export default function App(){
+  return(
+    <ErrorBoundary>
+      <AppInner/>
+    </ErrorBoundary>
+  );
 }
