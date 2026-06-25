@@ -8,7 +8,6 @@ const SUPABASE_URL = "https://mdwxmiywtghznpwulwko.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kd3htaXl3dGdoem5wd3Vsd2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5OTkyOTIsImV4cCI6MjA5MzU3NTI5Mn0.b6yq6bIu0ntAbrrb2CP1H_alIcCTLc9sbix7tuERVAw";
 const ADZUNA_ID  = "845f6cff";
 const ADZUNA_KEY = "1255514b43792f219448b455d585c3ea";
-const RAZORPAY_KEY_ID = "rzp_live_XXXXXXXXXXXX";
 const supabase   = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ── PAYWALL / SLOT CONFIG ──────────────────────────────────────────────────────
