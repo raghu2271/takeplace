@@ -1236,13 +1236,17 @@ Return ONLY:
     window.speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(text);
     u.rate=0.95;u.pitch=1.05;
+   const trySpeak=(voices)=>{
+      const v=voices.find(v=>/en-(US|GB|IN)/i.test(v.lang)&&/Female|Samantha|Karen|Moira|Veena|Raveena|Google UK English Female/i.test(v.name))||voices.find(v=>/en/i.test(v.lang));
+      if(v)u.voice=v;
+      setAiSpeaking(true);
+      u.onend=()=>{setAiSpeaking(false);resolve();};
+      u.onerror=()=>{setAiSpeaking(false);resolve();};
+      window.speechSynthesis.speak(u);
+    };
     const voices=window.speechSynthesis.getVoices();
-    const v=voices.find(v=>/en-(US|GB|IN)/i.test(v.lang)&&/Female|Samantha|Karen|Moira|Veena|Raveena|Google UK English Female/i.test(v.name))||voices.find(v=>/en/i.test(v.lang));
-    if(v)u.voice=v;
-    setAiSpeaking(true);
-    u.onend=()=>{setAiSpeaking(false);resolve();};
-    u.onerror=()=>{setAiSpeaking(false);resolve();};
-    window.speechSynthesis.speak(u);
+    if(voices.length>0){trySpeak(voices);}
+    else{window.speechSynthesis.onvoiceschanged=()=>{trySpeak(window.speechSynthesis.getVoices());};}
   }),[ttsOK]);
 
   const stopRec=()=>{
@@ -1745,13 +1749,17 @@ Return ONLY: {"questions":[{"q":"<short spoken question, max 18 words>","type":"
     window.speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(text);
     u.rate=0.97;u.pitch=0.93;
+   const trySpeak=(voices)=>{
+      const v=voices.find(v=>/en-(US|GB|IN)/i.test(v.lang)&&/Female|Samantha|Karen|Moira|Veena|Raveena|Google UK English Female/i.test(v.name))||voices.find(v=>/en/i.test(v.lang));
+      if(v)u.voice=v;
+      setAiSpeaking(true);
+      u.onend=()=>{setAiSpeaking(false);resolve();};
+      u.onerror=()=>{setAiSpeaking(false);resolve();};
+      window.speechSynthesis.speak(u);
+    };
     const voices=window.speechSynthesis.getVoices();
-    const v=voices.find(v=>/en-(US|GB|IN)/i.test(v.lang)&&/Male|David|Daniel|Google/i.test(v.name))||voices.find(v=>/en/i.test(v.lang));
-    if(v)u.voice=v;
-    setAiSpeaking(true);
-    u.onend=()=>{setAiSpeaking(false);resolve();};
-    u.onerror=()=>{setAiSpeaking(false);resolve();};
-    window.speechSynthesis.speak(u);
+    if(voices.length>0){trySpeak(voices);}
+    else{window.speechSynthesis.onvoiceschanged=()=>{trySpeak(window.speechSynthesis.getVoices());};}
   }),[ttsOK]);
 
   const stopRec=()=>{
