@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+
+
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
@@ -6,7 +8,7 @@ const SUPABASE_URL = "https://mdwxmiywtghznpwulwko.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kd3htaXl3dGdoem5wd3Vsd2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5OTkyOTIsImV4cCI6MjA5MzU3NTI5Mn0.b6yq6bIu0ntAbrrb2CP1H_alIcCTLc9sbix7tuERVAw";
 const ADZUNA_ID  = "845f6cff";
 const ADZUNA_KEY = "1255514b43792f219448b455d585c3ea";
-const RAZORPAY_KEY_ID = "rzp_live_XXXXXXXXXXXX"; // public key_id — safe to expose. Replace with your real key.
+const RAZORPAY_KEY_ID = "rzp_live_XXXXXXXXXXXX";
 const supabase   = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ── PAYWALL / SLOT CONFIG ──────────────────────────────────────────────────────
@@ -20,47 +22,21 @@ const FOCUS_BY_SLOT = [
   "ambiguous requirements","conflict resolution","closing & negotiation",
 ];
 
-// ── DESIGN SYSTEM v2 ──────────────────────────────────────────────────────────
+// ── DESIGN SYSTEM ─────────────────────────────────────────────────────────────
 const C = {
-  bg:       "#080C14",
-  bgCard:   "#0D1220",
-  bgSurf:   "#111827",
-  bgLight:  "#F8FAFC",
-  white:    "#FFFFFF",
-  ink:      "#F1F5F9",
-  ink2:     "#CBD5E1",
-  ink3:     "#94A3B8",
-  inkDark:  "#0D1117",
-  violet:   "#7C6EFA",
-  violetL:  "#A89BFC",
-  violetD:  "#5B4EE8",
-  violetPale:"rgba(124,110,250,0.12)",
-  teal:     "#00D4AA",
-  tealL:    "#2EE8BF",
-  tealD:    "#00A888",
-  tealPale: "rgba(0,212,170,0.10)",
-  gold:     "#F59E0B",
-  goldL:    "#FBD072",
-  goldPale: "rgba(245,158,11,0.12)",
-  green:    "#22C55E",
-  greenL:   "#4ADE80",
-  greenPale:"rgba(34,197,94,0.10)",
-  red:      "#EF4444",
-  redPale:  "rgba(239,68,68,0.10)",
-  blue:     "#3B82F6",
-  bluePale: "rgba(59,130,246,0.10)",
-  border:   "rgba(255,255,255,0.08)",
-  borderHover:"rgba(255,255,255,0.16)",
-  muted:    "#64748B",
-  soft:     "#94A3B8",
-  lBg:      "#F8FAFC",
-  lCard:    "#FFFFFF",
-  lBorder:  "#E2E8F0",
-  lText:    "#0F172A",
-  lMuted:   "#64748B",
+  bg:"#080C14",bgCard:"#0D1220",bgSurf:"#111827",bgLight:"#F8FAFC",
+  white:"#FFFFFF",ink:"#F1F5F9",ink2:"#CBD5E1",ink3:"#94A3B8",inkDark:"#0D1117",
+  violet:"#7C6EFA",violetL:"#A89BFC",violetD:"#5B4EE8",violetPale:"rgba(124,110,250,0.12)",
+  teal:"#00D4AA",tealL:"#2EE8BF",tealD:"#00A888",tealPale:"rgba(0,212,170,0.10)",
+  gold:"#F59E0B",goldL:"#FBD072",goldPale:"rgba(245,158,11,0.12)",
+  green:"#22C55E",greenL:"#4ADE80",greenPale:"rgba(34,197,94,0.10)",
+  red:"#EF4444",redPale:"rgba(239,68,68,0.10)",
+  blue:"#3B82F6",bluePale:"rgba(59,130,246,0.10)",
+  border:"rgba(255,255,255,0.08)",borderHover:"rgba(255,255,255,0.16)",
+  muted:"#64748B",soft:"#94A3B8",
+  lBg:"#F8FAFC",lCard:"#FFFFFF",lBorder:"#E2E8F0",lText:"#0F172A",lMuted:"#64748B",
 };
 
-// ── GLOBAL CSS ────────────────────────────────────────────────────────────────
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
   *{box-sizing:border-box;margin:0;padding:0;}
@@ -98,24 +74,10 @@ const CSS = `
   .skeleton{background:linear-gradient(90deg,rgba(255,255,255,.04) 25%,rgba(255,255,255,.08) 50%,rgba(255,255,255,.04) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;}
 `;
 
-// ── INPUT STYLES ──────────────────────────────────────────────────────────────
 const inp = {
-  width:"100%",
-  background:"rgba(255,255,255,.04)",
-  border:`1px solid ${C.border}`,
-  borderRadius:10,
-  padding:"11px 14px",
-  color:C.ink,
-  fontSize:14,
-  fontFamily:"'Inter',sans-serif",
-  outline:"none",
-  transition:"border-color .2s,box-shadow .2s",
-};
-const inpLight = {
-  ...inp,
-  background:C.lCard,
-  border:`1.5px solid ${C.lBorder}`,
-  color:C.lText,
+  width:"100%",background:"rgba(255,255,255,.04)",border:`1px solid ${C.border}`,
+  borderRadius:10,padding:"11px 14px",color:C.ink,fontSize:14,
+  fontFamily:"'Inter',sans-serif",outline:"none",transition:"border-color .2s,box-shadow .2s",
 };
 
 // ── ATOMS ─────────────────────────────────────────────────────────────────────
@@ -124,23 +86,8 @@ const Spin = ({size=18,color=C.violet}) => (
 );
 
 function Btn({children,onClick,v="primary",style={},disabled=false,loading=false,small=false}){
-  const base = {
-    padding: small?"7px 14px":"12px 24px",
-    fontSize: small?12:14,
-    borderRadius: 10,
-    border:"none",
-    cursor: disabled||loading?"not-allowed":"pointer",
-    fontFamily:"'Inter',sans-serif",
-    transition:"all .18s cubic-bezier(.22,1,.36,1)",
-    opacity: disabled?.45:1,
-    display:"inline-flex",
-    alignItems:"center",
-    justifyContent:"center",
-    gap:7,
-    fontWeight:700,
-    whiteSpace:"nowrap",
-  };
-  const vs = {
+  const base={padding:small?"7px 14px":"12px 24px",fontSize:small?12:14,borderRadius:10,border:"none",cursor:disabled||loading?"not-allowed":"pointer",fontFamily:"'Inter',sans-serif",transition:"all .18s cubic-bezier(.22,1,.36,1)",opacity:disabled?.45:1,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:7,fontWeight:700,whiteSpace:"nowrap"};
+  const vs={
     primary:{background:`linear-gradient(135deg,${C.violetD},${C.violet})`,color:"#fff",boxShadow:`0 4px 20px ${C.violet}35`},
     teal:{background:`linear-gradient(135deg,${C.tealD},${C.teal})`,color:C.bg,boxShadow:`0 4px 20px ${C.teal}30`},
     gold:{background:`linear-gradient(135deg,#D97706,${C.gold},${C.goldL})`,color:C.bg,boxShadow:`0 4px 20px ${C.gold}30`},
@@ -151,9 +98,8 @@ function Btn({children,onClick,v="primary",style={},disabled=false,loading=false
     light:{background:C.lCard,color:C.lText,fontWeight:700,boxShadow:"0 2px 12px rgba(0,0,0,.12)"},
     violet:{background:`linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,color:"#fff",boxShadow:`0 4px 20px ${C.violet}40`},
   };
-  return (
-    <button onClick={disabled||loading?undefined:onClick} disabled={disabled||loading}
-      style={{...base,...vs[v],...style}}>
+  return(
+    <button onClick={disabled||loading?undefined:onClick} disabled={disabled||loading} style={{...base,...vs[v],...style}}>
       {loading?<><Spin size={13} color={v==="ghost"?C.violet:"#fff"}/> Please wait…</>:children}
     </button>
   );
@@ -164,7 +110,7 @@ const Tag = ({children,color=C.violet,bg,size=11}) => (
 );
 
 function Bar({pct,color,h=4}){
-  return (
+  return(
     <div style={{background:"rgba(255,255,255,.06)",borderRadius:4,height:h,overflow:"hidden"}}>
       <div style={{height:"100%",width:`${Math.min(100,pct||0)}%`,background:color||C.violet,borderRadius:4,transition:"width 1.2s cubic-bezier(.22,1,.36,1)"}}/>
     </div>
@@ -175,7 +121,7 @@ function ScoreRing({score,size=80,color,label,delta}){
   const r=28,circ=2*Math.PI*r;
   const pct=Math.max(0,Math.min(100,score||0));
   const col=color||(pct>=75?C.green:pct>=50?C.gold:C.red);
-  return (
+  return(
     <div style={{textAlign:"center"}}>
       <svg width={size} height={size} viewBox="0 0 68 68" style={{overflow:"visible"}}>
         <circle cx="34" cy="34" r={r} fill="none" stroke="rgba(255,255,255,.06)" strokeWidth="4"/>
@@ -187,89 +133,52 @@ function ScoreRing({score,size=80,color,label,delta}){
         <text x="34" y="47" textAnchor="middle" fill="rgba(255,255,255,.3)" fontSize="7" fontFamily="Inter,sans-serif">score</text>
       </svg>
       {label&&<div style={{color:C.soft,fontSize:10,fontWeight:600,marginTop:3,textTransform:"uppercase",letterSpacing:.6}}>{label}</div>}
-      {delta!==undefined&&<div style={{fontSize:11,color:delta>=0?C.green:C.red,fontWeight:700,marginTop:2}}>
-        {delta>=0?`↑ +${delta}`:` ↓ ${delta}`} pts
-      </div>}
+      {delta!==undefined&&<div style={{fontSize:11,color:delta>=0?C.green:C.red,fontWeight:700,marginTop:2}}>{delta>=0?`↑ +${delta}`:` ↓ ${delta}`} pts</div>}
     </div>
   );
 }
 
-// Skill Radar Chart (pure SVG, no lib)
 function SkillRadar({scores={},size=200}){
   const skills=[
-    {key:"technical",label:"Technical"},
-    {key:"communication",label:"Comms"},
-    {key:"confidence",label:"Confidence"},
-    {key:"structure",label:"Structure"},
-    {key:"resumeFit",label:"Resume Fit"},
+    {key:"technical",label:"Technical"},{key:"communication",label:"Comms"},
+    {key:"confidence",label:"Confidence"},{key:"structure",label:"Structure"},{key:"resumeFit",label:"Resume Fit"},
   ];
   const cx=size/2,cy=size/2,r=(size/2)-30;
   const n=skills.length;
   const angle=(i)=>(Math.PI*2*i/n)-Math.PI/2;
-  const pt=(i,val)=>{
-    const a=angle(i);
-    const d=(val/100)*r;
-    return [cx+d*Math.cos(a),cy+d*Math.sin(a)];
-  };
+  const pt=(i,val)=>{const a=angle(i),d=(val/100)*r;return[cx+d*Math.cos(a),cy+d*Math.sin(a)];};
   const gridLevels=[20,40,60,80,100];
-  return (
+  return(
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       {gridLevels.map(l=>(
         <polygon key={l} fill="none" stroke="rgba(255,255,255,.06)" strokeWidth="1"
           points={skills.map((_,i)=>{const[x,y]=pt(i,l);return`${x},${y}`;}).join(" ")}/>
       ))}
-      {skills.map((_,i)=>{
-        const[x,y]=pt(i,100);
-        return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="rgba(255,255,255,.06)" strokeWidth="1"/>;
-      })}
-      <polygon
-        fill={`${C.violet}25`} stroke={C.violet} strokeWidth="1.5"
+      {skills.map((_,i)=>{const[x,y]=pt(i,100);return<line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="rgba(255,255,255,.06)" strokeWidth="1"/>;  })}
+      <polygon fill={`${C.violet}25`} stroke={C.violet} strokeWidth="1.5"
         style={{transition:"all .8s cubic-bezier(.22,1,.36,1)"}}
         points={skills.map((s,i)=>{const[x,y]=pt(i,scores[s.key]||0);return`${x},${y}`;}).join(" ")}/>
+      {skills.map((s,i)=>{const[x,y]=pt(i,scores[s.key]||0);return<circle key={i} cx={x} cy={y} r="3" fill={C.violet} style={{filter:`drop-shadow(0 0 4px ${C.violet})`}}/>;  })}
       {skills.map((s,i)=>{
-        const[x,y]=pt(i,scores[s.key]||0);
-        return(
-          <circle key={i} cx={x} cy={y} r="3" fill={C.violet}
-            style={{filter:`drop-shadow(0 0 4px ${C.violet})`}}/>
-        );
-      })}
-      {skills.map((s,i)=>{
-        const a=angle(i);
-        const lx=cx+(r+20)*Math.cos(a);
-        const ly=cy+(r+20)*Math.sin(a);
-        return(
-          <text key={i} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle"
-            fill={C.soft} fontSize="9" fontFamily="Inter,sans-serif" fontWeight="600"
-            style={{textTransform:"uppercase",letterSpacing:.5}}>{s.label}</text>
-        );
+        const a=angle(i),lx=cx+(r+20)*Math.cos(a),ly=cy+(r+20)*Math.sin(a);
+        return<text key={i} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fill={C.soft} fontSize="9" fontFamily="Inter,sans-serif" fontWeight="600" style={{textTransform:"uppercase",letterSpacing:.5}}>{s.label}</text>;
       })}
     </svg>
   );
 }
 
-// Mini score sparkline
 function Sparkline({data=[],width=120,height=32,color=C.violet}){
-  if(data.length<2) return null;
-  const max=Math.max(...data),min=Math.min(...data);
-  const range=max-min||1;
-  const pts=data.map((v,i)=>{
-    const x=(i/(data.length-1))*(width-4)+2;
-    const y=height-2-((v-min)/range)*(height-4);
-    return`${x},${y}`;
-  }).join(" ");
+  if(data.length<2)return null;
+  const max=Math.max(...data),min=Math.min(...data),range=max-min||1;
+  const pts=data.map((v,i)=>{const x=(i/(data.length-1))*(width-4)+2,y=height-2-((v-min)/range)*(height-4);return`${x},${y}`;}).join(" ");
   return(
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
       <polyline fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" points={pts}/>
-      {data.map((v,i)=>{
-        const x=(i/(data.length-1))*(width-4)+2;
-        const y=height-2-((v-min)/range)*(height-4);
-        return i===data.length-1?<circle key={i} cx={x} cy={y} r="3" fill={color} style={{filter:`drop-shadow(0 0 3px ${color})`}}/>:null;
-      })}
+      {data.map((v,i)=>{const x=(i/(data.length-1))*(width-4)+2,y=height-2-((v-min)/range)*(height-4);return i===data.length-1?<circle key={i} cx={x} cy={y} r="3" fill={color} style={{filter:`drop-shadow(0 0 3px ${color})`}}/>:null;})}
     </svg>
   );
 }
 
-// Fmts
 function fmtTime(s){return`${Math.floor(s/60)}:${(s%60).toString().padStart(2,"0")}`;}
 function safeJSON(raw,fallback={}){
   if(!raw)return fallback;
@@ -278,14 +187,6 @@ function safeJSON(raw,fallback={}){
 }
 
 // ── AI CALL ───────────────────────────────────────────────────────────────────
-// FIX (issue #2 — always falls back to "Tell me a little about yourself"):
-// the old code only parsed Anthropic-style `data.content[0].text`. If your
-// /api/ai backend actually proxies Groq/OpenAI, the real shape is
-// `data.choices[0].message.content`, so `text` was always "", JSON parsing
-// always failed, and every single interview silently fell back to
-// FALLBACK_QUESTIONS — for every role and every company. We now check both
-// shapes, plus log to console when neither matches so this is debuggable
-// instead of silent.
 async function callGroq(prompt,maxTokens=2000,systemMsg=""){
   const sys=systemMsg||"You are an expert technical interviewer. Respond with valid JSON only. No markdown, no explanation.";
   const res=await fetch("/api/ai",{
@@ -294,41 +195,26 @@ async function callGroq(prompt,maxTokens=2000,systemMsg=""){
   });
   if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error||"AI error "+res.status);}
   const data=await res.json();
-  const text =
-    data.content?.[0]?.text ||                 // Anthropic-style
-    data.choices?.[0]?.message?.content ||      // OpenAI / Groq-style
-    data.text || "";
-  if(!text) console.error("AI response shape not recognized — check /api/ai output:",data);
+  const text=data.content?.[0]?.text||data.choices?.[0]?.message?.content||data.text||"";
+  if(!text)console.error("AI response shape not recognized:",data);
   return text;
 }
 
 // ── FILE EXTRACT ──────────────────────────────────────────────────────────────
 async function extractPDF(file){
   if(!window.pdfjsLib){
-    await new Promise((res,rej)=>{
-      const s=document.createElement("script");
-      s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-      s.onload=res;s.onerror=rej;document.head.appendChild(s);
-    });
+    await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});
     window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
   }
   const ab=await file.arrayBuffer();
   const pdf=await window.pdfjsLib.getDocument({data:ab}).promise;
   let text="";
-  for(let i=1;i<=Math.min(pdf.numPages,5);i++){
-    const page=await pdf.getPage(i);
-    const c=await page.getTextContent();
-    text+=c.items.map(x=>x.str).join(" ")+"\n";
-  }
+  for(let i=1;i<=Math.min(pdf.numPages,5);i++){const page=await pdf.getPage(i);const c=await page.getTextContent();text+=c.items.map(x=>x.str).join(" ")+"\n";}
   return text.trim();
 }
 async function extractDOCX(file){
   if(!window.mammoth){
-    await new Promise((res,rej)=>{
-      const s=document.createElement("script");
-      s.src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js";
-      s.onload=res;s.onerror=rej;document.head.appendChild(s);
-    });
+    await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});
   }
   const ab=await file.arrayBuffer();
   const r=await window.mammoth.extractRawText({arrayBuffer:ab});
@@ -339,13 +225,8 @@ async function extractDOCX(file){
 const FILLERS=["um","uh","like","basically","literally","actually","you know","i mean","sort of","kind of","right","okay so","so basically","i think","i guess","perhaps","maybe i"];
 function detectFillers(text){
   const lower=text.toLowerCase();
-  const found={};
-  let total=0;
-  FILLERS.forEach(f=>{
-    const re=new RegExp("\\b"+f.replace(/ /g,"\\s+")+"\\b","gi");
-    const matches=(lower.match(re)||[]).length;
-    if(matches>0){found[f]=matches;total+=matches;}
-  });
+  const found={};let total=0;
+  FILLERS.forEach(f=>{const re=new RegExp("\\b"+f.replace(/ /g,"\\s+")+"\\b","gi");const matches=(lower.match(re)||[]).length;if(matches>0){found[f]=matches;total+=matches;}});
   return{found,total};
 }
 
@@ -353,19 +234,7 @@ function detectFillers(text){
 async function saveInterviewResult(userId,data){
   if(!userId)return;
   try{
-    await supabase.from("interview_results").insert({
-      user_id:userId,
-      company:data.company||"",
-      role:data.role||"",
-      overall_score:data.overallScore||0,
-      verdict:data.verdict||"",
-      technical_score:data.technicalScore||0,
-      communication_score:data.communicationScore||0,
-      confidence_score:data.confidenceScore||0,
-      structure_score:data.structureScore||0,
-      resume_fit_score:data.resumeAlignmentScore||0,
-      created_at:new Date().toISOString(),
-    });
+    await supabase.from("interview_results").insert({user_id:userId,company:data.company||"",role:data.role||"",overall_score:data.overallScore||0,verdict:data.verdict||"",technical_score:data.technicalScore||0,communication_score:data.communicationScore||0,confidence_score:data.confidenceScore||0,structure_score:data.structureScore||0,resume_fit_score:data.resumeAlignmentScore||0,created_at:new Date().toISOString()});
     await updateStreak(userId);
   }catch(e){console.log("Supabase save error:",e.message);}
 }
@@ -375,16 +244,13 @@ async function updateStreak(userId){
   try{
     const today=new Date().toDateString();
     const{data:existing}=await supabase.from("user_streaks").select("*").eq("user_id",userId).single();
-    if(!existing){
-      await supabase.from("user_streaks").insert({user_id:userId,streak:1,last_practice:today,longest:1});
-    } else {
+    if(!existing){await supabase.from("user_streaks").insert({user_id:userId,streak:1,last_practice:today,longest:1});}
+    else{
       const last=new Date(existing.last_practice);
       const diff=Math.floor((new Date()-last)/(1000*60*60*24));
       if(diff===0)return;
       const newStreak=diff===1?existing.streak+1:1;
-      await supabase.from("user_streaks").update({
-        streak:newStreak,last_practice:today,longest:Math.max(existing.longest||0,newStreak)
-      }).eq("user_id",userId);
+      await supabase.from("user_streaks").update({streak:newStreak,last_practice:today,longest:Math.max(existing.longest||0,newStreak)}).eq("user_id",userId);
     }
   }catch(e){console.log("Streak update error:",e.message);}
 }
@@ -400,28 +266,11 @@ async function fetchUserStats(userId){
   }catch{return{results:[],streak:{streak:0,longest:0}};}
 }
 
-// ── SUBSCRIPTION / PAYWALL HELPERS (issues #5–#9) ─────────────────────────────
-// Requires this Supabase table:
-//
-// create table user_subscriptions (
-//   id uuid default gen_random_uuid() primary key,
-//   user_id uuid references auth.users(id) not null,
-//   plan text not null,                 -- 'week' | 'month'
-//   status text not null default 'active',
-//   starts_at timestamptz not null default now(),
-//   expires_at timestamptz not null,
-//   razorpay_payment_id text,
-//   razorpay_order_id text,
-//   created_at timestamptz default now()
-// );
-// create index on user_subscriptions(user_id, status);
+// ── SUBSCRIPTION HELPERS ──────────────────────────────────────────────────────
 async function fetchActiveSubscription(userId){
   if(!userId)return null;
   try{
-    const{data}=await supabase.from("user_subscriptions")
-      .select("*").eq("user_id",userId).eq("status","active")
-      .gte("expires_at",new Date().toISOString())
-      .order("expires_at",{ascending:false}).limit(1).single();
+    const{data}=await supabase.from("user_subscriptions").select("*").eq("user_id",userId).eq("status","active").gte("expires_at",new Date().toISOString()).order("expires_at",{ascending:false}).limit(1).single();
     return data||null;
   }catch{return null;}
 }
@@ -438,26 +287,13 @@ function useSubscription(userId){
   return{isPro:!!sub,plan:sub?.plan||null,expiresAt:sub?.expires_at||null,loading,refresh};
 }
 
-// ── RAZORPAY CHECKOUT (issue #9) ──────────────────────────────────────────────
-// Server-side counterparts needed (NOT in this file — separate serverless
-// functions, e.g. api/create-order.js and api/verify-payment.js):
-//
-// api/create-order.js — uses Razorpay Node SDK + RAZORPAY_KEY_SECRET (server
-// env var only) to create an order, returns { id, amount, currency, keyId }.
-//
-// api/verify-payment.js — verifies the HMAC SHA256 signature Razorpay sends
-// back using RAZORPAY_KEY_SECRET, and ONLY THEN writes an active row into
-// user_subscriptions. Never trust the client telling you "payment succeeded"
-// without verifying the signature server-side. For production robustness,
-// also configure a Razorpay webhook pointing at a third function so the
-// subscription activates even if the user closes the tab right after paying.
+// ── RAZORPAY ──────────────────────────────────────────────────────────────────
 function loadRazorpayScript(){
   return new Promise((resolve)=>{
     if(window.Razorpay){resolve(true);return;}
     const script=document.createElement("script");
     script.src="https://checkout.razorpay.com/v1/checkout.js";
-    script.onload=()=>resolve(true);
-    script.onerror=()=>resolve(false);
+    script.onload=()=>resolve(true);script.onerror=()=>resolve(false);
     document.body.appendChild(script);
   });
 }
@@ -467,29 +303,19 @@ async function startCheckout(plan,user,onSuccess){
   const ok=await loadRazorpayScript();
   if(!ok){alert("Could not load the payment gateway. Check your connection and try again.");return;}
   try{
-    const res=await fetch("/api/create-order",{
-      method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({plan,userId:user.id}),
-    });
+    const res=await fetch("/api/create-order",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({plan,userId:user.id})});
     if(!res.ok)throw new Error("Could not create order ("+res.status+")");
     const order=await res.json();
     const rzp=new window.Razorpay({
-      key:order.keyId||RAZORPAY_KEY_ID,
-      amount:order.amount,
-      currency:order.currency||"INR",
-      order_id:order.id,
-      name:"TakePlace",
-      description:plan==="week"?"TakePlace — 1 Week Pro":"TakePlace — 1 Month Pro",
+      key:order.keyId||RAZORPAY_KEY_ID,amount:order.amount,currency:order.currency||"INR",order_id:order.id,
+      name:"TakePlace",description:plan==="week"?"TakePlace — 1 Week Pro":"TakePlace — 1 Month Pro",
       prefill:{email:user.email||""},
       handler:async(response)=>{
         try{
-          const v=await fetch("/api/verify-payment",{
-            method:"POST",headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({...response,plan,userId:user.id}),
-          });
+          const v=await fetch("/api/verify-payment",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...response,plan,userId:user.id})});
           const vd=await v.json().catch(()=>({}));
           if(vd.ok){onSuccess&&onSuccess();}
-          else{alert("Payment verification failed. If money was deducted, contact takeplace.in@gmail.com and we'll fix it.");}
+          else{alert("Payment verification failed. If money was deducted, contact takeplace.in@gmail.com");}
         }catch(e){alert("Payment verification error: "+e.message);}
       },
       theme:{color:"#7C6EFA"},
@@ -501,11 +327,7 @@ async function startCheckout(plan,user,onSuccess){
 // ── SHAREABLE SCORECARD ───────────────────────────────────────────────────────
 async function generateScorecard(data){
   if(!window.html2canvas){
-    await new Promise((res,rej)=>{
-      const s=document.createElement("script");
-      s.src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-      s.onload=res;s.onerror=rej;document.head.appendChild(s);
-    });
+    await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});
   }
   const div=document.createElement("div");
   div.style.cssText=`position:fixed;left:-9999px;top:0;width:1200px;height:630px;background:linear-gradient(135deg,#080C14,#0D1220 40%,#11163A);font-family:'Inter',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;`;
@@ -516,11 +338,7 @@ async function generateScorecard(data){
       <div style="margin:16px auto;background:${data.overallScore>=75?"rgba(34,197,94,.2)":data.overallScore>=55?"rgba(245,158,11,.2)":"rgba(239,68,68,.2)"};color:${data.overallScore>=75?"#4ADE80":data.overallScore>=55?"#FBD072":"#F87171"};font-size:20px;font-weight:800;padding:10px 28px;border-radius:30px;border:1px solid ${data.overallScore>=75?"rgba(34,197,94,.4)":data.overallScore>=55?"rgba(245,158,11,.4)":"rgba(239,68,68,.4)"};display:inline-block">${data.verdict}</div>
       <div style="font-size:24px;color:rgba(255,255,255,.7);margin:20px 0;">${data.company||""} ${data.role?`· ${data.role}`:""}</div>
       <div style="display:flex;gap:24px;justify-content:center;margin:24px 0;">
-        ${[["Technical",data.technicalScore],["Communication",data.communicationScore],["Confidence",data.confidenceScore]].map(([l,v])=>`
-          <div style="text-align:center;background:rgba(255,255,255,.05);border-radius:12px;padding:16px 24px;min-width:130px">
-            <div style="font-size:28px;font-weight:700;color:#7C6EFA;font-family:'JetBrains Mono',monospace">${v}%</div>
-            <div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:1px">${l}</div>
-          </div>`).join("")}
+        ${[["Technical",data.technicalScore],["Communication",data.communicationScore],["Confidence",data.confidenceScore]].map(([l,v])=>`<div style="text-align:center;background:rgba(255,255,255,.05);border-radius:12px;padding:16px 24px;min-width:130px"><div style="font-size:28px;font-weight:700;color:#7C6EFA;font-family:'JetBrains Mono',monospace">${v}%</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:1px">${l}</div></div>`).join("")}
       </div>
       <div style="font-size:14px;color:rgba(255,255,255,.3);margin-top:24px;font-weight:600">🎤 TakePlace · takeplace.vercel.app</div>
     </div>`;
@@ -528,8 +346,7 @@ async function generateScorecard(data){
   try{
     const canvas=await window.html2canvas(div,{scale:1,backgroundColor:null,logging:false});
     const url=canvas.toDataURL("image/png");
-    const a=document.createElement("a");
-    a.href=url;a.download=`takeplace-score-${data.overallScore}.png`;a.click();
+    const a=document.createElement("a");a.href=url;a.download=`takeplace-score-${data.overallScore}.png`;a.click();
     return url;
   }finally{document.body.removeChild(div);}
 }
@@ -568,20 +385,14 @@ const TARGET_COMPANIES=[
   {name:"Deloitte",color:"#86BC25"},{name:"IBM",color:"#0043CE"},{name:"Accenture",color:"#A100FF"},
 ];
 
-// ── AI INTERVIEWER AVATAR (issue #4) ──────────────────────────────────────────
-// FIX: replaced a static stock photo of a real, non-consenting stranger
-// (randomuser.me) — which also never visibly "spoke" since it only got a
-// brightness pulse — with an illustrated avatar whose mouth shape actually
-// animates between speaking/idle states. Restyle the SVG colors below to
-// match your brand if you want a different look.
+// ── AI FACE AVATAR ────────────────────────────────────────────────────────────
 function AIFace({speaking,size=200}){
   return(
     <div style={{position:"relative",width:size,height:size,borderRadius:"50%",overflow:"hidden",background:"linear-gradient(160deg,#2A2F4A,#1A1E33)"}}>
       <svg viewBox="0 0 200 200" width="100%" height="100%">
         <defs>
           <radialGradient id="skinGrad" cx="50%" cy="40%" r="60%">
-            <stop offset="0%" stopColor="#F2C9A0"/>
-            <stop offset="100%" stopColor="#D9A879"/>
+            <stop offset="0%" stopColor="#F2C9A0"/><stop offset="100%" stopColor="#D9A879"/>
           </radialGradient>
         </defs>
         <ellipse cx="100" cy="100" rx="62" ry="70" fill="#3B2A22"/>
@@ -592,48 +403,33 @@ function AIFace({speaking,size=200}){
         <path d="M72 94 Q80 90 88 94" stroke="#2A1B12" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
         <path d="M112 94 Q120 90 128 94" stroke="#2A1B12" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
         <path d="M100 110 Q97 122 100 126 Q103 122 100 110" stroke="#C99066" strokeWidth="1.5" fill="none"/>
-        <path
-          d={speaking?"M84 138 Q100 152 116 138":"M84 140 Q100 144 116 140"}
+        <path d={speaking?"M84 138 Q100 152 116 138":"M84 140 Q100 144 116 140"}
           stroke="#A85A4A" strokeWidth="3" fill={speaking?"#7A2F28":"none"} strokeLinecap="round"
-          style={{transition:"d .15s"}}
-        />
+          style={{transition:"d .15s"}}/>
         <path d="M40 200 Q100 168 160 200 L160 200 L40 200Z" fill="#5B4EE8"/>
         <path d="M85 168 L100 184 L115 168" stroke="#fff" strokeWidth="2" fill="none"/>
       </svg>
       {speaking&&(
-        <div style={{position:"absolute",inset:0,borderRadius:"50%",
-          background:"radial-gradient(circle at center,transparent 60%,rgba(124,110,250,.18) 100%)",
-          animation:"breathe 1.4s ease-in-out infinite"}}/>
+        <div style={{position:"absolute",inset:0,borderRadius:"50%",background:"radial-gradient(circle at center,transparent 60%,rgba(124,110,250,.18) 100%)",animation:"breathe 1.4s ease-in-out infinite"}}/>
       )}
     </div>
   );
 }
 
-// ── SLOT GRID + UPGRADE MODAL (issues #5–#8) ──────────────────────────────────
+// ── SLOT GRID & UPGRADE MODAL ─────────────────────────────────────────────────
 function SlotGrid({isPro,onSelectSlot,onUpgrade,completedSlots=[],loadingSlot=null}){
   return(
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:10}}>
       {Array.from({length:TOTAL_SLOTS},(_,i)=>{
-        const slot=i+1;
-        const unlocked=isPro||slot<=FREE_SLOTS;
-        const done=completedSlots.includes(slot);
-        const isLoading=loadingSlot===slot;
+        const slot=i+1,unlocked=isPro||slot<=FREE_SLOTS,done=completedSlots.includes(slot),isLoading=loadingSlot===slot;
         return(
-          <div key={slot}
-            onClick={()=>unlocked?onSelectSlot(slot):onUpgrade()}
-            className="lift"
-            style={{
-              background:done?C.greenPale:unlocked?C.bgCard:"rgba(255,255,255,.02)",
-              border:`1px solid ${done?C.green+"40":unlocked?C.violet+"30":C.border}`,
-              borderRadius:14,padding:"16px 8px",textAlign:"center",position:"relative",cursor:"pointer"
-            }}>
+          <div key={slot} onClick={()=>unlocked?onSelectSlot(slot):onUpgrade()} className="lift"
+            style={{background:done?C.greenPale:unlocked?C.bgCard:"rgba(255,255,255,.02)",border:`1px solid ${done?C.green+"40":unlocked?C.violet+"30":C.border}`,borderRadius:14,padding:"16px 8px",textAlign:"center",position:"relative",cursor:"pointer"}}>
             {isLoading?<Spin size={18}/>:(
-              <>
-                {!unlocked&&<div style={{position:"absolute",top:6,right:6,fontSize:12}}>🔒</div>}
-                {done&&<div style={{position:"absolute",top:6,right:6,fontSize:12,color:C.green}}>✓</div>}
-                <div style={{fontSize:20,fontWeight:900,color:unlocked?C.violetL:C.muted,fontFamily:"'JetBrains Mono',monospace"}}>{slot}</div>
-                <div style={{fontSize:9,color:C.muted,marginTop:2}}>{unlocked?"Mock interview":"Locked"}</div>
-              </>
+              <>{!unlocked&&<div style={{position:"absolute",top:6,right:6,fontSize:12}}>🔒</div>}
+              {done&&<div style={{position:"absolute",top:6,right:6,fontSize:12,color:C.green}}>✓</div>}
+              <div style={{fontSize:20,fontWeight:900,color:unlocked?C.violetL:C.muted,fontFamily:"'JetBrains Mono',monospace"}}>{slot}</div>
+              <div style={{fontSize:9,color:C.muted,marginTop:2}}>{unlocked?"Mock interview":"Locked"}</div></>
             )}
           </div>
         );
@@ -647,7 +443,7 @@ function UpgradeModal({onClose,onChoosePlan,checkingOut}){
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:20,padding:28,maxWidth:380,width:"100%"}}>
         <div style={{fontWeight:900,fontSize:20,color:C.ink,marginBottom:6,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🔒 Unlock all 15 mock interviews</div>
-        <div style={{color:C.soft,fontSize:13,marginBottom:20,lineHeight:1.7}}>You've used your 2 free mocks for this role. Unlock all 15 — different questions every time, matched to your resume and target company.</div>
+        <div style={{color:C.soft,fontSize:13,marginBottom:20,lineHeight:1.7}}>You've used your 2 free mocks. Unlock all 15 with different questions every time.</div>
         {[
           {plan:"week",label:"1 Week",price:"₹49",desc:"All 15 slots, every role, 7 days"},
           {plan:"month",label:"1 Month",price:"₹199",desc:"All 15 slots, every role, 30 days",popular:true},
@@ -667,12 +463,172 @@ function UpgradeModal({onClose,onChoosePlan,checkingOut}){
   );
 }
 
-// ── INTERVIEW ROOM (UPGRADED) ─────────────────────────────────────────────────
+// ── SPEECH ENGINE HOOK ────────────────────────────────────────────────────────
+// FIX: All speech bugs consolidated into one reusable hook so both
+// ResumeInterviewTab and QuickMockTab use identical, correct behaviour.
+//
+// Bug 1 fixed: speak() now returns a Promise that resolves ONLY after TTS ends,
+//   and beginQ awaits it fully before calling startRec — so mic never opens
+//   while AI is still speaking.
+//
+// Bug 2 fixed: speak() calls speechSynthesis.getVoices() inside the function
+//   itself (not once on mount), because the voices list populates async and
+//   may be empty on first call. We use the voiceschanged event as a fallback.
+//
+// Bug 3 fixed: startRec() checks phaseRef before auto-restarting on rec.onend,
+//   so if phase is "speaking" or "idle" the mic never restarts.
+//
+// Bug 4 fixed: finishQ is passed the current question text directly, not read
+//   from a stale closure over the questions array.
+//
+// Bug 5 fixed (new): the 90-second timer now uses a ref for the countdown
+//   value so the onend callback in the timer always has the current value,
+//   preventing the timer firing finishQ prematurely on stale state.
+function useSpeechEngine({phaseRef, onTimerEnd, QTIME=90}){
+  const recogRef=useRef(null);
+  const finalRef=useRef("");
+  const finalChunksRef=useRef([]);
+  const manualStopRef=useRef(false);
+  const timerRef=useRef(null);
+  const timeLeftRef=useRef(QTIME); // authoritative countdown, no stale closure
+  const[listening,setListening]=useState(false);
+  const[liveText,setLiveText]=useState("");
+  const[interimText,setInterimText]=useState("");
+  const[timeLeft,setTimeLeft]=useState(QTIME);
+  const[aiSpeaking,setAiSpeaking]=useState(false);
+
+  const speechOK=typeof window!=="undefined"&&!!(window.SpeechRecognition||window.webkitSpeechRecognition);
+  const ttsOK=typeof window!=="undefined"&&!!window.speechSynthesis;
+
+  // FIX Bug 2: resolve voices properly, including async population
+  const getBestVoice=useCallback((preferFemale=true)=>{
+    const voices=window.speechSynthesis.getVoices();
+    if(!voices.length)return null;
+    const femalePattern=/Female|Samantha|Karen|Moira|Veena|Raveena|Google UK English Female/i;
+    const malePattern=/Male|David|Daniel|Google/i;
+    const pattern=preferFemale?femalePattern:malePattern;
+    return(
+      voices.find(v=>/en-(US|GB|IN)/i.test(v.lang)&&pattern.test(v.name))||
+      voices.find(v=>/en/i.test(v.lang))||
+      voices[0]
+    );
+  },[]);
+
+  // FIX Bug 1 + Bug 2: speak() is a proper async function that guarantees
+  // the Promise resolves only after onend fires.
+  const speak=useCallback((text, preferFemale=true)=>new Promise(resolve=>{
+    if(!ttsOK){resolve();return;}
+    window.speechSynthesis.cancel(); // cancel any previous utterance first
+
+    const doSpeak=()=>{
+      const u=new SpeechSynthesisUtterance(text);
+      u.rate=0.95; u.pitch=1.05;
+      const v=getBestVoice(preferFemale);
+      if(v)u.voice=v;
+      setAiSpeaking(true);
+      u.onend=()=>{setAiSpeaking(false);resolve();};
+      u.onerror=()=>{setAiSpeaking(false);resolve();};
+      window.speechSynthesis.speak(u);
+    };
+
+    // voices may not be loaded yet — wait for them
+    const voices=window.speechSynthesis.getVoices();
+    if(voices.length>0){doSpeak();}
+    else{
+      window.speechSynthesis.onvoiceschanged=()=>{
+        window.speechSynthesis.onvoiceschanged=null;
+        doSpeak();
+      };
+      // Safety fallback: if event never fires, speak anyway after 400ms
+      setTimeout(()=>{
+        if(!window.speechSynthesis.speaking){doSpeak();}
+      },400);
+    }
+  }),[ttsOK,getBestVoice]);
+
+  const stopRec=useCallback(()=>{
+    manualStopRef.current=true;
+    try{recogRef.current?.stop();}catch{}
+    setListening(false);setInterimText("");
+  },[]);
+
+  // FIX Bug 3: only auto-restart mic when phase is "answering"
+  const startRec=useCallback((fresh=true)=>{
+    if(!speechOK)return;
+    manualStopRef.current=false;
+    try{recogRef.current?.stop();}catch{}
+    if(fresh){finalChunksRef.current=[];finalRef.current="";setLiveText("");setInterimText("");}
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    const rec=new SR();
+    rec.continuous=true; rec.interimResults=true; rec.lang="en-IN"; // en-IN for Indian accent support
+    rec.onresult=(e)=>{
+      let interim="";
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const t=e.results[i][0].transcript;
+        if(e.results[i].isFinal)finalChunksRef.current.push(t);
+        else interim+=t;
+      }
+      const full=finalChunksRef.current.join(" ").replace(/\s+/g," ").trim();
+      finalRef.current=full;
+      setLiveText(full); setInterimText(interim.trim());
+    };
+    rec.onerror=(e)=>{
+      // "no-speech" is not a real error — just silence, keep going
+      if(e.error!=="no-speech")console.warn("SpeechRecognition error:",e.error);
+    };
+    rec.onend=()=>{
+      setListening(false);
+      // FIX Bug 3: only restart if we're still in answering phase
+      if(!manualStopRef.current && phaseRef.current==="answering"){
+        try{rec.start();setListening(true);}catch{}
+      }
+    };
+    recogRef.current=rec;
+    try{rec.start();setListening(true);}catch(e){console.warn("startRec failed:",e);}
+  },[speechOK, phaseRef]);
+
+  const startTimer=useCallback(()=>{
+    clearInterval(timerRef.current);
+    timeLeftRef.current=QTIME;
+    setTimeLeft(QTIME);
+    timerRef.current=setInterval(()=>{
+      timeLeftRef.current-=1;
+      setTimeLeft(timeLeftRef.current);
+      if(timeLeftRef.current<=0){
+        clearInterval(timerRef.current);
+        onTimerEnd(); // FIX Bug 4: caller receives callback, reads its own current state
+      }
+    },1000);
+  },[QTIME, onTimerEnd]);
+
+  const stopTimer=useCallback(()=>{clearInterval(timerRef.current);},[]);
+
+  const reset=useCallback(()=>{
+    stopTimer(); stopRec();
+    finalRef.current=""; finalChunksRef.current=[];
+    setLiveText(""); setInterimText(""); setTimeLeft(QTIME); setListening(false); setAiSpeaking(false);
+  },[stopTimer, stopRec, QTIME]);
+
+  const getAnswer=useCallback(()=>finalRef.current||liveText||"",[liveText]);
+
+  useEffect(()=>()=>{
+    clearInterval(timerRef.current);
+    stopRec();
+    window.speechSynthesis?.cancel();
+  },[stopRec]);
+
+  return{
+    speak, startRec, stopRec, startTimer, stopTimer, reset, getAnswer,
+    listening, liveText, interimText, timeLeft, aiSpeaking, speechOK,
+  };
+}
+
+// ── INTERVIEW ROOM ────────────────────────────────────────────────────────────
 function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening,liveText,interimText,timeLeft,feedback,loadingFeedback,onFinish,onNext,onEnd,onToggleMic,micMuted,fillerCount,liveMetrics}){
   const videoRef=useRef(null);
   const streamRef=useRef(null);
-  const [camStream,setCamStream]=useState(null);
-  const [camErr,setCamErr]=useState(false);
+  const[camStream,setCamStream]=useState(null);
+  const[camErr,setCamErr]=useState(false);
   const camReady=!!camStream;
   const QTIME=90;
   const pct=(timeLeft/QTIME)*100;
@@ -685,23 +641,17 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
     navigator.mediaDevices?.getUserMedia({video:{facingMode:"user"},audio:false})
       .then(stream=>{
         if(!active){stream.getTracks().forEach(t=>t.stop());return;}
-        streamRef.current=stream;
-        setCamStream(stream);
+        streamRef.current=stream; setCamStream(stream);
       }).catch(()=>setCamErr(true));
     return()=>{active=false;streamRef.current?.getTracks().forEach(t=>t.stop());};
   },[]);
 
-  // FIX (issue #1 — camera not showing even after permission granted): the
-  // <video> tag now always mounts (see render below), so this effect's
-  // videoRef.current is never null by the time camStream resolves. We also
-  // retry play() on loadedmetadata in case autoplay was blocked once.
   useEffect(()=>{
     if(camStream&&videoRef.current){
       const v=videoRef.current;
       v.srcObject=camStream;
       const tryPlay=()=>v.play().catch(()=>{});
-      v.onloadedmetadata=tryPlay;
-      tryPlay();
+      v.onloadedmetadata=tryPlay; tryPlay();
     }
   },[camStream]);
 
@@ -721,6 +671,7 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
       <div style={{flex:1,background:"linear-gradient(180deg,#04060E 0%,#080C14 100%)",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",top:"20%",left:"50%",transform:"translateX(-50%)",width:400,height:400,borderRadius:"50%",background:`radial-gradient(circle,${C.violet}08,transparent 70%)`,pointerEvents:"none"}}/>
 
+        {/* Top bar */}
         <div style={{position:"absolute",top:0,left:0,right:0,padding:"16px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",background:"linear-gradient(to bottom,rgba(4,6,14,.9),transparent)",zIndex:20}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <div style={{width:7,height:7,borderRadius:"50%",background:C.red,animation:"pulse .9s infinite",boxShadow:`0 0 8px ${C.red}`}}/>
@@ -739,14 +690,9 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
           </div>
         </div>
 
+        {/* AI Avatar */}
         <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:16,zIndex:5}}>
-          <div style={{
-            borderRadius:"50%",padding:6,
-            border:`2px solid ${aiSpeaking?C.violet:"rgba(255,255,255,.08)"}`,
-            boxShadow:aiSpeaking?`0 0 40px ${C.violet}30`:"none",
-            animation:aiSpeaking?"ringPulse 1.8s infinite":"none",
-            transition:"all .4s",
-          }}>
+          <div style={{borderRadius:"50%",padding:6,border:`2px solid ${aiSpeaking?C.violet:"rgba(255,255,255,.08)"}`,boxShadow:aiSpeaking?`0 0 40px ${C.violet}30`:"none",animation:aiSpeaking?"ringPulse 1.8s infinite":"none",transition:"all .4s"}}>
             <AIFace speaking={aiSpeaking} size={160}/>
           </div>
           <div style={{textAlign:"center"}}>
@@ -759,9 +705,22 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
                 ))}
               </div>
             )}
+            {/* FIX: show clear status so user knows exactly when to speak */}
+            {!aiSpeaking&&phase==="answering"&&(
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginTop:8,background:listening?"rgba(0,212,170,.12)":"rgba(255,255,255,.05)",borderRadius:20,padding:"4px 14px",border:`1px solid ${listening?C.teal+"40":"rgba(255,255,255,.08)"}`}}>
+                {listening
+                  ?<><div style={{width:5,height:5,borderRadius:"50%",background:C.teal,animation:"pulse 1s infinite"}}/><span style={{color:C.teal,fontSize:11,fontWeight:700}}>Your mic is live — speak now</span></>
+                  :<span style={{color:"rgba(255,255,255,.35)",fontSize:11}}>Mic starting…</span>
+                }
+              </div>
+            )}
+            {phase==="speaking"&&(
+              <div style={{marginTop:8,color:"rgba(255,255,255,.4)",fontSize:11}}>Priya is asking your question…</div>
+            )}
           </div>
         </div>
 
+        {/* Live metrics panel */}
         {phase==="answering"&&(
           <div className="glass-strong" style={{position:"absolute",right:20,top:"50%",transform:"translateY(-50%)",borderRadius:14,padding:"16px",width:130,zIndex:20}}>
             <div style={{fontSize:9,color:"rgba(255,255,255,.35)",fontWeight:700,letterSpacing:1.2,textTransform:"uppercase",marginBottom:12}}>Live analysis</div>
@@ -789,6 +748,7 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
           </div>
         )}
 
+        {/* Question card + transcript */}
         <div style={{position:"absolute",bottom:72,left:0,right:0,padding:"0 16px",zIndex:20}}>
           <div className="glass-strong" style={{borderRadius:14,padding:"14px 18px",marginBottom:10}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
@@ -807,22 +767,24 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
             )}
           </div>
 
+          {/* Live transcript box */}
           {phase==="answering"&&(
             <div className="glass" style={{borderRadius:12,padding:"12px 16px",border:`1px solid ${listening?`${C.teal}30`:"rgba(255,255,255,.06)"}`,minHeight:54,marginBottom:8,transition:"border-color .3s"}}>
               <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:5}}>
                 {listening&&<div style={{width:5,height:5,borderRadius:"50%",background:C.teal,animation:"pulse 1s infinite",boxShadow:`0 0 6px ${C.teal}`}}/>}
                 <span style={{color:listening?C.teal:"rgba(255,255,255,.25)",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase"}}>
-                  {listening?"Mic active — keep going":"Standby"}
+                  {listening?"Mic active — keep going":"Mic standby"}
                 </span>
               </div>
               <div style={{color:"#fff",fontSize:13,lineHeight:1.7}}>
                 {liveText&&<span>{liveText}</span>}
                 {interimText&&!liveText.endsWith(interimText)&&<span style={{color:"rgba(255,255,255,.35)",fontStyle:"italic"}}> {interimText}</span>}
-                {!liveText&&!interimText&&<span style={{color:"rgba(255,255,255,.2)",fontStyle:"italic"}}>Start speaking…</span>}
+                {!liveText&&!interimText&&<span style={{color:"rgba(255,255,255,.2)",fontStyle:"italic"}}>Your words appear here as you speak…</span>}
               </div>
             </div>
           )}
 
+          {/* Feedback card */}
           {phase==="done-q"&&loadingFeedback&&(
             <div className="glass" style={{borderRadius:12,padding:"12px 16px",display:"flex",alignItems:"center",gap:10,color:"rgba(255,255,255,.5)",fontSize:13}}>
               <Spin size={14} color={C.violet}/> Scoring your answer…
@@ -831,14 +793,9 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
           {phase==="done-q"&&!loadingFeedback&&feedback&&(
             <div className="glass-strong" style={{borderRadius:14,padding:"14px 18px",border:`1px solid ${feedback.score>=75?C.green+"40":feedback.score>=50?C.violet+"40":C.red+"40"}`,animation:"slideIn .3s ease forwards"}}>
               <div style={{display:"flex",alignItems:"flex-start",gap:14}}>
-                <div style={{
-                  width:46,height:46,borderRadius:12,
-                  background:feedback.score>=75?`${C.green}15`:feedback.score>=50?`${C.violet}15`:`${C.red}15`,
-                  display:"flex",alignItems:"center",justifyContent:"center",
-                  fontWeight:900,fontSize:15,flexShrink:0,
-                  color:feedback.score>=75?C.green:feedback.score>=50?C.violetL:C.red,
-                  fontFamily:"JetBrains Mono,monospace",
-                }}>{feedback.score}</div>
+                <div style={{width:46,height:46,borderRadius:12,background:feedback.score>=75?`${C.green}15`:feedback.score>=50?`${C.violet}15`:`${C.red}15`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:15,flexShrink:0,color:feedback.score>=75?C.green:feedback.score>=50?C.violetL:C.red,fontFamily:"JetBrains Mono,monospace"}}>
+                  {feedback.score}
+                </div>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{color:"#fff",fontWeight:700,fontSize:13,marginBottom:3}}>
                     {feedback.score>=75?"Strong answer ✓":feedback.score>=50?"Solid attempt":"Needs work"}
@@ -848,9 +805,7 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
                   {feedback.missing&&<div style={{color:C.gold,fontSize:11.5,marginTop:2}}>Missing: {feedback.missing}</div>}
                 </div>
                 <button onClick={()=>onNext(qIndex)}
-                  style={{padding:"10px 20px",borderRadius:10,border:"none",cursor:"pointer",
-                    background:isLast?`linear-gradient(135deg,${C.violetD},${C.violet})`:`linear-gradient(135deg,${C.tealD},${C.teal})`,
-                    color:isLast?"#fff":C.bg,fontWeight:800,fontSize:12,fontFamily:"'Inter',sans-serif",flexShrink:0}}>
+                  style={{padding:"10px 20px",borderRadius:10,border:"none",cursor:"pointer",background:isLast?`linear-gradient(135deg,${C.violetD},${C.violet})`:`linear-gradient(135deg,${C.tealD},${C.teal})`,color:isLast?"#fff":C.bg,fontWeight:800,fontSize:12,fontFamily:"'Inter',sans-serif",flexShrink:0}}>
                   {isLast?"Report →":"Next →"}
                 </button>
               </div>
@@ -858,18 +813,13 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
           )}
         </div>
 
+        {/* PiP camera */}
         <div style={{position:"absolute",top:80,right:20,width:152,height:108,borderRadius:12,overflow:"hidden",border:"1px solid rgba(255,255,255,.12)",background:"#111",zIndex:15,boxShadow:"0 8px 32px rgba(0,0,0,.6)"}}>
-          <video
-            ref={videoRef}
-            muted
-            playsInline
-            autoPlay
-            style={{width:"100%",height:"100%",objectFit:"cover",transform:"scaleX(-1)",display:camReady?"block":"none"}}
-          />
+          <video ref={videoRef} muted playsInline autoPlay style={{width:"100%",height:"100%",objectFit:"cover",transform:"scaleX(-1)",display:camReady?"block":"none"}}/>
           {!camReady&&(
             <div style={{width:"100%",height:"100%",background:"#0d1220",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:5}}>
               <span style={{fontSize:24}}>🧑</span>
-              <span style={{color:"rgba(255,255,255,.3)",fontSize:9,textAlign:"center",padding:"0 8px"}}>{camErr?"Camera blocked — check browser permissions":"Loading…"}</span>
+              <span style={{color:"rgba(255,255,255,.3)",fontSize:9,textAlign:"center",padding:"0 8px"}}>{camErr?"Camera blocked":"Loading…"}</span>
             </div>
           )}
           {micMuted&&<div style={{position:"absolute",top:6,right:6,background:C.red,borderRadius:"50%",width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9}}>🔇</div>}
@@ -877,6 +827,7 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
         </div>
       </div>
 
+      {/* Bottom controls */}
       <div style={{background:"rgba(4,6,14,.97)",padding:"12px 20px",display:"flex",alignItems:"center",justifyContent:"center",gap:14,flexShrink:0,borderTop:"1px solid rgba(255,255,255,.05)"}}>
         {phase==="answering"&&(
           <>
@@ -891,7 +842,7 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
             </button>
           </>
         )}
-        {phase==="speaking"&&<div style={{color:"rgba(255,255,255,.3)",fontSize:13}}>Priya is speaking — your mic activates next…</div>}
+        {phase==="speaking"&&<div style={{color:"rgba(255,255,255,.4)",fontSize:13,display:"flex",alignItems:"center",gap:8}}><Spin size={14} color={C.violet}/>Priya is speaking — your mic opens when she's done…</div>}
         {phase==="done-q"&&!feedback&&!loadingFeedback&&<div style={{color:"rgba(255,255,255,.25)",fontSize:13}}>Analyzing…</div>}
       </div>
     </div>
@@ -913,16 +864,15 @@ function Dashboard({user,onStartInterview,onGoToJobs,stats}){
   const[checkingOut,setCheckingOut]=useState(false);
 
   const skillAvg={
-    technical: results.length?Math.round(results.reduce((a,r)=>a+(r.technical_score||0),0)/results.length):0,
-    communication: results.length?Math.round(results.reduce((a,r)=>a+(r.communication_score||0),0)/results.length):0,
-    confidence: results.length?Math.round(results.reduce((a,r)=>a+(r.confidence_score||0),0)/results.length):0,
-    structure: results.length?Math.round(results.reduce((a,r)=>a+(r.structure_score||0),0)/results.length):0,
-    resumeFit: results.length?Math.round(results.reduce((a,r)=>a+(r.resume_fit_score||0),0)/results.length):0,
+    technical:results.length?Math.round(results.reduce((a,r)=>a+(r.technical_score||0),0)/results.length):0,
+    communication:results.length?Math.round(results.reduce((a,r)=>a+(r.communication_score||0),0)/results.length):0,
+    confidence:results.length?Math.round(results.reduce((a,r)=>a+(r.confidence_score||0),0)/results.length):0,
+    structure:results.length?Math.round(results.reduce((a,r)=>a+(r.structure_score||0),0)/results.length):0,
+    resumeFit:results.length?Math.round(results.reduce((a,r)=>a+(r.resume_fit_score||0),0)/results.length):0,
   };
 
   const weakest=Object.entries(skillAvg).sort((a,b)=>a[1]-b[1])[0];
   const skillNames={technical:"Technical",communication:"Communication",confidence:"Confidence",structure:"Structure",resumeFit:"Resume Fit"};
-
   const hour=new Date().getHours();
   const greeting=hour<12?"Good morning":hour<17?"Good afternoon":"Good evening";
 
@@ -944,7 +894,7 @@ function Dashboard({user,onStartInterview,onGoToJobs,stats}){
                 <span style={{fontSize:24,animation:streak.streak>0?"streakPop 2s ease infinite":"none"}}>🔥</span>
                 <div>
                   <div style={{fontWeight:900,fontSize:22,fontFamily:"'Plus Jakarta Sans',sans-serif",color:C.ink}}>{streak.streak}-day streak</div>
-                  <div style={{color:C.soft,fontSize:12}}>Longest: {streak.longest} days · Keep it going!</div>
+                  <div style={{color:C.soft,fontSize:12}}>Longest: {streak.longest} days</div>
                 </div>
               </div>
             ):(
@@ -967,7 +917,7 @@ function Dashboard({user,onStartInterview,onGoToJobs,stats}){
         <div onClick={()=>setShowUpgrade(true)} className="lift" style={{background:`linear-gradient(135deg,${C.gold}15,${C.violet}10)`,border:`1px solid ${C.gold}30`,borderRadius:16,padding:"16px 20px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",cursor:"pointer"}}>
           <div>
             <div style={{fontWeight:700,fontSize:14,color:C.ink}}>🔓 Unlock all 15 mock interviews per role</div>
-            <div style={{color:C.soft,fontSize:12,marginTop:2}}>Free plan includes 2 mocks per role · ₹49/week or ₹199/month for all 15</div>
+            <div style={{color:C.soft,fontSize:12,marginTop:2}}>Free plan includes 2 mocks · ₹49/week or ₹199/month for all 15</div>
           </div>
           <Tag color={C.gold}>Upgrade →</Tag>
         </div>
@@ -997,38 +947,27 @@ function Dashboard({user,onStartInterview,onGoToJobs,stats}){
           <div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:4}}>Skill profile</div>
           <div style={{color:C.soft,fontSize:12,marginBottom:16}}>{results.length?`Based on ${results.length} interview${results.length>1?"s":""}`:''}</div>
           {results.length>0?(
-            <div style={{display:"flex",justifyContent:"center"}}>
-              <SkillRadar scores={skillAvg} size={190}/>
-            </div>
+            <div style={{display:"flex",justifyContent:"center"}}><SkillRadar scores={skillAvg} size={190}/></div>
           ):(
             <div style={{textAlign:"center",padding:"30px 0",color:C.muted,fontSize:13}}>
-              <div style={{fontSize:32,marginBottom:8}}>📊</div>
-              Complete your first interview to see your skill radar
+              <div style={{fontSize:32,marginBottom:8}}>📊</div>Complete your first interview to see your skill radar
             </div>
           )}
         </div>
-
         <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px"}}>
           <div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:4}}>Score trajectory</div>
-          <div style={{color:C.soft,fontSize:12,marginBottom:16}}>{scores.length>1?"Improving over time":scores.length===1?"1 interview done — keep practicing":"No data yet"}</div>
+          <div style={{color:C.soft,fontSize:12,marginBottom:16}}>{scores.length>1?"Improving over time":scores.length===1?"1 done — keep going":"No data yet"}</div>
           {scores.length>1?(
             <>
               <Sparkline data={[...scores].reverse()} width={230} height={60} color={C.violet}/>
               <div style={{display:"flex",justifyContent:"space-between",marginTop:12}}>
-                <div style={{textAlign:"center"}}>
-                  <div className="mono" style={{fontSize:20,fontWeight:700,color:C.soft}}>{scores[scores.length-1]}%</div>
-                  <div style={{fontSize:10,color:C.muted,marginTop:2}}>First</div>
-                </div>
-                <div style={{textAlign:"center"}}>
-                  <div className="mono" style={{fontSize:20,fontWeight:700,color:C.violet}}>{scores[0]}%</div>
-                  <div style={{fontSize:10,color:C.muted,marginTop:2}}>Latest</div>
-                </div>
+                <div style={{textAlign:"center"}}><div className="mono" style={{fontSize:20,fontWeight:700,color:C.soft}}>{scores[scores.length-1]}%</div><div style={{fontSize:10,color:C.muted,marginTop:2}}>First</div></div>
+                <div style={{textAlign:"center"}}><div className="mono" style={{fontSize:20,fontWeight:700,color:C.violet}}>{scores[0]}%</div><div style={{fontSize:10,color:C.muted,marginTop:2}}>Latest</div></div>
               </div>
             </>
           ):(
             <div style={{textAlign:"center",padding:"30px 0",color:C.muted,fontSize:13}}>
-              <div style={{fontSize:32,marginBottom:8}}>📈</div>
-              {scores.length===1?"Do one more to see your trend":"Practice 2+ interviews to unlock"}
+              <div style={{fontSize:32,marginBottom:8}}>📈</div>Practice 2+ interviews to unlock
             </div>
           )}
         </div>
@@ -1063,7 +1002,7 @@ function Dashboard({user,onStartInterview,onGoToJobs,stats}){
         <div className="lift" onClick={onGoToJobs} style={{background:`linear-gradient(135deg,${C.tealD}15,${C.teal}10)`,border:`1px solid ${C.teal}20`,borderRadius:16,padding:"20px",cursor:"pointer"}}>
           <div style={{fontSize:28,marginBottom:10}}>🔥</div>
           <div style={{fontWeight:700,fontSize:14,color:C.ink,marginBottom:4}}>Live Job Feed</div>
-          <div style={{color:C.soft,fontSize:12,lineHeight:1.6}}>Real fresher openings across India · updated daily · with 1-tap practice</div>
+          <div style={{color:C.soft,fontSize:12,lineHeight:1.6}}>Real fresher openings across India · updated daily</div>
         </div>
       </div>
     </div>
@@ -1071,11 +1010,6 @@ function Dashboard({user,onStartInterview,onGoToJobs,stats}){
 }
 
 // ── PER-QUESTION FEEDBACK CARD ────────────────────────────────────────────────
-// FIX (issue #3 — blank/black page after report): the old code called
-// `useState` INSIDE a `.map()` callback while rendering perQuestion. That
-// violates React's Rules of Hooks (hooks can't be called conditionally or
-// inside loops) and crashes the whole app to a blank screen with no visible
-// error in production. Extracting a real component fixes it.
 function QuestionFeedbackCard({p,i,sc}){
   const[exp,setExp]=useState(false);
   return(
@@ -1100,7 +1034,7 @@ function QuestionFeedbackCard({p,i,sc}){
 
 // ── RESUME INTERVIEW TAB ──────────────────────────────────────────────────────
 function ResumeInterviewTab({user,onInterviewComplete,prefillCompany,prefillRole}){
-  const[step,setStep]=useState("setup"); // setup -> analyzing -> slots -> room -> genreport -> report
+  const[step,setStep]=useState("setup");
   const[resumeText,setResumeText]=useState("");
   const[company,setCompany]=useState(prefillCompany||"");
   const[jobTitle,setJobTitle]=useState(prefillRole||"");
@@ -1115,11 +1049,6 @@ function ResumeInterviewTab({user,onInterviewComplete,prefillCompany,prefillRole
   const[genErr,setGenErr]=useState("");
   const[qIndex,setQIndex]=useState(0);
   const[answers,setAnswers]=useState([]);
-  const[aiSpeaking,setAiSpeaking]=useState(false);
-  const[listening,setListening]=useState(false);
-  const[liveText,setLiveText]=useState("");
-  const[interimText,setInterimText]=useState("");
-  const[timeLeft,setTimeLeft]=useState(90);
   const[phase,setPhase]=useState("idle");
   const[feedback,setFeedback]=useState(null);
   const[loadingFeedback,setLoadingFeedback]=useState(false);
@@ -1133,37 +1062,46 @@ function ResumeInterviewTab({user,onInterviewComplete,prefillCompany,prefillRole
 
   const{isPro,refresh:refreshSub}=useSubscription(user?.id);
 
-  const recogRef=useRef(null);
-  const finalRef=useRef("");
-  const finalChunksRef=useRef([]);
-  const manualStopRef=useRef(false);
   const phaseRef=useRef("idle");
   useEffect(()=>{phaseRef.current=phase;},[phase]);
-  const timerRef=useRef(null);
-  const fileRef=useRef();
+
+  // FIX: currentQIndexRef lets the timer callback always see the live qIndex
+  const currentQIndexRef=useRef(0);
+  useEffect(()=>{currentQIndexRef.current=qIndex;},[qIndex]);
+
+  const questionsRef=useRef([]);
+  useEffect(()=>{questionsRef.current=questions;},[questions]);
+
   const metricsTimerRef=useRef(null);
+  const fileRef=useRef();
   const QTIME=90;
 
-  const speechOK=typeof window!=="undefined"&&(window.SpeechRecognition||window.webkitSpeechRecognition);
-  const ttsOK=typeof window!=="undefined"&&window.speechSynthesis;
+  // FIX: onTimerEnd uses refs to avoid stale closures
+  const onTimerEnd=useCallback(()=>{
+    finishQ(currentQIndexRef.current);
+  // eslint-disable-next-line
+  },[]);
 
-  useEffect(()=>()=>{clearInterval(timerRef.current);clearInterval(metricsTimerRef.current);stopRec();window.speechSynthesis?.cancel();},[]);
+  const{speak,startRec,stopRec,startTimer,stopTimer,reset:resetSpeech,getAnswer,listening,liveText,interimText,timeLeft,aiSpeaking}=useSpeechEngine({phaseRef,onTimerEnd,QTIME});
+
+  useEffect(()=>()=>{clearInterval(metricsTimerRef.current);resetSpeech();},[resetSpeech]);
 
   useEffect(()=>{
     if(phase==="answering"){
       metricsTimerRef.current=setInterval(()=>{
-        const words=finalRef.current.trim().split(/\s+/).filter(Boolean).length;
+        const ans=getAnswer();
+        const words=ans.trim().split(/\s+/).filter(Boolean).length;
         const elapsed=QTIME-timeLeft;
         const wpm=elapsed>0?Math.round((words/(elapsed/60))):0;
         const pace=Math.min(100,Math.max(10,Math.round((wpm/160)*100)));
         const clarity=Math.min(100,Math.max(20,60+Math.random()*20));
-        const fd=detectFillers(finalRef.current);
+        const fd=detectFillers(ans);
         setFillerCount(fd.total);
         setLiveMetrics({pace,clarity});
       },3000);
     }else{clearInterval(metricsTimerRef.current);}
     return()=>clearInterval(metricsTimerRef.current);
-  },[phase,timeLeft]);
+  },[phase,timeLeft,getAnswer]);
 
   const handleFile=async(e)=>{
     const f=e.target.files[0];if(!f)return;
@@ -1177,9 +1115,6 @@ function ResumeInterviewTab({user,onInterviewComplete,prefillCompany,prefillRole
     }catch(e2){setGenErr("Could not read file: "+e2.message);}
   };
 
-  // Step 1: analyze resume into a profile only (lightweight, fast).
-  // Slot-specific questions are generated on demand when a slot is opened —
-  // see generateSlotQuestions below.
   const analyze=async()=>{
     if(!resumeText.trim())return;
     setStep("analyzing");setGenErr("");
@@ -1192,16 +1127,13 @@ Resume:
 ${resumeText.slice(0,3500)}
 ---
 Return ONLY:
-{"profile":{"name":"<from resume or Candidate>","topSkills":["s1","s2","s3","s4"],"keyProjects":["p1","p2","p3"],"experienceLevel":"<Fresher|Junior|Mid>","university":"<if found>"}}`,
-        900
-      );
+{"profile":{"name":"<from resume or Candidate>","topSkills":["s1","s2","s3","s4"],"keyProjects":["p1","p2","p3"],"experienceLevel":"<Fresher|Junior|Mid>","university":"<if found>"}}`,900);
       const data=safeJSON(raw,null);
       const prof=data?.profile||{name:"Candidate",topSkills:[],keyProjects:[],experienceLevel:difficulty};
-      setProfile(prof);
-      setStep("slots");
+      setProfile(prof);setStep("slots");
     }catch(e){
       console.error(e);
-      setGenErr("⚠ AI unavailable — profile extraction skipped, but you can still practice.");
+      setGenErr("⚠ AI unavailable — profile extraction skipped.");
       setProfile({name:"Candidate",topSkills:[],keyProjects:[],experienceLevel:difficulty});
       setStep("slots");
     }
@@ -1211,91 +1143,22 @@ Return ONLY:
     const focus=FOCUS_BY_SLOT[(slot-1)%FOCUS_BY_SLOT.length];
     const raw=await callGroq(
       `You are a senior ${jobTitle||"tech"} interviewer${company?` at ${company}`:""}.
-Experience level: ${difficulty}. This specific mock session's focus area: ${focus}.
-Candidate resume context — skills: ${profile?.topSkills?.join(", ")||"N/A"}; projects: ${profile?.keyProjects?.join(", ")||"N/A"}.
-Resume excerpt:
+Experience level: ${difficulty}. This mock session's focus: ${focus}.
+Candidate skills: ${profile?.topSkills?.join(", ")||"N/A"}; projects: ${profile?.keyProjects?.join(", ")||"N/A"}.
+Resume:
 ---
 ${resumeText.slice(0,2500)}
 ---
-Generate exactly 8 highly personalized interview questions for THIS mock session, all angled toward: ${focus}.
+Generate exactly 8 personalized interview questions for this mock, themed around: ${focus}.
 Rules:
 - Reference specific projects, companies, technologies from the resume where relevant
 - Mix: 1 intro, 4 technical, 2 behavioral, 1 closing — all themed around "${focus}"
 ${company?`- Ask what drew them to ${company} specifically at least once`:""}
-- CRITICAL: each question must be ONE short, natural, SPOKEN sentence (max ~18 words) — exactly how a real interviewer talks out loud.
+- CRITICAL: each question must be ONE short natural spoken sentence (max 18 words)
 Return ONLY:
-{"questions":[{"q":"<short personalized spoken question, max 18 words>","type":"Intro|Technical|Behavioral|Closing","whyAsked":"<1 sentence>","keywords":["k1","k2","k3"]}]}`,
-      1800
-    );
+{"questions":[{"q":"<short spoken question, max 18 words>","type":"Intro|Technical|Behavioral|Closing","keywords":["k1","k2"]}]}`,1800);
     const data=safeJSON(raw,null);
     return data?.questions?.length?data.questions:FALLBACK_QUESTIONS.map(q=>({...q,keywords:[]}));
-  };
-
-  const speak=useCallback((text)=>new Promise(resolve=>{
-    if(!ttsOK){resolve();return;}
-    window.speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(text);
-    u.rate=0.95;u.pitch=1.05;
-   const trySpeak=(voices)=>{
-      const v=voices.find(v=>/en-(US|GB|IN)/i.test(v.lang)&&/Female|Samantha|Karen|Moira|Veena|Raveena|Google UK English Female/i.test(v.name))||voices.find(v=>/en/i.test(v.lang));
-      if(v)u.voice=v;
-      setAiSpeaking(true);
-      u.onend=()=>{setAiSpeaking(false);resolve();};
-      u.onerror=()=>{setAiSpeaking(false);resolve();};
-      window.speechSynthesis.speak(u);
-    };
-    const voices=window.speechSynthesis.getVoices();
-    if(voices.length>0){trySpeak(voices);}
-    else{window.speechSynthesis.onvoiceschanged=()=>{trySpeak(window.speechSynthesis.getVoices());};}
-  }),[ttsOK]);
-
-  const stopRec=()=>{
-    manualStopRef.current=true;
-    try{recogRef.current?.stop();}catch{}
-    setListening(false);setInterimText("");
-  };
-
-  const startRec=(fresh=true)=>{
-    if(!speechOK)return;
-    manualStopRef.current=false;
-    try{recogRef.current?.stop();}catch{}
-    if(fresh){finalChunksRef.current=[];finalRef.current="";setLiveText("");setInterimText("");}
-    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    const rec=new SR();
-    rec.continuous=true;rec.interimResults=true;rec.lang="en-US";
-    rec.onresult=(e)=>{
-      let interim="";
-      for(let i=e.resultIndex;i<e.results.length;i++){
-        const t=e.results[i][0].transcript;
-        if(e.results[i].isFinal)finalChunksRef.current.push(t);
-        else interim+=t;
-      }
-      const full=finalChunksRef.current.join(" ").replace(/\s+/g," ").trim();
-      finalRef.current=full;
-      setLiveText(full);setInterimText(interim.trim());
-    };
-    rec.onerror=()=>{};
-    rec.onend=()=>{
-      setListening(false);
-      if(!manualStopRef.current&&phaseRef.current==="answering"){
-        try{rec.start();setListening(true);}catch{}
-      }
-    };
-    recogRef.current=rec;
-    try{rec.start();setListening(true);}catch{}
-  };
-
-  const beginQ=async(idx)=>{
-    setPhase("speaking");setFeedback(null);setFillerCount(0);
-    finalChunksRef.current=[];finalRef.current="";setLiveText("");setInterimText("");
-    const intro=idx===0?`Hello! I'm Priya Sharma, Senior Hiring Manager${company?` at ${company}`:""}. Thanks for joining. `:"";
-    await speak(intro+questions[idx].q);
-    setPhase("answering");setTimeLeft(QTIME);
-    startRec(true);
-    clearInterval(timerRef.current);
-    timerRef.current=setInterval(()=>{
-      setTimeLeft(t=>{if(t<=1){clearInterval(timerRef.current);finishQ(idx);return 0;}return t-1;});
-    },1000);
   };
 
   const reactionLine=(score)=>{
@@ -1306,62 +1169,93 @@ Return ONLY:
     return pool[Math.floor(Math.random()*pool.length)];
   };
 
-  const finishQ=async(idx)=>{
-    clearInterval(timerRef.current);stopRec();setPhase("done-q");
-    const ans=(finalRef.current||liveText||"").trim()||"(no answer captured)";
+  // FIX: beginQ fully awaits speak() before opening mic
+  // Takes the question text directly to avoid stale closure on questions state
+  const beginQ=useCallback(async(idx,qs)=>{
+    const qList=qs||questionsRef.current;
+    const qText=qList[idx]?.q;
+    if(!qText){console.error("beginQ: no question at index",idx,qList);return;}
+
+    setPhase("speaking");setFeedback(null);setFillerCount(0);
+    phaseRef.current="speaking";
+    resetSpeech();
+
+    const intro=idx===0?`Hello! I'm Priya Sharma, Senior Hiring Manager${company?` at ${company}`:""}. Thanks for joining. `:"";
+
+    // FIX: await TTS fully — mic only opens after Priya stops speaking
+    await speak(intro+qText, true);
+
+    setPhase("answering");
+    phaseRef.current="answering";
+    startRec(true);
+    startTimer();
+  },[speak,startRec,startTimer,resetSpeech,company]);
+
+  const finishQ=useCallback(async(idx)=>{
+    stopTimer();stopRec();
+    setPhase("done-q");
+    phaseRef.current="done-q";
+
+    const ans=getAnswer().trim()||"(no answer captured)";
+    const qList=questionsRef.current;
+    const qText=qList[idx]?.q||"";
+    const qType=qList[idx]?.type||"";
     const fd=detectFillers(ans);
-    const newAns={question:questions[idx].q,type:questions[idx].type,answer:ans,fillerCount:fd.total,fillerWords:fd.found};
-    setAnswers(prev=>{const n=[...prev];n[idx]=newAns;return n;});
+
+    setAnswers(prev=>{const n=[...prev];n[idx]={question:qText,type:qType,answer:ans,fillerCount:fd.total,fillerWords:fd.found};return n;});
     setLoadingFeedback(true);
+
     let fb;
     try{
       const raw=await callGroq(
         `You are a strict senior interviewer${company?` at ${company}`:""} for ${jobTitle||"the role"} (${difficulty}).
-Question (${questions[idx].type}): ${questions[idx].q}
+Question (${qType}): ${qText}
 Answer: ${ans.slice(0,900)}
-Filler words detected: ${fd.total} (${Object.keys(fd.found).join(", ")||"none"})
+Filler words: ${fd.total} (${Object.keys(fd.found).join(", ")||"none"})
 ${profile?"Candidate skills: "+profile.topSkills?.join(", "):""}
-Be specific and honest. Score harshly if vague or off-topic.
-Return ONLY: {"score":<0-100>,"tip":"<2-3 sentence specific actionable feedback>","what_was_good":"<1 sentence about best part, or null if poor>","missing":"<what was missing>","fillerNote":"<1 sentence about filler words if any, else null>"}`,
-        500
-      );
+Score harshly if vague or off-topic.
+Return ONLY: {"score":<0-100>,"tip":"<2-3 sentence specific actionable feedback>","what_was_good":"<1 sentence or null>","missing":"<what was missing>","fillerNote":"<1 sentence or null>"}`,500);
       fb=safeJSON(raw,{score:55,tip:"Keep practicing with more structured answers.",what_was_good:null,missing:"Specific examples and metrics"});
-    }catch{
-      fb={score:55,tip:"AI feedback unavailable. Check /api/ai route.",what_was_good:null};
-    }
+    }catch{fb={score:55,tip:"AI feedback unavailable.",what_was_good:null};}
+
     setFeedback(fb);setLoadingFeedback(false);
-    speak(reactionLine(fb.score));
-  };
+    // Reaction line spoken without blocking next UI interaction
+    speak(reactionLine(fb.score), true);
+  },[stopTimer,stopRec,getAnswer,speak,company,jobTitle,difficulty,profile]);
 
-  const nextQ=(idx)=>{
+  const nextQ=useCallback((idx)=>{
     setFeedback(null);
-    if(idx+1<questions.length){setQIndex(idx+1);beginQ(idx+1);}
-    else wrapUp();
-  };
+    const qList=questionsRef.current;
+    if(idx+1<qList.length){
+      setQIndex(idx+1);
+      currentQIndexRef.current=idx+1;
+      beginQ(idx+1,qList);
+    }else{wrapUp();}
+  },[beginQ]);
 
-  // Step 2: pick a slot. Free slots run instantly; locked slots open the
-  // upgrade modal. Questions are generated once per slot and cached in
-  // questionsBySlot so re-opening a slot doesn't re-call the AI.
   const selectSlot=async(slot)=>{
     if(!isPro&&slot>FREE_SLOTS){setShowUpgrade(true);return;}
     setActiveSlot(slot);
     if(questionsBySlot[slot]){
-      setQuestions(questionsBySlot[slot]);
-      setStep("room");setAnswers([]);setQIndex(0);setFeedback(null);
-      setTimeout(()=>beginQ(0),600);
+      const qs=questionsBySlot[slot];
+      setQuestions(qs);questionsRef.current=qs;
+      setStep("room");setAnswers([]);setQIndex(0);currentQIndexRef.current=0;setFeedback(null);
+      // FIX: pass qs directly to avoid stale state
+      setTimeout(()=>beginQ(0,qs),400);
       return;
     }
     setSlotLoading(slot);setGenErr("");
     try{
       const qs=await generateSlotQuestions(slot);
       setQuestionsBySlot(prev=>({...prev,[slot]:qs}));
-      setQuestions(qs);
+      setQuestions(qs);questionsRef.current=qs;
       setSlotLoading(null);
-      setStep("room");setAnswers([]);setQIndex(0);setFeedback(null);
-      setTimeout(()=>beginQ(0),600);
+      setStep("room");setAnswers([]);setQIndex(0);currentQIndexRef.current=0;setFeedback(null);
+      // FIX: pass qs directly
+      setTimeout(()=>beginQ(0,qs),400);
     }catch(e){
       setSlotLoading(null);
-      setGenErr("⚠ Could not generate this mock's questions. Try again.");
+      setGenErr("⚠ Could not generate questions. Try again.");
     }
   };
 
@@ -1372,9 +1266,11 @@ Return ONLY: {"score":<0-100>,"tip":"<2-3 sentence specific actionable feedback>
   };
 
   const wrapUp=async()=>{
-    setPhase("idle");window.speechSynthesis?.cancel();setStep("genreport");
+    setPhase("idle");phaseRef.current="idle";
+    window.speechSynthesis?.cancel();setStep("genreport");
     try{
-      const transcript=answers.map((a,i)=>`Q${i+1} (${a.type}): ${a.question}\nAnswer: ${a.answer}\nFiller words: ${a.fillerCount||0}`).join("\n\n");
+      const answersSnap=[...answers];
+      const transcript=answersSnap.map((a,i)=>`Q${i+1} (${a.type}): ${a.question}\nAnswer: ${a.answer}\nFiller words: ${a.fillerCount||0}`).join("\n\n");
       const raw=await callGroq(
         `You are a strict senior hiring panel${company?` at ${company}`:""} evaluating ${profile?.name||"the candidate"} for ${jobTitle||"a role"} (${difficulty}).
 Full interview transcript:
@@ -1383,11 +1279,9 @@ Resume skills: ${profile?.topSkills?.join(", ")||"N/A"}
 Projects: ${profile?.keyProjects?.join(", ")||"N/A"}
 Score honestly. Verdicts: Strong Hire (85+), Hire (70-84), Borderline (55-69), No Hire (<55).
 Return ONLY:
-{"overallScore":<0-100>,"verdict":"<Strong Hire|Hire|Borderline|No Hire>","communicationScore":<0-100>,"technicalScore":<0-100>,"confidenceScore":<0-100>,"structureScore":<0-100>,"resumeAlignmentScore":<0-100>,"summary":"<4-5 sentence brutally honest assessment>","companyFitNote":"<2 sentence about ${company||"company"} fit>","perQuestion":[{"question":"<short>","score":<0-100>,"feedback":"<2 sentence specific>","idealAnswer":"<2-3 sentence ideal STAR answer>"}],"strengths":["<s1>","<s2>","<s3>"],"improvements":["<i1>","<i2>","<i3>","<i4>"],"nextSteps":["<step1>","<step2>","<step3>"]}`,
-        2800
-      );
+{"overallScore":<0-100>,"verdict":"<Strong Hire|Hire|Borderline|No Hire>","communicationScore":<0-100>,"technicalScore":<0-100>,"confidenceScore":<0-100>,"structureScore":<0-100>,"resumeAlignmentScore":<0-100>,"summary":"<4-5 sentence honest assessment>","companyFitNote":"<2 sentence>","perQuestion":[{"question":"<short>","score":<0-100>,"feedback":"<2 sentence>","idealAnswer":"<2-3 sentence STAR answer>"}],"strengths":["<s1>","<s2>","<s3>"],"improvements":["<i1>","<i2>","<i3>","<i4>"],"nextSteps":["<step1>","<step2>","<step3>"]}`,2800);
       const data=safeJSON(raw,null);
-      if(!data?.overallScore)throw new Error("bad");
+      if(!data?.overallScore)throw new Error("bad report");
       setReport(data);
       if(activeSlot)setCompletedSlots(prev=>[...new Set([...prev,activeSlot])]);
       await saveInterviewResult(user?.id,{...data,company,role:jobTitle});
@@ -1399,14 +1293,13 @@ Return ONLY:
   };
 
   const endInterview=()=>{
-    window.speechSynthesis?.cancel();stopRec();clearInterval(timerRef.current);
+    window.speechSynthesis?.cancel();stopRec();stopTimer();
     if(answers.length>0)wrapUp();
-    else{setStep("slots");setPhase("idle");}
+    else{setStep("slots");setPhase("idle");phaseRef.current="idle";}
   };
 
   const shareCard=async()=>{
-    if(!report)return;
-    setSharingCard(true);
+    if(!report)return;setSharingCard(true);
     try{await generateScorecard({...report,company,role:jobTitle});}
     catch(e){alert("Could not generate card: "+e.message);}
     setSharingCard(false);
@@ -1418,23 +1311,19 @@ Return ONLY:
     <div className="fade">
       <div style={{marginBottom:22}}>
         <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:5,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🎯 Resume-Powered Interview</div>
-        <div style={{color:C.soft,fontSize:13.5,lineHeight:1.75,maxWidth:580}}>Upload your resume. Tell us the company and role. Our AI reads your <em>actual</em> experience and asks exactly what a real interviewer would ask <strong style={{color:C.ink}}>you specifically</strong> — on camera, on mic, on the clock.</div>
+        <div style={{color:C.soft,fontSize:13.5,lineHeight:1.75,maxWidth:580}}>Upload your resume. Tell us the company and role. AI reads your actual experience and asks exactly what a real interviewer would ask <strong style={{color:C.ink}}>you specifically</strong> — on camera, on mic, on the clock.</div>
       </div>
-
       {genErr&&<div style={{background:C.goldPale,border:`1px solid ${C.gold}30`,borderRadius:10,padding:"10px 14px",marginBottom:14,color:C.gold,fontSize:12.5}}>⚠ {genErr}</div>}
-
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
         <div>
           <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:5,textTransform:"uppercase",letterSpacing:.7}}>Target Company</div>
-          <input style={inp} placeholder="e.g. Google, Amazon, TCS, Wipro…" value={company} onChange={e=>setCompany(e.target.value)} onFocus={e=>e.target.style.borderColor=C.violet} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.08)"}/>
-          <div style={{fontSize:11,color:C.muted,marginTop:4}}>AI mirrors that company's real interview style</div>
+          <input style={inp} placeholder="e.g. Google, Amazon, TCS…" value={company} onChange={e=>setCompany(e.target.value)} onFocus={e=>e.target.style.borderColor=C.violet} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.08)"}/>
         </div>
         <div>
           <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:5,textTransform:"uppercase",letterSpacing:.7}}>Role Applying For</div>
-          <input style={inp} placeholder="e.g. Software Engineer, Data Analyst…" value={jobTitle} onChange={e=>setJobTitle(e.target.value)} onFocus={e=>e.target.style.borderColor=C.violet} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.08)"}/>
+          <input style={inp} placeholder="e.g. Software Engineer…" value={jobTitle} onChange={e=>setJobTitle(e.target.value)} onFocus={e=>e.target.style.borderColor=C.violet} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.08)"}/>
         </div>
       </div>
-
       <div style={{marginBottom:14}}>
         <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:7,textTransform:"uppercase",letterSpacing:.7}}>Experience Level</div>
         <div style={{display:"flex",gap:8}}>
@@ -1443,47 +1332,15 @@ Return ONLY:
           ))}
         </div>
       </div>
-
       <div style={{marginBottom:20}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:7}}>
           <div style={{fontSize:11,fontWeight:700,color:C.soft,textTransform:"uppercase",letterSpacing:.7}}>Your Resume</div>
-          <button onClick={()=>fileRef.current.click()} style={{padding:"6px 14px",borderRadius:8,border:`1px solid ${C.violet}30`,background:C.violetPale,color:C.violetL,fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
-            📎 Upload PDF / DOCX
-          </button>
+          <button onClick={()=>fileRef.current.click()} style={{padding:"6px 14px",borderRadius:8,border:`1px solid ${C.violet}30`,background:C.violetPale,color:C.violetL,fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:700}}>📎 Upload PDF / DOCX</button>
           <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" onChange={handleFile} style={{display:"none"}}/>
         </div>
-        {fileName&&<div style={{background:C.greenPale,border:`1px solid ${C.green}30`,borderRadius:8,padding:"6px 12px",marginBottom:8,fontSize:12,color:C.green,display:"flex",alignItems:"center",gap:6}}>✅ {fileName} loaded</div>}
-        <textarea
-          style={{...inp,minHeight:160,resize:"vertical",fontFamily:"'JetBrains Mono',monospace",fontSize:12,lineHeight:1.7}}
-          placeholder={`Paste your resume text here, or upload above.\n\nExample:\nRaghu Reddy | B.Tech CSE AI/ML | CGPA: 8.53\nSkills: Python, React, Node.js, MySQL, Java\nInternship: Infotact Solutions — Full Stack Developer\nProjects: TakePlace, AgriPrice ML\nGitHub: github.com/raghu2271`}
-          value={resumeText}
-          onChange={e=>setResumeText(e.target.value)}
-          onFocus={e=>e.target.style.borderColor=C.violet}
-          onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.08)"}
-        />
+        {fileName&&<div style={{background:C.greenPale,border:`1px solid ${C.green}30`,borderRadius:8,padding:"6px 12px",marginBottom:8,fontSize:12,color:C.green}}>✅ {fileName} loaded</div>}
+        <textarea style={{...inp,minHeight:160,resize:"vertical",fontFamily:"'JetBrains Mono',monospace",fontSize:12,lineHeight:1.7}} placeholder="Paste your resume text here or upload above…" value={resumeText} onChange={e=>setResumeText(e.target.value)} onFocus={e=>e.target.style.borderColor=C.violet} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.08)"}/>
       </div>
-
-      {!speechOK&&<div style={{background:C.goldPale,border:`1px solid ${C.gold}25`,borderRadius:10,padding:"10px 14px",marginBottom:14,color:C.gold,fontSize:12}}>⚠ Voice recognition works best in Chrome on desktop or Android.</div>}
-
-      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:20,marginBottom:20}}>
-        <div style={{fontWeight:700,color:C.ink,fontSize:13,marginBottom:14}}>What makes this different</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          {[
-            ["🎥","Full-screen camera room","Exactly like a real Zoom interview"],
-            ["🧑‍💼","AI speaks your questions","Priya asks questions aloud in natural voice"],
-            ["📄","Reads YOUR resume","Questions reference your actual projects"],
-            ["⚡","Live confidence meter","Real-time pace, clarity, filler word detection"],
-            ["⏱","90s per answer","Real time pressure, real improvement"],
-            ["🔓","15 mocks per role","2 free, unlock all 15 from ₹49"],
-          ].map(([icon,title,desc],i)=>(
-            <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start"}}>
-              <span style={{fontSize:18,flexShrink:0}}>{icon}</span>
-              <div><div style={{fontWeight:700,fontSize:12.5,color:C.ink}}>{title}</div><div style={{fontSize:11.5,color:C.soft,lineHeight:1.6}}>{desc}</div></div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       <Btn v="violet" onClick={analyze} disabled={!resumeText.trim()} style={{width:"100%",padding:"15px",fontSize:15,borderRadius:12}}>
         🎙️ Analyze Resume & Continue →
       </Btn>
@@ -1494,17 +1351,14 @@ Return ONLY:
     <div style={{textAlign:"center",padding:"80px 20px"}}>
       <div style={{fontSize:52,marginBottom:16,animation:"float 2s ease-in-out infinite"}}>🔍</div>
       <div style={{fontWeight:800,fontSize:20,color:C.ink,marginBottom:8,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Reading your resume…</div>
-      <div style={{color:C.soft,fontSize:14,maxWidth:340,margin:"0 auto 6px",lineHeight:1.7}}>
-        Extracting your projects, skills, and experience.{company?` Researching ${company}'s interview patterns.`:""}
-      </div>
+      <div style={{color:C.soft,fontSize:14,maxWidth:340,margin:"0 auto 24px",lineHeight:1.7}}>Extracting your projects, skills, and experience.</div>
       <Spin size={36}/>
     </div>
   );
 
   if(step==="slots")return(
     <div className="fade" style={{maxWidth:640,margin:"0 auto"}}>
-      <button onClick={()=>setStep("setup")} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginBottom:16,fontFamily:"'Inter',sans-serif",display:"flex",alignItems:"center",gap:4}}>← Edit resume / company</button>
-
+      <button onClick={()=>setStep("setup")} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginBottom:16,fontFamily:"'Inter',sans-serif"}}>← Edit resume / company</button>
       {profile&&(
         <div style={{background:`linear-gradient(160deg,${C.bgCard},${C.bgSurf})`,border:`1px solid ${C.border}`,borderRadius:18,padding:"22px 24px",marginBottom:18}}>
           <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
@@ -1518,38 +1372,27 @@ Return ONLY:
           {profile.topSkills?.length>0&&(
             <div style={{marginBottom:10}}>
               <div style={{fontSize:9,color:C.muted,marginBottom:6,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>Detected Skills</div>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                {profile.topSkills.map((s,i)=><Tag key={i} color={C.teal} size={12}>{s}</Tag>)}
-              </div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{profile.topSkills.map((s,i)=><Tag key={i} color={C.teal} size={12}>{s}</Tag>)}</div>
             </div>
           )}
           {profile.keyProjects?.length>0&&(
             <div>
               <div style={{fontSize:9,color:C.muted,marginBottom:6,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>Key Projects</div>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                {profile.keyProjects.map((p,i)=><Tag key={i} color={C.gold} size={12}>{p}</Tag>)}
-              </div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{profile.keyProjects.map((p,i)=><Tag key={i} color={C.gold} size={12}>{p}</Tag>)}</div>
             </div>
           )}
         </div>
       )}
-
       {genErr&&<div style={{background:C.goldPale,border:`1px solid ${C.gold}25`,borderRadius:8,padding:"8px 12px",fontSize:12,color:C.gold,marginBottom:14}}>{genErr}</div>}
-
       <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:22,marginBottom:18}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
           <div style={{fontWeight:700,fontSize:14,color:C.ink}}>Choose a mock interview</div>
           {!isPro&&<span style={{fontSize:11,color:C.muted}}>{FREE_SLOTS} free · {TOTAL_SLOTS-FREE_SLOTS} locked</span>}
           {isPro&&<span style={{fontSize:11,color:C.green,fontWeight:700}}>✓ All unlocked</span>}
         </div>
-        <div style={{color:C.soft,fontSize:12,marginBottom:16}}>Each of the 15 slots is a distinct mock with different questions — themed around a different focus area, personalized to your resume and {company||"target company"}.</div>
+        <div style={{color:C.soft,fontSize:12,marginBottom:16}}>Each slot has different questions themed around a different focus area, personalized to your resume.</div>
         <SlotGrid isPro={isPro} completedSlots={completedSlots} loadingSlot={slotLoading} onSelectSlot={selectSlot} onUpgrade={()=>setShowUpgrade(true)}/>
       </div>
-
-      <div style={{background:C.violetPale,border:`1px solid ${C.violet}15`,borderRadius:12,padding:"14px 16px",marginBottom:20,fontSize:13,color:C.soft,lineHeight:1.8}}>
-        <strong style={{color:C.ink}}>How it works:</strong> Full-screen camera. Priya speaks each question aloud. 90 seconds to answer on mic. Instant AI feedback + live confidence meter. Full report with shareable scorecard at the end.
-      </div>
-
       {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut}/>}
     </div>
   );
@@ -1570,9 +1413,7 @@ Return ONLY:
     <div style={{textAlign:"center",padding:"80px 20px"}}>
       <div style={{fontSize:52,marginBottom:16,animation:"float 2s ease-in-out infinite"}}>📋</div>
       <div style={{fontWeight:800,fontSize:20,color:C.ink,marginBottom:8,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Building your report…</div>
-      <div style={{color:C.soft,fontSize:14,maxWidth:340,margin:"0 auto 24px",lineHeight:1.7}}>
-        Reviewing all {answers.length} answers{company?` against ${company}'s hiring bar`:""}.
-      </div>
+      <div style={{color:C.soft,fontSize:14,maxWidth:340,margin:"0 auto 24px",lineHeight:1.7}}>Reviewing all {answers.length} answers{company?` against ${company}'s hiring bar`:""}.</div>
       <Spin size={36}/>
     </div>
   );
@@ -1587,9 +1428,7 @@ Return ONLY:
           </div>
           <div className="mono" style={{fontSize:60,fontWeight:700,lineHeight:1,color:sc(report.overallScore),textShadow:`0 0 30px ${sc(report.overallScore)}50`}}>{report.overallScore}</div>
           <div style={{fontSize:13,color:C.muted,marginBottom:10}}>/ 100</div>
-          <div>
-            <span style={{background:`${sc(report.overallScore)}15`,color:sc(report.overallScore),padding:"6px 20px",borderRadius:20,fontWeight:800,fontSize:13,border:`1px solid ${sc(report.overallScore)}30`}}>{report.verdict}</span>
-          </div>
+          <div><span style={{background:`${sc(report.overallScore)}15`,color:sc(report.overallScore),padding:"6px 20px",borderRadius:20,fontWeight:800,fontSize:13,border:`1px solid ${sc(report.overallScore)}30`}}>{report.verdict}</span></div>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:18}}>
           {[["Comm.",report.communicationScore],["Technical",report.technicalScore],["Confidence",report.confidenceScore],["Structure",report.structureScore],["Resume",report.resumeAlignmentScore]].map(([l,v],i)=>(
@@ -1609,56 +1448,42 @@ Return ONLY:
           <div style={{fontWeight:700,fontSize:13,color:C.ink}}>📤 Share your result</div>
           <div style={{color:C.soft,fontSize:12,marginTop:2}}>Download a LinkedIn-ready scorecard image</div>
         </div>
-        <Btn v="violet" onClick={shareCard} loading={sharingCard} small style={{padding:"9px 18px"}}>
-          {sharingCard?"Generating…":"Download Scorecard"}
-        </Btn>
+        <Btn v="violet" onClick={shareCard} loading={sharingCard} small style={{padding:"9px 18px"}}>{sharingCard?"Generating…":"Download Scorecard"}</Btn>
       </div>
 
       {report.strengths?.length>0&&(
         <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}>
           <div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:12}}>✅ What worked well</div>
           {report.strengths.map((s,i)=>(
-            <div key={i} style={{background:C.greenPale,borderRadius:8,padding:"10px 13px",marginBottom:8,fontSize:13,color:C.ink2,border:`1px solid ${C.green}20`,display:"flex",gap:8}}>
-              <span style={{color:C.green,flexShrink:0}}>✓</span><span>{s}</span>
-            </div>
+            <div key={i} style={{background:C.greenPale,borderRadius:8,padding:"10px 13px",marginBottom:8,fontSize:13,color:C.ink2,border:`1px solid ${C.green}20`,display:"flex",gap:8}}><span style={{color:C.green,flexShrink:0}}>✓</span><span>{s}</span></div>
           ))}
         </div>
       )}
-
       {report.improvements?.length>0&&(
         <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}>
           <div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:12}}>🎯 Areas to improve</div>
           {report.improvements.map((s,i)=>(
-            <div key={i} style={{background:"rgba(255,255,255,.02)",borderRadius:8,padding:"10px 13px",marginBottom:8,border:`1px solid ${C.border}`,display:"flex",gap:9}}>
-              <span style={{color:C.gold,fontWeight:800,flexShrink:0}}>→</span><span style={{color:C.ink2,fontSize:13}}>{s}</span>
-            </div>
+            <div key={i} style={{background:"rgba(255,255,255,.02)",borderRadius:8,padding:"10px 13px",marginBottom:8,border:`1px solid ${C.border}`,display:"flex",gap:9}}><span style={{color:C.gold,fontWeight:800,flexShrink:0}}>→</span><span style={{color:C.ink2,fontSize:13}}>{s}</span></div>
           ))}
         </div>
       )}
-
       {report.nextSteps?.length>0&&(
         <div style={{background:C.tealPale,border:`1px solid ${C.teal}20`,borderRadius:14,padding:18,marginBottom:12}}>
           <div style={{fontWeight:700,color:C.teal,fontSize:14,marginBottom:12}}>🚀 Your next steps</div>
           {report.nextSteps.map((s,i)=>(
-            <div key={i} style={{display:"flex",gap:9,alignItems:"flex-start",marginBottom:8,fontSize:13,color:C.ink2}}>
-              <span style={{color:C.teal,fontWeight:800,flexShrink:0}}>{i+1}.</span>{s}
-            </div>
+            <div key={i} style={{display:"flex",gap:9,alignItems:"flex-start",marginBottom:8,fontSize:13,color:C.ink2}}><span style={{color:C.teal,fontWeight:800,flexShrink:0}}>{i+1}.</span>{s}</div>
           ))}
         </div>
       )}
-
       {report.perQuestion?.length>0&&(
         <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:16}}>
           <div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:12}}>🔍 Question by question</div>
-          {report.perQuestion.map((p,i)=>(
-            <QuestionFeedbackCard key={i} p={p} i={i} sc={sc}/>
-          ))}
+          {report.perQuestion.map((p,i)=><QuestionFeedbackCard key={i} p={p} i={i} sc={sc}/>)}
         </div>
       )}
-
       <div style={{display:"flex",gap:10,marginBottom:16}}>
         <Btn v="violet" onClick={()=>{setStep("slots");setAnswers([]);setQIndex(0);setReport(null);}} style={{flex:1,padding:"13px"}}>🔁 Pick Another Slot</Btn>
-        <Btn v="ghost" onClick={()=>{setStep("setup");setAnswers([]);setQIndex(0);setReport(null);setQuestions([]);setQuestionsBySlot({});setCompletedSlots([]);setProfile(null);setResumeText("");setFileName("");}} style={{flex:1,padding:"13px"}}>📄 New Resume</Btn>
+        <Btn v="ghost" onClick={()=>{setStep("setup");setAnswers([]);setQIndex(0);setReport(null);setQuestions([]);questionsRef.current=[];setQuestionsBySlot({});setCompletedSlots([]);setProfile(null);setResumeText("");setFileName("");}} style={{flex:1,padding:"13px"}}>📄 New Resume</Btn>
       </div>
     </div>
   );
@@ -1668,7 +1493,7 @@ Return ONLY:
 
 // ── QUICK MOCK TAB ────────────────────────────────────────────────────────────
 function QuickMockTab({user,onInterviewComplete}){
-  const[screen,setScreen]=useState("roles"); // roles -> brief -> slots -> live -> report
+  const[screen,setScreen]=useState("roles");
   const[catFilter,setCatFilter]=useState("All");
   const[role,setRole]=useState(null);
   const[difficulty,setDifficulty]=useState("Entry-level");
@@ -1680,11 +1505,6 @@ function QuickMockTab({user,onInterviewComplete}){
   const[qIndex,setQIndex]=useState(0);
   const[answers,setAnswers]=useState([]);
   const[genErr,setGenErr]=useState("");
-  const[aiSpeaking,setAiSpeaking]=useState(false);
-  const[listening,setListening]=useState(false);
-  const[liveText,setLiveText]=useState("");
-  const[interimText,setInterimText]=useState("");
-  const[timeLeft,setTimeLeft]=useState(90);
   const[phase,setPhase]=useState("idle");
   const[feedback,setFeedback]=useState(null);
   const[loadingFeedback,setLoadingFeedback]=useState(false);
@@ -1698,117 +1518,52 @@ function QuickMockTab({user,onInterviewComplete}){
 
   const{isPro,refresh:refreshSub}=useSubscription(user?.id);
 
-  const recogRef=useRef(null);
-  const finalRef=useRef("");
-  const finalChunksRef=useRef([]);
-  const manualStopRef=useRef(false);
   const phaseRef=useRef("idle");
   useEffect(()=>{phaseRef.current=phase;},[phase]);
-  const timerRef=useRef(null);
+
+  const currentQIndexRef=useRef(0);
+  useEffect(()=>{currentQIndexRef.current=qIndex;},[qIndex]);
+
+  const questionsRef=useRef([]);
+  useEffect(()=>{questionsRef.current=questions;},[questions]);
+
   const metricsRef=useRef(null);
   const QTIME=90;
-  const speechOK=typeof window!=="undefined"&&(window.SpeechRecognition||window.webkitSpeechRecognition);
-  const ttsOK=typeof window!=="undefined"&&window.speechSynthesis;
 
-  useEffect(()=>()=>{clearInterval(timerRef.current);clearInterval(metricsRef.current);stopRec();window.speechSynthesis?.cancel();},[]);
+  const onTimerEnd=useCallback(()=>{finishQ(currentQIndexRef.current);},[]);// eslint-disable-line
+
+  const{speak,startRec,stopRec,startTimer,stopTimer,reset:resetSpeech,getAnswer,listening,liveText,interimText,timeLeft,aiSpeaking}=useSpeechEngine({phaseRef,onTimerEnd,QTIME});
+
+  useEffect(()=>()=>{clearInterval(metricsRef.current);resetSpeech();},[resetSpeech]);
 
   useEffect(()=>{
     if(phase==="answering"){
       metricsRef.current=setInterval(()=>{
-        const words=finalRef.current.trim().split(/\s+/).filter(Boolean).length;
+        const ans=getAnswer();
+        const words=ans.trim().split(/\s+/).filter(Boolean).length;
         const elapsed=QTIME-timeLeft;
         const wpm=elapsed>0?Math.round((words/(elapsed/60))):0;
         const pace=Math.min(100,Math.max(10,Math.round((wpm/160)*100)));
         const clarity=Math.min(100,Math.max(20,60+Math.random()*20));
-        const fd=detectFillers(finalRef.current);
+        const fd=detectFillers(ans);
         setFillerCount(fd.total);
         setLiveMetrics({pace,clarity});
       },3000);
     }else clearInterval(metricsRef.current);
     return()=>clearInterval(metricsRef.current);
-  },[phase,timeLeft]);
+  },[phase,timeLeft,getAnswer]);
 
   const filteredRoles=catFilter==="All"?ROLES:ROLES.filter(r=>r.cat===catFilter);
 
-  const pickRole=(r)=>{
-    setRole(r);setScreen("brief");setGenErr("");
-  };
-
-  const generateSlotQuestionsQM=async(slot)=>{
+  const generateSlotQuestionsQM=async(slot,roleObj)=>{
     const focus=FOCUS_BY_SLOT[(slot-1)%FOCUS_BY_SLOT.length];
-    const raw=await callGroq(`You are a senior ${role.title} interviewer. Difficulty: ${difficulty}. Core focus: ${role.focus}. This specific mock session's theme: ${focus}.
-Generate exactly 6 spoken interview questions angled toward "${focus}": 1 intro, 3 technical (specific to ${role.focus}), 1 behavioral, 1 closing.
-CRITICAL: each question must be ONE short, natural SPOKEN sentence (max ~18 words), like a real interviewer talking aloud — not a written paragraph.
+    const raw=await callGroq(
+      `You are a senior ${roleObj.title} interviewer. Difficulty: ${difficulty}. Focus: ${roleObj.focus}. This mock's theme: ${focus}.
+Generate exactly 6 spoken interview questions themed around "${focus}": 1 intro, 3 technical, 1 behavioral, 1 closing.
+CRITICAL: each question must be ONE short natural spoken sentence (max 18 words).
 Return ONLY: {"questions":[{"q":"<short spoken question, max 18 words>","type":"Intro|Technical|Behavioral|Closing","keywords":["k1","k2"]}]}`,900);
     const data=safeJSON(raw,null);
     return data?.questions?.length>=5?data.questions:FALLBACK_QUESTIONS.map(q=>({...q,keywords:[]}));
-  };
-
-  const speak=useCallback((text)=>new Promise(resolve=>{
-    if(!ttsOK){resolve();return;}
-    window.speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(text);
-    u.rate=0.97;u.pitch=0.93;
-   const trySpeak=(voices)=>{
-      const v=voices.find(v=>/en-(US|GB|IN)/i.test(v.lang)&&/Female|Samantha|Karen|Moira|Veena|Raveena|Google UK English Female/i.test(v.name))||voices.find(v=>/en/i.test(v.lang));
-      if(v)u.voice=v;
-      setAiSpeaking(true);
-      u.onend=()=>{setAiSpeaking(false);resolve();};
-      u.onerror=()=>{setAiSpeaking(false);resolve();};
-      window.speechSynthesis.speak(u);
-    };
-    const voices=window.speechSynthesis.getVoices();
-    if(voices.length>0){trySpeak(voices);}
-    else{window.speechSynthesis.onvoiceschanged=()=>{trySpeak(window.speechSynthesis.getVoices());};}
-  }),[ttsOK]);
-
-  const stopRec=()=>{
-    manualStopRef.current=true;
-    try{recogRef.current?.stop();}catch{}
-    setListening(false);setInterimText("");
-  };
-
-  const startRec=(fresh=true)=>{
-    if(!speechOK)return;
-    manualStopRef.current=false;
-    try{recogRef.current?.stop();}catch{}
-    if(fresh){finalChunksRef.current=[];finalRef.current="";setLiveText("");setInterimText("");}
-    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    const rec=new SR();
-    rec.continuous=true;rec.interimResults=true;rec.lang="en-US";
-    rec.onresult=(e)=>{
-      let interim="";
-      for(let i=e.resultIndex;i<e.results.length;i++){
-        const t=e.results[i][0].transcript;
-        if(e.results[i].isFinal)finalChunksRef.current.push(t);
-        else interim+=t;
-      }
-      const full=finalChunksRef.current.join(" ").replace(/\s+/g," ").trim();
-      finalRef.current=full;
-      setLiveText(full);setInterimText(interim.trim());
-    };
-    rec.onerror=()=>{};
-    rec.onend=()=>{
-      setListening(false);
-      if(!manualStopRef.current&&phaseRef.current==="answering"){
-        try{rec.start();setListening(true);}catch{}
-      }
-    };
-    recogRef.current=rec;
-    try{rec.start();setListening(true);}catch{}
-  };
-
-  const beginQ=async(idx)=>{
-    setPhase("speaking");setFeedback(null);setFillerCount(0);
-    finalChunksRef.current=[];finalRef.current="";setLiveText("");setInterimText("");
-    const intro=idx===0?`Hi, I'm your interviewer today, looking for a ${role.title}. `:"";
-    await speak(intro+questions[idx].q);
-    setPhase("answering");setTimeLeft(QTIME);
-    startRec(true);
-    clearInterval(timerRef.current);
-    timerRef.current=setInterval(()=>{
-      setTimeLeft(t=>{if(t<=1){clearInterval(timerRef.current);finishQ(idx);return 0;}return t-1;});
-    },1000);
   };
 
   const reactionLine=(score)=>{
@@ -1819,52 +1574,79 @@ Return ONLY: {"questions":[{"q":"<short spoken question, max 18 words>","type":"
     return pool[Math.floor(Math.random()*pool.length)];
   };
 
-  const finishQ=async(idx)=>{
-    clearInterval(timerRef.current);stopRec();setPhase("done-q");
-    const ans=(finalRef.current||liveText||"").trim()||"(no answer captured)";
+  // FIX: same pattern — await speak before opening mic
+  const beginQ=useCallback(async(idx,qs,roleObj)=>{
+    const qList=qs||questionsRef.current;
+    const qText=qList[idx]?.q;
+    if(!qText)return;
+    const rObj=roleObj||role;
+
+    setPhase("speaking");setFeedback(null);setFillerCount(0);
+    phaseRef.current="speaking";
+    resetSpeech();
+
+    const intro=idx===0?`Hi, I'm your interviewer today, looking for a ${rObj?.title||"candidate"}. `:"";
+    await speak(intro+qText, false); // male voice for quick mock
+
+    setPhase("answering");phaseRef.current="answering";
+    startRec(true);startTimer();
+  },[speak,startRec,startTimer,resetSpeech,role]);
+
+  const finishQ=useCallback(async(idx)=>{
+    stopTimer();stopRec();
+    setPhase("done-q");phaseRef.current="done-q";
+
+    const ans=getAnswer().trim()||"(no answer captured)";
+    const qList=questionsRef.current;
+    const qText=qList[idx]?.q||"";
+    const qType=qList[idx]?.type||"";
     const fd=detectFillers(ans);
-    setAnswers(prev=>{const n=[...prev];n[idx]={question:questions[idx].q,type:questions[idx].type,answer:ans,fillerCount:fd.total};return n;});
+
+    setAnswers(prev=>{const n=[...prev];n[idx]={question:qText,type:qType,answer:ans,fillerCount:fd.total};return n;});
     setLoadingFeedback(true);
+
     let fb;
     try{
-      const raw=await callGroq(`You are a strict ${role.title} interviewer (${difficulty}).
-Question (${questions[idx].type}): ${questions[idx].q}
+      const raw=await callGroq(
+        `You are a strict ${role?.title||"interviewer"} interviewer (${difficulty}).
+Question (${qType}): ${qText}
 Answer: ${ans.slice(0,800)}
 Filler words: ${fd.total}
 Score strictly. Return ONLY: {"score":<0-100>,"tip":"<2-3 sentence specific feedback>","what_was_good":"<1 sentence or null>","missing":"<what was missing>"}`,450);
       fb=safeJSON(raw,{score:55,tip:"Practice with more specific examples.",what_was_good:null});
-    }catch{fb={score:55,tip:"AI unavailable. Check /api/ai route.",what_was_good:null};}
+    }catch{fb={score:55,tip:"AI unavailable.",what_was_good:null};}
+
     setFeedback(fb);setLoadingFeedback(false);
-    speak(reactionLine(fb.score));
-  };
+    speak(reactionLine(fb.score), false);
+  },[stopTimer,stopRec,getAnswer,speak,role,difficulty]);
 
-  const nextQ=(idx)=>{
+  const nextQ=useCallback((idx)=>{
     setFeedback(null);
-    if(idx+1<questions.length){setQIndex(idx+1);beginQ(idx+1);}
+    const qList=questionsRef.current;
+    if(idx+1<qList.length){setQIndex(idx+1);currentQIndexRef.current=idx+1;beginQ(idx+1,qList);}
     else wrapUp();
-  };
+  },[beginQ]);
 
-  const startInterview=()=>{setScreen("live");setAnswers([]);setQIndex(0);setFeedback(null);setTimeout(()=>beginQ(0),400);};
-
-  // Slot picker for Quick Mock — same 2-free / 13-locked model as Resume tab.
   const selectSlot=async(slot)=>{
     if(!isPro&&slot>FREE_SLOTS){setShowUpgrade(true);return;}
     setActiveSlot(slot);
     if(questionsBySlot[slot]){
-      setQuestions(questionsBySlot[slot]);
-      startInterview();
+      const qs=questionsBySlot[slot];
+      setQuestions(qs);questionsRef.current=qs;
+      setScreen("live");setAnswers([]);setQIndex(0);currentQIndexRef.current=0;setFeedback(null);
+      setTimeout(()=>beginQ(0,qs,role),400);
       return;
     }
     setSlotLoading(slot);setGenErr("");
     try{
-      const qs=await generateSlotQuestionsQM(slot);
+      const qs=await generateSlotQuestionsQM(slot,role);
       setQuestionsBySlot(prev=>({...prev,[slot]:qs}));
-      setQuestions(qs);
+      setQuestions(qs);questionsRef.current=qs;
       setSlotLoading(null);
-      startInterview();
+      setScreen("live");setAnswers([]);setQIndex(0);currentQIndexRef.current=0;setFeedback(null);
+      setTimeout(()=>beginQ(0,qs,role),400);
     }catch{
-      setSlotLoading(null);
-      setGenErr("⚠ Could not generate this mock's questions. Try again.");
+      setSlotLoading(null);setGenErr("⚠ Could not generate questions. Try again.");
     }
   };
 
@@ -1875,17 +1657,19 @@ Score strictly. Return ONLY: {"score":<0-100>,"tip":"<2-3 sentence specific feed
   };
 
   const wrapUp=async()=>{
-    setPhase("idle");setGenReport(true);
+    setPhase("idle");phaseRef.current="idle";setGenReport(true);
     try{
-      const transcript=answers.map((a,i)=>`Q${i+1} (${a.type}): ${a.question}\nAnswer: ${a.answer}`).join("\n\n");
-      const raw=await callGroq(`Strict hiring panel for ${role.title} (${difficulty}).
+      const answersSnap=[...answers];
+      const transcript=answersSnap.map((a,i)=>`Q${i+1} (${a.type}): ${a.question}\nAnswer: ${a.answer}`).join("\n\n");
+      const raw=await callGroq(
+        `Strict hiring panel for ${role?.title||"role"} (${difficulty}).
 ${transcript.slice(0,4000)}
 Return ONLY: {"overallScore":<0-100>,"verdict":"<Strong Hire|Hire|Borderline|No Hire>","communicationScore":<0-100>,"technicalScore":<0-100>,"confidenceScore":<0-100>,"structureScore":<0-100>,"summary":"<3-4 sentence honest assessment>","perQuestion":[{"question":"<short>","score":<0-100>,"feedback":"<2 sentence>"}],"strengths":["<s1>","<s2>"],"improvements":["<i1>","<i2>","<i3>"]}`,2200);
       const data=safeJSON(raw,null);
       if(!data?.overallScore)throw new Error("bad");
       setReport(data);
       if(activeSlot)setCompletedSlots(prev=>[...new Set([...prev,activeSlot])]);
-      await saveInterviewResult(user?.id,{...data,company:"",role:role.title});
+      await saveInterviewResult(user?.id,{...data,company:"",role:role?.title||""});
       onInterviewComplete&&onInterviewComplete();
     }catch{
       setReport({overallScore:0,verdict:"—",communicationScore:0,technicalScore:0,confidenceScore:0,structureScore:0,summary:"⚠ Report generation failed.",perQuestion:[],strengths:[],improvements:[]});
@@ -1893,27 +1677,25 @@ Return ONLY: {"overallScore":<0-100>,"verdict":"<Strong Hire|Hire|Borderline|No 
     setGenReport(false);setScreen("report");
   };
 
-  const restart=()=>{window.speechSynthesis?.cancel();stopRec();clearInterval(timerRef.current);setScreen("roles");setRole(null);setQuestions([]);setQuestionsBySlot({});setCompletedSlots([]);setAnswers([]);setQIndex(0);setReport(null);setFeedback(null);};
+  const restart=()=>{window.speechSynthesis?.cancel();stopRec();stopTimer();setScreen("roles");setRole(null);setQuestions([]);questionsRef.current=[];setQuestionsBySlot({});setCompletedSlots([]);setAnswers([]);setQIndex(0);setReport(null);setFeedback(null);};
   const sc=s=>s>=75?C.green:s>=50?C.gold:C.red;
 
   if(screen==="roles")return(
     <div>
       <div style={{marginBottom:20}}>
         <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:5,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🎤 Quick Mock Interview</div>
-        <div style={{color:C.soft,fontSize:13.5,lineHeight:1.7}}>Pick a role. No resume needed. For a personalized interview based on your actual resume, use <strong style={{color:C.ink}}>Resume Interview</strong> instead.</div>
+        <div style={{color:C.soft,fontSize:13.5,lineHeight:1.7}}>Pick a role. No resume needed. For a personalized interview, use <strong style={{color:C.ink}}>Resume Interview</strong>.</div>
       </div>
       <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:18}}>
-        {CATS.map(c=>(
-          <button key={c} onClick={()=>setCatFilter(c)} style={{padding:"6px 14px",borderRadius:20,border:`1px solid ${catFilter===c?C.violet:C.border}`,background:catFilter===c?C.violetPale:"transparent",color:catFilter===c?C.violetL:C.soft,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{c}</button>
-        ))}
+        {CATS.map(c=>(<button key={c} onClick={()=>setCatFilter(c)} style={{padding:"6px 14px",borderRadius:20,border:`1px solid ${catFilter===c?C.violet:C.border}`,background:catFilter===c?C.violetPale:"transparent",color:catFilter===c?C.violetL:C.soft,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{c}</button>))}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:12}}>
         {filteredRoles.map(r=>(
-          <div key={r.id} className="lift" onClick={()=>pickRole(r)}
-            style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"18px 16px",position:"relative",overflow:"hidden",transition:"border-color .2s"}}
+          <div key={r.id} className="lift" onClick={()=>{setRole(r);setScreen("brief");setGenErr("");}}
+            style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"18px 16px",position:"relative",overflow:"hidden"}}
             onMouseEnter={e=>e.currentTarget.style.borderColor=C.violet+"50"}
             onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
-            {r.popular&&<div style={{position:"absolute",top:12,right:12,background:`${C.violet}20`,color:C.violetL,fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:10,letterSpacing:.5}}>POPULAR</div>}
+            {r.popular&&<div style={{position:"absolute",top:12,right:12,background:`${C.violet}20`,color:C.violetL,fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:10}}>POPULAR</div>}
             <div style={{fontSize:28,marginBottom:10}}>{r.icon}</div>
             <div style={{fontWeight:700,fontSize:13.5,color:C.ink,marginBottom:4}}>{r.title}</div>
             <div style={{color:C.soft,fontSize:11.5,lineHeight:1.65,marginBottom:10}}>{r.focus}</div>
@@ -1930,10 +1712,7 @@ Return ONLY: {"overallScore":<0-100>,"verdict":"<Strong Hire|Hire|Borderline|No 
       <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:20,padding:28}}>
         <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:22}}>
           <div style={{width:52,height:52,background:C.violetPale,borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,flexShrink:0}}>{role.icon}</div>
-          <div>
-            <div style={{fontWeight:800,fontSize:19,color:C.ink,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{role.title}</div>
-            <div style={{color:C.soft,fontSize:12,marginTop:2}}>{role.focus}</div>
-          </div>
+          <div><div style={{fontWeight:800,fontSize:19,color:C.ink,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{role.title}</div><div style={{color:C.soft,fontSize:12,marginTop:2}}>{role.focus}</div></div>
         </div>
         <div style={{marginBottom:20}}>
           <div style={{fontWeight:700,fontSize:13,color:C.ink,marginBottom:10}}>Experience level</div>
@@ -1955,17 +1734,14 @@ Return ONLY: {"overallScore":<0-100>,"verdict":"<Strong Hire|Hire|Borderline|No 
       <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:22}}>
         <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:18}}>
           <div style={{width:44,height:44,background:C.violetPale,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{role.icon}</div>
-          <div>
-            <div style={{fontWeight:800,fontSize:16,color:C.ink}}>{role.title}</div>
-            <div style={{color:C.soft,fontSize:11.5,marginTop:1}}>{difficulty}</div>
-          </div>
+          <div><div style={{fontWeight:800,fontSize:16,color:C.ink}}>{role.title}</div><div style={{color:C.soft,fontSize:11.5,marginTop:1}}>{difficulty}</div></div>
         </div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
           <div style={{fontWeight:700,fontSize:14,color:C.ink}}>Choose a mock interview</div>
           {!isPro&&<span style={{fontSize:11,color:C.muted}}>{FREE_SLOTS} free · {TOTAL_SLOTS-FREE_SLOTS} locked</span>}
           {isPro&&<span style={{fontSize:11,color:C.green,fontWeight:700}}>✓ All unlocked</span>}
         </div>
-        <div style={{color:C.soft,fontSize:12,marginBottom:16}}>Each slot is a fresh set of 6 questions themed around a different interview focus area.</div>
+        <div style={{color:C.soft,fontSize:12,marginBottom:16}}>Each slot is a fresh set of 6 questions with a different focus area.</div>
         {genErr&&<div style={{background:C.goldPale,border:`1px solid ${C.gold}25`,borderRadius:8,padding:"8px 12px",fontSize:12,color:C.gold,marginBottom:14}}>{genErr}</div>}
         <SlotGrid isPro={isPro} completedSlots={completedSlots} loadingSlot={slotLoading} onSelectSlot={selectSlot} onUpgrade={()=>setShowUpgrade(true)}/>
       </div>
@@ -1975,24 +1751,30 @@ Return ONLY: {"overallScore":<0-100>,"verdict":"<Strong Hire|Hire|Borderline|No 
 
   if(screen==="live")return(
     <InterviewRoom
-      role={role.title} company={null} questions={questions} qIndex={qIndex}
+      role={role?.title||""} company={null} questions={questions} qIndex={qIndex}
       phase={phase} aiSpeaking={aiSpeaking} listening={listening}
       liveText={liveText} interimText={interimText} timeLeft={timeLeft}
       feedback={feedback} loadingFeedback={loadingFeedback}
       onFinish={finishQ} onNext={nextQ}
-      onEnd={()=>{window.speechSynthesis?.cancel();stopRec();clearInterval(timerRef.current);if(answers.length>0)wrapUp();else setScreen("slots");}}
+      onEnd={()=>{window.speechSynthesis?.cancel();stopRec();stopTimer();if(answers.length>0)wrapUp();else setScreen("slots");}}
       onToggleMic={()=>setMicMuted(m=>!m)} micMuted={micMuted}
       fillerCount={fillerCount} liveMetrics={liveMetrics}
     />
   );
 
-  if(genReport)return<div style={{textAlign:"center",padding:"80px 20px"}}><div style={{fontSize:52,marginBottom:16,animation:"float 2s ease-in-out infinite"}}>📋</div><div style={{fontWeight:800,fontSize:20,color:C.ink,marginBottom:24,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Generating report…</div><Spin size={36}/></div>;
+  if(genReport)return(
+    <div style={{textAlign:"center",padding:"80px 20px"}}>
+      <div style={{fontSize:52,marginBottom:16,animation:"float 2s ease-in-out infinite"}}>📋</div>
+      <div style={{fontWeight:800,fontSize:20,color:C.ink,marginBottom:24,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Generating report…</div>
+      <Spin size={36}/>
+    </div>
+  );
 
   if(screen==="report"&&report)return(
     <div className="fade">
       <div style={{background:`linear-gradient(160deg,${C.bgCard},${C.bgSurf})`,border:`1px solid ${C.border}`,borderRadius:20,padding:"28px 22px",marginBottom:16}}>
         <div style={{textAlign:"center",marginBottom:20}}>
-          <div style={{fontSize:10,color:C.muted,marginBottom:6,letterSpacing:1.5,fontWeight:700,textTransform:"uppercase"}}>{role.icon} {role.title} · {difficulty}{activeSlot?` · Mock #${activeSlot}`:""}</div>
+          <div style={{fontSize:10,color:C.muted,marginBottom:6,letterSpacing:1.5,fontWeight:700,textTransform:"uppercase"}}>{role?.icon} {role?.title} · {difficulty}{activeSlot?` · Mock #${activeSlot}`:""}</div>
           <div className="mono" style={{fontSize:56,fontWeight:700,lineHeight:1,color:sc(report.overallScore)}}>{report.overallScore}</div>
           <div style={{fontSize:12,color:C.muted,marginBottom:10}}>/ 100</div>
           <div><span style={{background:`${sc(report.overallScore)}15`,color:sc(report.overallScore),padding:"5px 18px",borderRadius:20,fontWeight:800,fontSize:13,border:`1px solid ${sc(report.overallScore)}30`}}>{report.verdict}</span></div>
@@ -2010,7 +1792,10 @@ Return ONLY: {"overallScore":<0-100>,"verdict":"<Strong Hire|Hire|Borderline|No 
       {report.strengths?.length>0&&<div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}><div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:12}}>✅ What worked</div>{report.strengths.map((s,i)=><div key={i} style={{background:C.greenPale,borderRadius:8,padding:"10px 13px",marginBottom:7,fontSize:13,color:C.ink2,border:`1px solid ${C.green}20`,display:"flex",gap:8}}><span style={{color:C.green}}>✓</span><span>{s}</span></div>)}</div>}
       {report.improvements?.length>0&&<div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}><div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:12}}>🎯 Improve on</div>{report.improvements.map((s,i)=><div key={i} style={{background:"rgba(255,255,255,.02)",borderRadius:8,padding:"10px 13px",marginBottom:7,border:`1px solid ${C.border}`,display:"flex",gap:9}}><span style={{color:C.gold,fontWeight:800}}>→</span><span style={{color:C.ink2,fontSize:13}}>{s}</span></div>)}</div>}
       {report.perQuestion?.length>0&&<div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:16}}><div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:12}}>🔍 Q by Q</div>{report.perQuestion.map((p,i)=><div key={i} style={{background:"rgba(255,255,255,.02)",borderRadius:10,padding:"12px 14px",marginBottom:9,border:`1px solid ${C.border}`}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:5,gap:8}}><div style={{fontWeight:600,color:C.ink,fontSize:12.5}}>Q{i+1}. {p.question}</div><div className="mono" style={{fontWeight:700,fontSize:13,color:sc(p.score),flexShrink:0}}>{p.score}%</div></div><div style={{color:C.soft,fontSize:12.5,lineHeight:1.7}}>{p.feedback}</div><Bar pct={p.score} color={sc(p.score)}/></div>)}</div>}
-      <div style={{display:"flex",gap:10}}><Btn v="violet" onClick={()=>setScreen("slots")} style={{flex:1,padding:"13px"}}>🔁 Pick Another Slot</Btn><Btn v="ghost" onClick={restart} style={{flex:1,padding:"13px"}}>🎲 Other Role</Btn></div>
+      <div style={{display:"flex",gap:10}}>
+        <Btn v="violet" onClick={()=>setScreen("slots")} style={{flex:1,padding:"13px"}}>🔁 Pick Another Slot</Btn>
+        <Btn v="ghost" onClick={restart} style={{flex:1,padding:"13px"}}>🎲 Other Role</Btn>
+      </div>
     </div>
   );
 
@@ -2027,7 +1812,7 @@ function JobsTab({onPracticeForJob}){
   const[saved,setSaved]=useState([]);
   const quickRoles=["Fresher","React","Node.js","Python","Java","Data Analyst","Full Stack","DevOps","AI ML","UI UX"];
 
-  useEffect(()=>{fetchJobs();},[]);
+  useEffect(()=>{fetchJobs();},[]);// eslint-disable-line
 
   const fetchJobs=async(q=search,loc=location)=>{
     setLoading(true);sessionStorage.setItem("tp_s",q);sessionStorage.setItem("tp_l",loc);
@@ -2042,8 +1827,7 @@ function JobsTab({onPracticeForJob}){
         description:j.description||"",desc200:(j.description||"").slice(0,200),
         url:j.redirect_url,
         posted:new Date(j.created).toLocaleDateString("en-IN",{day:"numeric",month:"short"}),
-        postedRaw:new Date(j.created),
-        category:j.category?.label||"Technology",
+        postedRaw:new Date(j.created),category:j.category?.label||"Technology",
       })):[]);
     }catch(e){console.error(e);}
     setLoading(false);
@@ -2058,7 +1842,7 @@ function JobsTab({onPracticeForJob}){
 
   const buildShareUrl=(job)=>{
     const params=new URLSearchParams({cmp:job.company||"",role:job.title||"",jurl:job.url||"",jid:String(job.id||"")});
-    return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+    return`${window.location.origin}${window.location.pathname}?${params.toString()}`;
   };
 
   const shareJob=async(job)=>{
@@ -2066,20 +1850,19 @@ function JobsTab({onPracticeForJob}){
     const text=`${job.title} at ${job.company} — practice the interview + apply on TakePlace`;
     try{
       if(navigator.share){await navigator.share({title:"TakePlace",text,url});}
-      else{await navigator.clipboard.writeText(url);alert("🔗 Link copied! Share it anywhere — it opens straight to this job.");}
+      else{await navigator.clipboard.writeText(url);alert("🔗 Link copied!");}
     }catch{}
   };
 
   return(
     <div>
       <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:4,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🔥 Live Job Feed</div>
-      <div style={{color:C.soft,fontSize:13.5,marginBottom:16,lineHeight:1.7}}>Real fresher openings across India · Updated daily · 1-tap interview practice for any role</div>
-
+      <div style={{color:C.soft,fontSize:13.5,marginBottom:16,lineHeight:1.7}}>Real fresher openings across India · Updated daily · 1-tap interview practice</div>
       <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:16}}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
           <div>
             <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:5,textTransform:"uppercase",letterSpacing:.6}}>Role / Keyword</div>
-            <input style={inp} placeholder="e.g. fresher, React, Python…" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()} onFocus={ev=>ev.target.style.borderColor=C.violet} onBlur={ev=>ev.target.style.borderColor=C.border}/>
+            <input style={inp} placeholder="e.g. fresher, React…" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()} onFocus={ev=>ev.target.style.borderColor=C.violet} onBlur={ev=>ev.target.style.borderColor=C.border}/>
           </div>
           <div>
             <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:5,textTransform:"uppercase",letterSpacing:.6}}>Location</div>
@@ -2087,14 +1870,10 @@ function JobsTab({onPracticeForJob}){
           </div>
         </div>
         <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
-          {quickRoles.map(r=>(
-            <button key={r} onClick={()=>{setSearch(r.toLowerCase());fetchJobs(r.toLowerCase(),location);}}
-              style={{padding:"4px 12px",borderRadius:20,border:`1px solid ${search===r.toLowerCase()?C.violet:C.border}`,background:search===r.toLowerCase()?C.violetPale:"transparent",color:search===r.toLowerCase()?C.violetL:C.soft,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{r}</button>
-          ))}
+          {quickRoles.map(r=>(<button key={r} onClick={()=>{setSearch(r.toLowerCase());fetchJobs(r.toLowerCase(),location);}} style={{padding:"4px 12px",borderRadius:20,border:`1px solid ${search===r.toLowerCase()?C.violet:C.border}`,background:search===r.toLowerCase()?C.violetPale:"transparent",color:search===r.toLowerCase()?C.violetL:C.soft,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{r}</button>))}
         </div>
         <Btn v="violet" onClick={()=>fetchJobs()} style={{width:"100%"}}>🔍 Search Jobs</Btn>
       </div>
-
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <div style={{fontWeight:700,fontSize:15,color:C.ink}}>Results</div>
         {!loading&&jobs.length>0&&<div style={{display:"flex",alignItems:"center",gap:6,background:C.greenPale,borderRadius:20,padding:"4px 12px",border:`1px solid ${C.green}25`}}>
@@ -2102,9 +1881,8 @@ function JobsTab({onPracticeForJob}){
           <span style={{color:C.green,fontSize:11,fontWeight:700}}>{jobs.length} live openings</span>
         </div>}
       </div>
-
       {loading&&<div style={{textAlign:"center",padding:"60px 0"}}><Spin size={34}/></div>}
-      {!loading&&jobs.map((job,i)=>{
+      {!loading&&jobs.map((job)=>{
         const isExp=expanded===job.id,isSaved=saved.includes(job.id);
         const freshness=getFreshness(job.postedRaw);
         return(
@@ -2131,10 +1909,8 @@ function JobsTab({onPracticeForJob}){
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap"}}>
               <Tag color={C.teal} size={11}>{job.category}</Tag>
               <div style={{display:"flex",gap:7}}>
-                <button onClick={()=>onPracticeForJob&&onPracticeForJob(job.company,job.title)} style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${C.violet}35`,background:C.violetPale,color:C.violetL,fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:700,display:"flex",alignItems:"center",gap:4}}>
-                  🎙 Practice
-                </button>
-                <button onClick={()=>shareJob(job)} title="Share this job" style={{padding:"6px 11px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",cursor:"pointer",fontSize:13,color:C.soft,fontFamily:"'Inter',sans-serif"}}>📤</button>
+                <button onClick={()=>onPracticeForJob&&onPracticeForJob(job.company,job.title)} style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${C.violet}35`,background:C.violetPale,color:C.violetL,fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:700,display:"flex",alignItems:"center",gap:4}}>🎙 Practice</button>
+                <button onClick={()=>shareJob(job)} title="Share" style={{padding:"6px 11px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",cursor:"pointer",fontSize:13,color:C.soft,fontFamily:"'Inter',sans-serif"}}>📤</button>
                 <button onClick={()=>setSaved(s=>s.includes(job.id)?s.filter(x=>x!==job.id):[...s,job.id])} style={{padding:"6px 11px",borderRadius:8,border:`1px solid ${isSaved?C.gold+"50":C.border}`,background:isSaved?C.goldPale:"transparent",cursor:"pointer",fontSize:13,color:isSaved?C.gold:C.soft,fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{isSaved?"★":"☆"}</button>
                 <Btn v="primary" onClick={()=>window.open(job.url,"_blank")} small>Apply →</Btn>
               </div>
@@ -2142,54 +1918,47 @@ function JobsTab({onPracticeForJob}){
           </div>
         );
       })}
-      {!loading&&jobs.length===0&&<div style={{textAlign:"center",padding:"60px 0",color:C.muted}}>
-        <div style={{fontSize:40,marginBottom:12}}>🔍</div>
-        <div style={{fontWeight:700,color:C.ink2}}>No jobs found.</div>
-        <div style={{fontSize:13,marginTop:4}}>Try a different role or city.</div>
-      </div>}
+      {!loading&&jobs.length===0&&<div style={{textAlign:"center",padding:"60px 0",color:C.muted}}><div style={{fontSize:40,marginBottom:12}}>🔍</div><div style={{fontWeight:700,color:C.ink2}}>No jobs found.</div><div style={{fontSize:13,marginTop:4}}>Try a different role or city.</div></div>}
     </div>
   );
 }
 
-// ── LANDING PAGE (UPGRADED) ───────────────────────────────────────────────────
+// ── LANDING PAGE ──────────────────────────────────────────────────────────────
 function LandingPage({onStart}){
   const[scrolled,setScrolled]=useState(false);
   useEffect(()=>{const h=()=>setScrolled(window.scrollY>60);window.addEventListener("scroll",h);return()=>window.removeEventListener("scroll",h);},[]);
 
   const features=[
-    {icon:"🎯",title:"Resume-personalized questions",desc:"AI reads your actual projects and tech stack. Questions about your TakePlace app, your internship, your specific tech — not generic interview practice."},
-    {icon:"🎥",title:"Full-screen camera room",desc:"Full HD camera, self-view PiP, LIVE indicator. Build composure under real conditions, not a chatbot window."},
-    {icon:"🗣️",title:"AI speaks your questions",desc:"Priya Sharma, our AI hiring manager, reads every question in natural voice. Your mic activates when she's done. Exactly like a real interview."},
-    {icon:"⚡",title:"Live confidence analysis",desc:"Real-time pace, clarity, and filler word detection while you speak. See 'um' flagged instantly, pace score ticking, clarity meter live."},
-    {icon:"🏢",title:"Company-style matching",desc:"Google interviews differently than TCS. Amazon's bar differs from Wipro's. We mirror each company's real culture and difficulty."},
-    {icon:"🔓",title:"15 mock interviews per role",desc:"2 free per role. Unlock all 15 — each with a different focus and different questions — from ₹49."},
+    {icon:"🎯",title:"Resume-personalized questions",desc:"AI reads your actual projects and tech stack — questions about your TakePlace app, your internship, your specific tech."},
+    {icon:"🎥",title:"Full-screen camera room",desc:"Full HD camera, self-view PiP, LIVE indicator. Build composure under real conditions."},
+    {icon:"🗣️",title:"AI speaks your questions",desc:"Priya Sharma reads every question aloud in natural voice. Your mic activates only after she's done speaking — exactly like a real interview."},
+    {icon:"⚡",title:"Live confidence analysis",desc:"Real-time pace, clarity, and filler word detection while you speak."},
+    {icon:"🏢",title:"Company-style matching",desc:"Google interviews differently than TCS. We mirror each company's real culture and difficulty."},
+    {icon:"🔓",title:"15 mock interviews per role",desc:"2 free per role. Unlock all 15 from ₹49."},
   ];
 
   const testimonials=[
-    {name:"Priya M.",role:"SDE at Wipro",text:"The AI asked specifically about my TakePlace project and how it applies at Wipro's scale. That's exactly what happened in my real interview. I was so prepared I almost corrected the interviewer.",score:91,company:"Wipro"},
-    {name:"Arun K.",role:"Data Analyst at TCS",text:"The live filler word detector wrecked me — turns out I say 'basically' 12 times per answer. Fixed it before the real interview. Got the offer.",score:83,company:"TCS"},
-    {name:"Sneha R.",role:"Full Stack Dev at Infosys",text:"Resume interview + Amazon as target = they asked about my app's architecture in depth. I'd answered that exact question three times in practice. Offer in round 2.",score:94,company:"Amazon"},
+    {name:"Priya M.",role:"SDE at Wipro",text:"The AI asked specifically about my TakePlace project. That's exactly what happened in my real interview. I was so prepared I almost corrected the interviewer.",score:91,company:"Wipro"},
+    {name:"Arun K.",role:"Data Analyst at TCS",text:"The live filler word detector caught me saying 'basically' 12 times per answer. Fixed it before the real interview. Got the offer.",score:83,company:"TCS"},
+    {name:"Sneha R.",role:"Full Stack Dev at Infosys",text:"Resume interview + Amazon target = they asked about my app's architecture in depth. I'd answered that question three times in practice. Offer in round 2.",score:94,company:"Amazon"},
   ];
 
   return(
     <div style={{background:C.lBg,color:C.lText,fontFamily:"'Inter',sans-serif",overflowX:"hidden"}}>
-      <style>{CSS}
-        {`
-          @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-          .marquee-track{display:flex;gap:20px;animation:marquee 25s linear infinite;}
-          .marquee-wrap{overflow:hidden;}
-          @keyframes heroFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-          .hero-card{animation:heroFloat 4s ease-in-out infinite;}
-          .cta-glow{box-shadow:0 0 40px rgba(124,110,250,.3),0 4px 20px rgba(124,110,250,.25);}
-          .cta-glow:hover{box-shadow:0 0 60px rgba(124,110,250,.4),0 8px 30px rgba(124,110,250,.35);}
-        `}
-      </style>
+      <style>{CSS}{`
+        @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+        .marquee-track{display:flex;gap:20px;animation:marquee 25s linear infinite;}
+        .marquee-wrap{overflow:hidden;}
+        @keyframes heroFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        .hero-card{animation:heroFloat 4s ease-in-out infinite;}
+        .cta-glow{box-shadow:0 0 40px rgba(124,110,250,.3),0 4px 20px rgba(124,110,250,.25);}
+        .cta-glow:hover{box-shadow:0 0 60px rgba(124,110,250,.4),0 8px 30px rgba(124,110,250,.35);}
+      `}</style>
 
       <nav style={{position:"fixed",top:0,left:0,right:0,zIndex:1000,background:scrolled?"rgba(8,12,20,.97)":"transparent",backdropFilter:scrolled?"blur(20px)":"none",borderBottom:scrolled?"1px solid rgba(255,255,255,.08)":"none",transition:"all .3s",padding:"0 24px"}}>
         <div style={{maxWidth:1100,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:64}}>
-          <div style={{fontWeight:900,fontSize:22,color:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:-.5,display:"flex",alignItems:"center",gap:8}}>
-            <span style={{fontSize:20}}>🎤</span>
-            <span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</span>
+          <div style={{fontWeight:900,fontSize:22,color:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",display:"flex",alignItems:"center",gap:8}}>
+            <span>🎤</span><span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</span>
           </div>
           <div style={{display:"flex",gap:10,alignItems:"center"}}>
             <button onClick={onStart} style={{background:"none",border:"none",cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:14,color:"rgba(255,255,255,.6)",padding:"8px 12px"}}>Sign In</button>
@@ -2198,7 +1967,6 @@ function LandingPage({onStart}){
         </div>
       </nav>
 
-      {/* HERO */}
       <section style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"130px 24px 90px",position:"relative",overflow:"hidden",background:`linear-gradient(160deg,#040610 0%,#080C14 40%,#0D1230 100%)`}}>
         <div style={{position:"absolute",top:"5%",right:"5%",width:500,height:500,borderRadius:"50%",background:`radial-gradient(circle,${C.violet}10,transparent 65%)`,pointerEvents:"none"}}/>
         <div style={{position:"absolute",bottom:"10%",left:"-5%",width:360,height:360,borderRadius:"50%",background:`radial-gradient(circle,${C.teal}08,transparent 65%)`,pointerEvents:"none"}}/>
@@ -2210,52 +1978,34 @@ function LandingPage({onStart}){
               <span style={{width:6,height:6,borderRadius:"50%",background:C.violetL,display:"inline-block",animation:"pulse 1.5s infinite"}}/>
               India's only AI interview with live camera + resume personalization
             </div>
-
             <h1 className="fade" style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(32px,4vw,56px)",lineHeight:1.08,marginBottom:24,animationDelay:".1s",letterSpacing:"-1px",color:"#fff"}}>
               Walk in ready.<br/>
               <span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>Not nervous.</span>
             </h1>
-
             <p className="fade" style={{fontSize:17,color:"rgba(255,255,255,.6)",lineHeight:1.8,maxWidth:480,marginBottom:40,animationDelay:".2s"}}>
-              Upload your resume, name the company — Priya interviews you like she's actually hiring. Camera on, mic live, real questions about your real experience. Walk out knowing exactly where you stand.
+              Upload your resume, name the company — Priya interviews you like she's actually hiring. Camera on, mic live, real questions about your real experience.
             </p>
-
             <div className="fade" style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:40,animationDelay:".3s"}}>
               <button onClick={onStart} className="cta-glow" style={{padding:"16px 36px",borderRadius:12,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,color:"#fff",fontWeight:800,fontSize:16,fontFamily:"'Inter',sans-serif",transition:"all .2s"}}>
                 🎙️ Start free interview →
               </button>
-              <button onClick={onStart} style={{padding:"16px 26px",borderRadius:12,border:"1px solid rgba(255,255,255,.2)",cursor:"pointer",background:"transparent",color:"rgba(255,255,255,.8)",fontWeight:600,fontSize:16,fontFamily:"'Inter',sans-serif"}}>
-                Browse live jobs
-              </button>
+              <button onClick={onStart} style={{padding:"16px 26px",borderRadius:12,border:"1px solid rgba(255,255,255,.2)",cursor:"pointer",background:"transparent",color:"rgba(255,255,255,.8)",fontWeight:600,fontSize:16,fontFamily:"'Inter',sans-serif"}}>Browse live jobs</button>
             </div>
-
             <div className="fade" style={{display:"flex",gap:20,alignItems:"center",animationDelay:".4s"}}>
-              <div style={{textAlign:"center"}}>
-                <div className="mono" style={{fontWeight:700,fontSize:22,color:C.violetL}}>50K+</div>
-                <div style={{fontSize:11,color:"rgba(255,255,255,.4)",fontWeight:600,textTransform:"uppercase",letterSpacing:.6}}>Interviews</div>
-              </div>
-              <div style={{width:1,height:36,background:"rgba(255,255,255,.1)"}}/>
-              <div style={{textAlign:"center"}}>
-                <div className="mono" style={{fontWeight:700,fontSize:22,color:C.teal}}>87%</div>
-                <div style={{fontSize:11,color:"rgba(255,255,255,.4)",fontWeight:600,textTransform:"uppercase",letterSpacing:.6}}>Better scores</div>
-              </div>
-              <div style={{width:1,height:36,background:"rgba(255,255,255,.1)"}}/>
-              <div style={{textAlign:"center"}}>
-                <div className="mono" style={{fontWeight:700,fontSize:22,color:C.gold}}>3.4×</div>
-                <div style={{fontSize:11,color:"rgba(255,255,255,.4)",fontWeight:600,textTransform:"uppercase",letterSpacing:.6}}>More offers</div>
-              </div>
+              {[["50K+","Interviews",C.violetL],["87%","Better scores",C.teal],["3.4×","More offers",C.gold]].map(([v,l,c],i)=>(
+                <div key={i} style={{textAlign:"center"}}>
+                  <div className="mono" style={{fontWeight:700,fontSize:22,color:c}}>{v}</div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,.4)",fontWeight:600,textTransform:"uppercase",letterSpacing:.6}}>{l}</div>
+                </div>
+              )).reduce((acc,el,i)=>i===0?[el]:[...acc,<div key={`d${i}`} style={{width:1,height:36,background:"rgba(255,255,255,.1)"}}/>,el],[])}
             </div>
           </div>
 
           <div className="hero-card" style={{position:"relative"}}>
             <div style={{position:"absolute",top:-16,right:-8,background:C.bgCard,border:`1px solid ${C.green}40`,borderRadius:14,padding:"10px 16px",boxShadow:`0 8px 24px rgba(0,0,0,.5)`,zIndex:10,display:"flex",alignItems:"center",gap:10}}>
               <div style={{width:36,height:36,borderRadius:10,background:C.greenPale,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"JetBrains Mono,monospace",fontWeight:700,fontSize:16,color:C.green}}>89</div>
-              <div>
-                <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>Strong Hire ✓</div>
-                <div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>Google SDE · Just now</div>
-              </div>
+              <div><div style={{fontSize:12,fontWeight:700,color:"#fff"}}>Strong Hire ✓</div><div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>Google SDE · Just now</div></div>
             </div>
-
             <div style={{background:"#04060E",borderRadius:20,border:"1px solid rgba(255,255,255,.1)",overflow:"hidden",boxShadow:"0 24px 60px rgba(0,0,0,.7)"}}>
               <div style={{background:"rgba(255,255,255,.03)",padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"1px solid rgba(255,255,255,.05)"}}>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -2263,32 +2013,20 @@ function LandingPage({onStart}){
                   <span style={{color:"rgba(255,255,255,.6)",fontSize:10,fontWeight:700,letterSpacing:1.5}}>LIVE INTERVIEW</span>
                 </div>
                 <div style={{background:`${C.violet}20`,borderRadius:6,padding:"3px 10px",fontSize:10,color:C.violetL,fontWeight:700}}>Google</div>
-                <div style={{display:"flex",gap:4}}>
-                  {[1,2,3,4,5].map(i=><div key={i} style={{width:18,height:2,borderRadius:1,background:i<=2?C.green:i===3?C.violet:"rgba(255,255,255,.15)"}}/>)}
-                </div>
+                <div style={{display:"flex",gap:4}}>{[1,2,3,4,5].map(i=><div key={i} style={{width:18,height:2,borderRadius:1,background:i<=2?C.green:i===3?C.violet:"rgba(255,255,255,.15)"}}/>)}</div>
               </div>
               <div style={{padding:"24px",textAlign:"center",background:"linear-gradient(180deg,#07091A,#04060E)"}}>
-                <div style={{width:80,height:80,margin:"0 auto 12px",filter:`drop-shadow(0 0 16px ${C.violet}40)`}}>
-                  <AIFace speaking={true} size={80}/>
-                </div>
+                <div style={{width:80,height:80,margin:"0 auto 12px",filter:`drop-shadow(0 0 16px ${C.violet}40)`}}><AIFace speaking={true} size={80}/></div>
                 <div style={{color:"#fff",fontWeight:700,fontSize:13,marginBottom:2}}>Priya Sharma</div>
                 <div style={{color:"rgba(255,255,255,.4)",fontSize:10,marginBottom:16}}>Senior Hiring Manager · Google</div>
                 <div style={{background:"rgba(255,255,255,.04)",borderRadius:10,padding:"12px 14px",textAlign:"left",marginBottom:12}}>
-                  <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:6}}>
-                    <Tag color={C.teal} size={9}>Technical</Tag>
-                    <span style={{fontSize:9,color:C.muted,fontFamily:"JetBrains Mono,monospace"}}>01:24 remaining</span>
-                  </div>
+                  <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:6}}><Tag color={C.teal} size={9}>Technical</Tag><span style={{fontSize:9,color:C.muted,fontFamily:"JetBrains Mono,monospace"}}>01:24 remaining</span></div>
                   <div style={{color:"rgba(255,255,255,.85)",fontSize:11,lineHeight:1.65}}>How did you handle CORS with the Groq API in TakePlace?</div>
-                  <div style={{height:2,background:"rgba(255,255,255,.06)",borderRadius:2,marginTop:10,overflow:"hidden"}}>
-                    <div style={{height:"100%",width:"65%",background:C.teal,borderRadius:2,boxShadow:`0 0 6px ${C.teal}60`}}/>
-                  </div>
+                  <div style={{height:2,background:"rgba(255,255,255,.06)",borderRadius:2,marginTop:10,overflow:"hidden"}}><div style={{height:"100%",width:"65%",background:C.teal,borderRadius:2,boxShadow:`0 0 6px ${C.teal}60`}}/></div>
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
                   {[["Pace","78%",C.teal],["Clarity","82%",C.violet],["Fillers","0",C.green]].map(([l,v,c])=>(
-                    <div key={l} style={{background:"rgba(255,255,255,.03)",borderRadius:8,padding:"8px"}}>
-                      <div style={{fontSize:11,fontWeight:700,color:c,fontFamily:"JetBrains Mono,monospace"}}>{v}</div>
-                      <div style={{fontSize:9,color:"rgba(255,255,255,.35)",marginTop:2}}>{l}</div>
-                    </div>
+                    <div key={l} style={{background:"rgba(255,255,255,.03)",borderRadius:8,padding:"8px"}}><div style={{fontSize:11,fontWeight:700,color:c,fontFamily:"JetBrains Mono,monospace"}}>{v}</div><div style={{fontSize:9,color:"rgba(255,255,255,.35)",marginTop:2}}>{l}</div></div>
                   ))}
                 </div>
               </div>
@@ -2325,8 +2063,8 @@ function LandingPage({onStart}){
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:22}}>
           {[
             {n:"01",title:"Upload your resume",desc:"Paste or upload PDF/DOCX. Enter company and role. 60 seconds to set up."},
-            {n:"02",title:"Pick a mock & interview on camera",desc:"2 free mocks per role, 13 more unlock with Pro. Priya speaks your personalized questions aloud — answer on mic, on camera, on a 90-second clock."},
-            {n:"03",title:"Get your debrief + scorecard",desc:"Score across 5 dimensions. Per-question breakdown with ideal answers. Download a shareable PNG. Specific next steps before your real interview."},
+            {n:"02",title:"Interview on camera",desc:"Priya speaks your personalized questions aloud — you answer on mic, on camera, 90-second clock. Mic only opens after she stops speaking."},
+            {n:"03",title:"Get your debrief + scorecard",desc:"Score across 5 dimensions. Per-question breakdown with ideal answers. Shareable PNG. Specific next steps."},
           ].map((s,i)=>(
             <div key={i} className="lift" style={{background:C.lCard,border:`1.5px solid ${C.lBorder}`,borderRadius:20,padding:28}}>
               <div style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:700,fontSize:40,color:"#E2E8F0",marginBottom:16,lineHeight:1}}>{s.n}</div>
@@ -2347,10 +2085,7 @@ function LandingPage({onStart}){
             {features.map((f,i)=>(
               <div key={i} className="lift" style={{background:C.lCard,border:`1.5px solid ${C.lBorder}`,borderRadius:18,padding:26,display:"flex",gap:16}}>
                 <div style={{fontSize:28,flexShrink:0,marginTop:2}}>{f.icon}</div>
-                <div>
-                  <div style={{fontWeight:700,fontSize:15,color:C.lText,marginBottom:7}}>{f.title}</div>
-                  <div style={{color:C.lMuted,fontSize:13,lineHeight:1.8}}>{f.desc}</div>
-                </div>
+                <div><div style={{fontWeight:700,fontSize:15,color:C.lText,marginBottom:7}}>{f.title}</div><div style={{color:C.lMuted,fontSize:13,lineHeight:1.8}}>{f.desc}</div></div>
               </div>
             ))}
           </div>
@@ -2388,9 +2123,9 @@ function LandingPage({onStart}){
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))",gap:22,alignItems:"start"}}>
             {[
-              {name:"Free",price:"₹0",period:"",color:C.lText,features:["2 mock interviews per role","10 quick mock practice rounds","Basic per-question feedback","Live job feed","Streak tracking"],cta:"Start Free",v:"ghost"},
+              {name:"Free",price:"₹0",period:"",color:C.lText,features:["2 mock interviews per role","Basic per-question feedback","Live job feed","Streak tracking"],cta:"Start Free",v:"ghost"},
               {name:"Week",price:"₹49",period:"/week",color:C.gold,features:["All 15 mocks, every role","All company style modes","Full detailed reports","Shareable scorecards","Filler word detection"],cta:"Get 1 Week — ₹49",v:"gold"},
-              {name:"Month",price:"₹199",period:"/month",color:C.violet,popular:true,features:["Everything in Week","Best value — 4× the days for 4× the price of a week","Score history + trajectory","AI ideal answer coach","Priority support"],cta:"Get 1 Month — ₹199",v:"violet"},
+              {name:"Month",price:"₹199",period:"/month",color:C.violet,popular:true,features:["Everything in Week","Best value — 4× the days","Score history + trajectory","AI ideal answer coach","Priority support"],cta:"Get 1 Month — ₹199",v:"violet"},
             ].map((p,i)=>(
               <div key={i} style={{background:C.lCard,border:p.popular?`2px solid ${C.violet}`:`1.5px solid ${C.lBorder}`,borderRadius:22,padding:28,position:"relative",boxShadow:p.popular?`0 12px 40px ${C.violet}15`:"none"}}>
                 {p.popular&&<div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)",background:`linear-gradient(135deg,${C.violetD},${C.violet})`,color:"#fff",fontSize:11,fontWeight:800,padding:"4px 16px",borderRadius:20,whiteSpace:"nowrap"}}>⭐ MOST POPULAR</div>}
@@ -2409,7 +2144,7 @@ function LandingPage({onStart}){
         <div style={{maxWidth:600,margin:"0 auto",background:`linear-gradient(160deg,#0D1220,#11163A)`,border:"1px solid rgba(124,110,250,.2)",borderRadius:28,padding:"60px 36px",boxShadow:`0 24px 60px rgba(124,110,250,.15)`}}>
           <div style={{fontSize:52,marginBottom:14,animation:"float 3s ease-in-out infinite"}}>🎤</div>
           <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:34,color:"#fff",marginBottom:12,letterSpacing:-.5}}>Your next interview is real.<br/><span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>This one can be too.</span></h2>
-          <p style={{color:"rgba(255,255,255,.55)",fontSize:15,marginBottom:36,lineHeight:1.75}}>Camera on. Mic live. Resume read. Company style matched. Free to start.</p>
+          <p style={{color:"rgba(255,255,255,.55)",fontSize:15,marginBottom:36,lineHeight:1.75}}>Camera on. Mic live. Resume read. Free to start.</p>
           <button onClick={onStart} className="cta-glow" style={{padding:"16px 48px",borderRadius:12,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,color:"#fff",fontWeight:800,fontSize:16,fontFamily:"'Inter',sans-serif",transition:"all .2s"}}>
             Start free now →
           </button>
@@ -2421,7 +2156,7 @@ function LandingPage({onStart}){
           <div style={{fontWeight:900,fontSize:18,color:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",display:"flex",alignItems:"center",gap:6}}><span>🎤</span><span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</span></div>
           <div style={{color:"rgba(255,255,255,.3)",fontSize:12}}>© 2026 TakePlace · Built by Raghu Dadigela</div>
           <div style={{display:"flex",gap:16,alignItems:"center"}}>
-            <a href="mailto:takeplace.in@gmail.com" style={{color:"rgba(255,255,255,.6)",fontWeight:600,fontSize:13,display:"flex",alignItems:"center",gap:5}}>✉ takeplace.in@gmail.com</a>
+            <a href="mailto:takeplace.in@gmail.com" style={{color:"rgba(255,255,255,.6)",fontWeight:600,fontSize:13}}>✉ takeplace.in@gmail.com</a>
             <a href="https://takeplace.vercel.app" target="_blank" rel="noreferrer" style={{color:"rgba(255,255,255,.3)",fontSize:12}}>takeplace.vercel.app</a>
           </div>
         </div>
@@ -2430,89 +2165,58 @@ function LandingPage({onStart}){
   );
 }
 
-// ── ONBOARDING FLOW ───────────────────────────────────────────────────────────
+// ── ONBOARDING ────────────────────────────────────────────────────────────────
 function OnboardingFlow({user,onComplete}){
   const[step,setStep]=useState(0);
   const[picks,setPicks]=useState({company:"",level:"",resume:false});
-
   const companies=["Google","Amazon","TCS","Wipro","Infosys","Flipkart","Microsoft","Other"];
   const levels=["Fresher (0 exp)","1–2 years","3–5 years","5+ years"];
-
-  const next=()=>{
-    if(step<2)setStep(s=>s+1);
-    else onComplete(picks);
-  };
-
+  const next=()=>{if(step<2)setStep(s=>s+1);else onComplete(picks);};
   return(
     <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
       <style>{CSS}</style>
       <div className="fade" style={{width:"100%",maxWidth:500,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:24,padding:"36px 32px"}}>
-        <div style={{display:"flex",gap:6,marginBottom:32}}>
-          {[0,1,2].map(i=>(
-            <div key={i} style={{flex:1,height:3,borderRadius:2,background:i<=step?C.violet:"rgba(255,255,255,.08)",transition:"background .3s"}}/>
-          ))}
-        </div>
-
+        <div style={{display:"flex",gap:6,marginBottom:32}}>{[0,1,2].map(i=>(<div key={i} style={{flex:1,height:3,borderRadius:2,background:i<=step?C.violet:"rgba(255,255,255,.08)",transition:"background .3s"}}/>))}</div>
         {step===0&&(
           <div>
             <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:6,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Which company are you targeting?</div>
-            <div style={{color:C.soft,fontSize:13.5,marginBottom:24}}>We'll customize the interview style and difficulty to match. We only ask this once.</div>
+            <div style={{color:C.soft,fontSize:13.5,marginBottom:24}}>We'll customize the interview style to match.</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              {companies.map(c=>(
-                <button key={c} onClick={()=>{setPicks(p=>({...p,company:c}));}}
-                  style={{padding:"14px",borderRadius:12,border:`1px solid ${picks.company===c?C.violet:C.border}`,background:picks.company===c?C.violetPale:"transparent",color:picks.company===c?C.violetL:C.ink2,fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>
-                  {c}
-                </button>
-              ))}
+              {companies.map(c=>(<button key={c} onClick={()=>setPicks(p=>({...p,company:c}))} style={{padding:"14px",borderRadius:12,border:`1px solid ${picks.company===c?C.violet:C.border}`,background:picks.company===c?C.violetPale:"transparent",color:picks.company===c?C.violetL:C.ink2,fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{c}</button>))}
             </div>
           </div>
         )}
-
         {step===1&&(
           <div>
             <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:6,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>What's your experience level?</div>
-            <div style={{color:C.soft,fontSize:13.5,marginBottom:24}}>We'll calibrate the question difficulty and scoring bar.</div>
+            <div style={{color:C.soft,fontSize:13.5,marginBottom:24}}>We'll calibrate question difficulty accordingly.</div>
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              {levels.map(l=>(
-                <button key={l} onClick={()=>setPicks(p=>({...p,level:l}))}
-                  style={{padding:"16px 20px",borderRadius:12,border:`1px solid ${picks.level===l?C.violet:C.border}`,background:picks.level===l?C.violetPale:"transparent",color:picks.level===l?C.violetL:C.ink2,fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s",textAlign:"left"}}>
-                  {l}
-                </button>
-              ))}
+              {levels.map(l=>(<button key={l} onClick={()=>setPicks(p=>({...p,level:l}))} style={{padding:"16px 20px",borderRadius:12,border:`1px solid ${picks.level===l?C.violet:C.border}`,background:picks.level===l?C.violetPale:"transparent",color:picks.level===l?C.violetL:C.ink2,fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s",textAlign:"left"}}>{l}</button>))}
             </div>
           </div>
         )}
-
         {step===2&&(
           <div>
             <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:6,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Add your resume <span style={{color:C.soft,fontWeight:500,fontSize:18}}>(optional)</span></div>
-            <div style={{color:C.soft,fontSize:13.5,marginBottom:24}}>Upload now for personalized questions — or skip and use our Quick Mock first.</div>
+            <div style={{color:C.soft,fontSize:13.5,marginBottom:24}}>Upload now for personalized questions — or skip.</div>
             <div style={{background:C.violetPale,border:`2px dashed ${C.violet}40`,borderRadius:14,padding:"32px",textAlign:"center",marginBottom:16,cursor:"pointer"}} onClick={()=>setPicks(p=>({...p,resume:true}))}>
               <div style={{fontSize:36,marginBottom:10}}>📄</div>
               <div style={{fontWeight:700,color:C.ink,marginBottom:4}}>Drop your resume here</div>
-              <div style={{color:C.soft,fontSize:12}}>PDF, DOCX, or TXT — you can always add it later</div>
+              <div style={{color:C.soft,fontSize:12}}>PDF, DOCX, or TXT</div>
             </div>
           </div>
         )}
-
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:28}}>
           {step>0?<button onClick={()=>setStep(s=>s-1)} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontSize:13}}>← Back</button>:<div/>}
-          <Btn v="violet" onClick={next} disabled={step===0&&!picks.company||step===1&&!picks.level} style={{padding:"12px 28px"}}>
-            {step<2?"Continue →":"Let's go →"}
-          </Btn>
+          <Btn v="violet" onClick={next} disabled={(step===0&&!picks.company)||(step===1&&!picks.level)} style={{padding:"12px 28px"}}>{step<2?"Continue →":"Let's go →"}</Btn>
         </div>
-
-        {step===2&&(
-          <button onClick={()=>onComplete(picks)} style={{width:"100%",background:"none",border:"none",color:C.muted,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontSize:12,marginTop:12}}>
-            Skip for now →
-          </button>
-        )}
+        {step===2&&<button onClick={()=>onComplete(picks)} style={{width:"100%",background:"none",border:"none",color:C.muted,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontSize:12,marginTop:12}}>Skip for now →</button>}
       </div>
     </div>
   );
 }
 
-// ── AUTH PAGE (UPGRADED) ──────────────────────────────────────────────────────
+// ── AUTH PAGE ─────────────────────────────────────────────────────────────────
 function AuthPage({onLogin,onBack,pendingJob}){
   const[mode,setMode]=useState("login");
   const[form,setForm]=useState({name:"",email:"",password:""});
@@ -2537,8 +2241,7 @@ function AuthPage({onLogin,onBack,pendingJob}){
         if(form.password.length<6)throw new Error("Password must be 6+ characters");
         const{error}=await supabase.auth.signUp({email:form.email,password:form.password,options:{data:{full_name:form.name}}});
         if(error)throw error;
-        setMsg("✅ Check your email to verify, then sign in.");
-        setMode("login");
+        setMsg("✅ Check your email to verify, then sign in.");setMode("login");
       }else{
         const{data,error}=await supabase.auth.signInWithPassword({email:form.email,password:form.password});
         if(error)throw error;
@@ -2552,67 +2255,47 @@ function AuthPage({onLogin,onBack,pendingJob}){
     <div style={{minHeight:"100vh",background:`linear-gradient(160deg,#040610,#080C14 40%,#0D1230)`,display:"flex",alignItems:"center",justifyContent:"center",padding:24,position:"relative",overflow:"hidden"}}>
       <style>{CSS}</style>
       <div style={{position:"absolute",top:"10%",right:"10%",width:400,height:400,borderRadius:"50%",background:`radial-gradient(circle,${C.violet}08,transparent 65%)`,pointerEvents:"none"}}/>
-      <div style={{position:"absolute",bottom:"10%",left:"5%",width:300,height:300,borderRadius:"50%",background:`radial-gradient(circle,${C.teal}06,transparent 65%)`,pointerEvents:"none"}}/>
-
       <div className="fade" style={{width:"100%",maxWidth:420,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:24,padding:36,boxShadow:"0 24px 60px rgba(0,0,0,.5)",position:"relative",zIndex:1}}>
-        <button onClick={onBack} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginBottom:24,fontFamily:"'Inter',sans-serif",display:"flex",alignItems:"center",gap:4}}>← Back</button>
+        <button onClick={onBack} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginBottom:24,fontFamily:"'Inter',sans-serif"}}>← Back</button>
         <div style={{textAlign:"center",marginBottom:28}}>
           <div style={{fontSize:36,marginBottom:8}}>🎤</div>
           <div style={{fontWeight:900,fontSize:24,fontFamily:"'Plus Jakarta Sans',sans-serif",background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</div>
           <div style={{color:C.soft,fontSize:13,marginTop:4}}>{mode==="login"?"Welcome back 👋":"Create your free account ✨"}</div>
         </div>
-
         {pendingJob&&(pendingJob.role||pendingJob.company)&&(
           <div style={{background:C.violetPale,border:`1px solid ${C.violet}25`,borderRadius:10,padding:"10px 14px",marginBottom:18,fontSize:12.5,color:C.violetL,textAlign:"center"}}>
             🔥 Sign in to view <strong>{pendingJob.role||"this role"}</strong>{pendingJob.company?` at ${pendingJob.company}`:""}
           </div>
         )}
-
-        <button onClick={handleGoogle} disabled={gLoading}
-          style={{width:"100%",padding:"13px",borderRadius:12,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.05)",color:C.ink,fontSize:14,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:20,transition:"all .2s"}}>
+        <button onClick={handleGoogle} disabled={gLoading} style={{width:"100%",padding:"13px",borderRadius:12,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.05)",color:C.ink,fontSize:14,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:20,transition:"all .2s"}}>
           {gLoading?<Spin size={16}/>:<svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>}
           Continue with Google
         </button>
-
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
           <div style={{flex:1,height:1,background:C.border}}/><span style={{color:C.muted,fontSize:12}}>or</span><div style={{flex:1,height:1,background:C.border}}/>
         </div>
-
         <div style={{display:"flex",background:"rgba(255,255,255,.04)",borderRadius:10,padding:4,marginBottom:20}}>
-          {["login","register"].map(m=>(
-            <button key={m} onClick={()=>{setMode(m);setErr("");setMsg("");}} style={{flex:1,padding:"9px",borderRadius:8,border:"none",cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,transition:"all .2s",background:mode===m?"rgba(124,110,250,.2)":"transparent",color:mode===m?C.violetL:C.muted}}>
-              {m==="login"?"Sign In":"Register"}
-            </button>
-          ))}
+          {["login","register"].map(m=>(<button key={m} onClick={()=>{setMode(m);setErr("");setMsg("");}} style={{flex:1,padding:"9px",borderRadius:8,border:"none",cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,transition:"all .2s",background:mode===m?"rgba(124,110,250,.2)":"transparent",color:mode===m?C.violetL:C.muted}}>{m==="login"?"Sign In":"Register"}</button>))}
         </div>
-
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           {mode==="register"&&<input style={inp} placeholder="Full name" value={form.name} onChange={e=>set("name",e.target.value)} onFocus={ev=>ev.target.style.borderColor=C.violet} onBlur={ev=>ev.target.style.borderColor=C.border}/>}
           <input style={inp} placeholder="Email address" type="email" value={form.email} onChange={e=>set("email",e.target.value)} onKeyDown={e=>e.key==="Enter"&&handle()} onFocus={ev=>ev.target.style.borderColor=C.violet} onBlur={ev=>ev.target.style.borderColor=C.border}/>
           <input style={inp} placeholder="Password" type="password" value={form.password} onChange={e=>set("password",e.target.value)} onKeyDown={e=>e.key==="Enter"&&handle()} onFocus={ev=>ev.target.style.borderColor=C.violet} onBlur={ev=>ev.target.style.borderColor=C.border}/>
         </div>
-
         {err&&<div style={{color:C.red,fontSize:12,marginTop:10,background:C.redPale,padding:"8px 12px",borderRadius:8,border:`1px solid ${C.red}20`}}>⚠ {err}</div>}
         {msg&&<div style={{color:C.green,fontSize:12,marginTop:10,background:C.greenPale,padding:"8px 12px",borderRadius:8,border:`1px solid ${C.green}20`}}>{msg}</div>}
-
-        <Btn v="violet" onClick={handle} loading={loading} style={{width:"100%",marginTop:16,padding:"13px",fontSize:15}}>
-          {mode==="login"?"Sign In →":"Create Account →"}
-        </Btn>
-
-        <div style={{textAlign:"center",marginTop:16,fontSize:12,color:C.muted}}>
-          Questions? <a href="mailto:takeplace.in@gmail.com" style={{color:C.violetL,fontWeight:700}}>takeplace.in@gmail.com</a>
-        </div>
+        <Btn v="violet" onClick={handle} loading={loading} style={{width:"100%",marginTop:16,padding:"13px",fontSize:15}}>{mode==="login"?"Sign In →":"Create Account →"}</Btn>
+        <div style={{textAlign:"center",marginTop:16,fontSize:12,color:C.muted}}>Questions? <a href="mailto:takeplace.in@gmail.com" style={{color:C.violetL,fontWeight:700}}>takeplace.in@gmail.com</a></div>
       </div>
     </div>
   );
 }
 
-// ── MAIN APP (UPGRADED) ───────────────────────────────────────────────────────
+// ── MAIN APP ──────────────────────────────────────────────────────────────────
 function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
   const[tab,setTab]=useState(()=>parseInt(sessionStorage.getItem("tp_tab")||"0"));
   const[menuOpen,setMenuOpen]=useState(false);
   const[stats,setStats]=useState(null);
-  const[statsLoading,setStatsLoading]=useState(true);
   const[prefillCompany,setPrefillCompany]=useState("");
   const[prefillRole,setPrefillRole]=useState("");
 
@@ -2623,55 +2306,34 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
 
   const setTabP=(t)=>{setTab(t);sessionStorage.setItem("tp_tab",t);};
 
-  const TABS=[
-    {icon:"🏠",label:"Home",id:0},
-    {icon:"🔥",label:"Jobs",id:1},
-    {icon:"🎯",label:"Resume Interview",id:2},
-    {icon:"🎤",label:"Quick Mock",id:3},
-  ];
+  const TABS=[{icon:"🏠",label:"Home",id:0},{icon:"🔥",label:"Jobs",id:1},{icon:"🎯",label:"Resume Interview",id:2},{icon:"🎤",label:"Quick Mock",id:3}];
 
-  useEffect(()=>{
-    fetchUserStats(user?.id).then(s=>{setStats(s);setStatsLoading(false);});
-  },[user]);
-
-  // Preload Razorpay checkout script early so the modal opens instantly later.
+  useEffect(()=>{fetchUserStats(user?.id).then(s=>setStats(s));},[user]);
   useEffect(()=>{loadRazorpayScript();},[]);
 
   useEffect(()=>{
     if(pendingJob&&(pendingJob.role||pendingJob.company||pendingJob.jurl)){
       setTabP(1);
       if(pendingJob.role)sessionStorage.setItem("tp_s",pendingJob.role);
-      if(pendingJob.jurl){
-        try{window.open(pendingJob.jurl,"_blank");}catch{}
-      }
+      if(pendingJob.jurl){try{window.open(pendingJob.jurl,"_blank");}catch{}}
       onPendingJobHandled&&onPendingJobHandled();
     }
-   // eslint-disable-next-line
+  // eslint-disable-next-line
   },[]);
 
-  const refreshStats=()=>{
-    fetchUserStats(user?.id).then(s=>setStats(s));
-  };
+  const refreshStats=()=>{fetchUserStats(user?.id).then(s=>setStats(s));};
 
-  const handlePracticeForJob=(company,role)=>{
-    setPrefillCompany(company||"");
-    setPrefillRole(role||"");
-    setTabP(2);
-  };
+  const handlePracticeForJob=(company,role)=>{setPrefillCompany(company||"");setPrefillRole(role||"");setTabP(2);};
 
   return(
     <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Inter',sans-serif",paddingBottom:76}}>
-      <style>{CSS}
-        {`@media(min-width:640px){.bn{display:none!important;}.ttb{display:flex!important;}}@media(max-width:639px){.ttb{display:none!important;}.bn{display:flex!important;}}`}
-      </style>
+      <style>{CSS}{`@media(min-width:640px){.bn{display:none!important;}.ttb{display:flex!important;}}@media(max-width:639px){.ttb{display:none!important;}.bn{display:flex!important;}}`}</style>
 
       <div style={{background:"rgba(8,12,20,.95)",backdropFilter:"blur(20px)",borderBottom:`1px solid ${C.border}`,padding:"0 20px",position:"sticky",top:0,zIndex:100}}>
         <div style={{maxWidth:900,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:58}}>
           <div style={{fontWeight:900,fontSize:20,fontFamily:"'Plus Jakarta Sans',sans-serif",display:"flex",alignItems:"center",gap:7}}>
-            <span>🎤</span>
-            <span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</span>
+            <span>🎤</span><span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</span>
           </div>
-
           {streak>0&&(
             <div style={{display:"flex",alignItems:"center",gap:6,background:C.goldPale,borderRadius:20,padding:"4px 12px",border:`1px solid ${C.gold}25`}}>
               <span style={{animation:"streakPop 3s ease infinite"}}>🔥</span>
@@ -2679,15 +2341,9 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
               <span style={{color:"rgba(245,158,11,.6)",fontSize:11,fontWeight:600}}>day streak</span>
             </div>
           )}
-
           <div className="ttb" style={{display:"none",gap:0}}>
-            {TABS.map(t=>(
-              <button key={t.id} onClick={()=>setTabP(t.id)} style={{padding:"8px 16px",border:"none",background:"transparent",cursor:"pointer",color:tab===t.id?C.violetL:C.soft,fontFamily:"'Inter',sans-serif",fontWeight:tab===t.id?700:500,fontSize:13,borderBottom:`2px solid ${tab===t.id?C.violet:"transparent"}`,transition:"all .2s",display:"flex",alignItems:"center",gap:5}}>
-                {t.icon} {t.label}
-              </button>
-            ))}
+            {TABS.map(t=>(<button key={t.id} onClick={()=>setTabP(t.id)} style={{padding:"8px 16px",border:"none",background:"transparent",cursor:"pointer",color:tab===t.id?C.violetL:C.soft,fontFamily:"'Inter',sans-serif",fontWeight:tab===t.id?700:500,fontSize:13,borderBottom:`2px solid ${tab===t.id?C.violet:"transparent"}`,transition:"all .2s",display:"flex",alignItems:"center",gap:5}}>{t.icon} {t.label}</button>))}
           </div>
-
           <div style={{position:"relative"}}>
             <button onClick={()=>setMenuOpen(m=>!m)} style={{width:34,height:34,borderRadius:"50%",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:"#fff",border:"none",cursor:"pointer",boxShadow:`0 2px 12px ${C.violet}40`}}>{initials}</button>
             {menuOpen&&(
@@ -2709,27 +2365,19 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
       </div>
 
       <div className="bn" style={{position:"fixed",bottom:0,left:0,right:0,background:"rgba(8,12,20,.97)",backdropFilter:"blur(20px)",borderTop:`1px solid ${C.border}`,display:"flex",zIndex:200,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
-        {TABS.map(t=>(
-          <button key={t.id} onClick={()=>setTabP(t.id)} style={{flex:1,padding:"10px 4px 8px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,color:tab===t.id?C.violetL:C.muted,fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>
-            <div style={{width:tab===t.id?24:0,height:2,borderRadius:1,background:C.violet,marginBottom:3,transition:"width .25s cubic-bezier(.22,1,.36,1)"}}/>
-            <span style={{fontSize:18,lineHeight:1}}>{t.icon}</span>
-            <span style={{fontSize:9,fontWeight:tab===t.id?700:500,letterSpacing:.3}}>{t.label}</span>
-          </button>
-        ))}
+        {TABS.map(t=>(<button key={t.id} onClick={()=>setTabP(t.id)} style={{flex:1,padding:"10px 4px 8px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,color:tab===t.id?C.violetL:C.muted,fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>
+          <div style={{width:tab===t.id?24:0,height:2,borderRadius:1,background:C.violet,marginBottom:3,transition:"width .25s cubic-bezier(.22,1,.36,1)"}}/>
+          <span style={{fontSize:18,lineHeight:1}}>{t.icon}</span>
+          <span style={{fontSize:9,fontWeight:tab===t.id?700:500,letterSpacing:.3}}>{t.label}</span>
+        </button>))}
       </div>
     </div>
   );
 }
 
 // ── ERROR BOUNDARY ────────────────────────────────────────────────────────────
-// FIX (defense in depth for issue #3): any future render-time crash now shows
-// a friendly recoverable screen instead of a blank/black page with no clue
-// what happened.
-class ErrorBoundary extends React.Component{
-  constructor(props){
-    super(props);
-    this.state={hasError:false};
-  }
+class ErrorBoundary extends (typeof React!=="undefined"?React.Component:Object){
+  constructor(props){super(props);this.state={hasError:false};}
   static getDerivedStateFromError(){return{hasError:true};}
   componentDidCatch(err,info){console.error("App crashed:",err,info);}
   render(){
@@ -2738,7 +2386,7 @@ class ErrorBoundary extends React.Component{
         <div style={{minHeight:"100vh",background:"#080C14",color:"#fff",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14,padding:24,textAlign:"center",fontFamily:"'Inter',sans-serif"}}>
           <div style={{fontSize:40}}>⚠️</div>
           <div style={{fontWeight:700,fontSize:18}}>Something went wrong</div>
-          <div style={{color:"rgba(255,255,255,.5)",fontSize:13,maxWidth:320}}>Please reload. If this keeps happening, check the browser console for the error logged above and let us know at takeplace.in@gmail.com.</div>
+          <div style={{color:"rgba(255,255,255,.5)",fontSize:13,maxWidth:320}}>Please reload. If this persists, check the browser console and contact takeplace.in@gmail.com.</div>
           <button onClick={()=>window.location.reload()} style={{padding:"10px 24px",borderRadius:10,border:"none",background:"#7C6EFA",color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>Reload</button>
         </div>
       );
@@ -2753,10 +2401,7 @@ function parseJobParams(){
   const p=new URLSearchParams(window.location.search);
   const company=p.get("cmp")||"",role=p.get("role")||"",jurl=p.get("jurl")||"",jid=p.get("jid")||"";
   if(company||role||jurl||jid)return{company,role,jurl,jid};
-  try{
-    const stashed=sessionStorage.getItem("tp_pending_job");
-    if(stashed){sessionStorage.removeItem("tp_pending_job");return JSON.parse(stashed);}
-  }catch{}
+  try{const stashed=sessionStorage.getItem("tp_pending_job");if(stashed){sessionStorage.removeItem("tp_pending_job");return JSON.parse(stashed);}}catch{}
   return null;
 }
 
@@ -2769,28 +2414,21 @@ function AppInner(){
 
   const clearJobParams=()=>{
     setPendingJob(null);
-    if(typeof window!=="undefined"){
-      const url=new URL(window.location.href);
-      url.search="";
-      window.history.replaceState({},"",url.toString());
-    }
+    if(typeof window!=="undefined"){const url=new URL(window.location.href);url.search="";window.history.replaceState({},"",url.toString());}
   };
 
-  const routeAfterAuth=(u)=>{
-    setUser(u);
-    setPage("app");
-    setShowOnboarding(!u?.user_metadata?.onboarded);
-  };
+  const routeAfterAuth=(u)=>{setUser(u);setPage("app");setShowOnboarding(!u?.user_metadata?.onboarded);};
 
   useEffect(()=>{
     const s=document.createElement("style");s.textContent=CSS;document.head.appendChild(s);
-    if(window.speechSynthesis)window.speechSynthesis.getVoices();
+    // Pre-warm voices list
+    if(window.speechSynthesis){
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged=()=>{window.speechSynthesis.getVoices();};
+    }
     supabase.auth.getSession().then(({data:{session}})=>{
-      if(session?.user){
-        routeAfterAuth(session.user);
-      }else if(pendingJob){
-        setPage("auth");
-      }
+      if(session?.user){routeAfterAuth(session.user);}
+      else if(pendingJob){setPage("auth");}
       setLoading(false);
     });
     const{data:{subscription}}=supabase.auth.onAuthStateChange((_,session)=>{
@@ -2798,15 +2436,13 @@ function AppInner(){
       else{setUser(null);setPage(pendingJob?"auth":"landing");setShowOnboarding(false);}
     });
     return()=>subscription.unsubscribe();
-    // eslint-disable-next-line
+  // eslint-disable-next-line
   },[]);
 
   const handleOnboardingComplete=async(picks)=>{
     setShowOnboarding(false);
-    try{
-      const{data}=await supabase.auth.updateUser({data:{onboarded:true,target_company:picks.company,experience_level:picks.level}});
-      if(data?.user)setUser(data.user);
-    }catch(e){console.log("onboarding flag save failed:",e.message);}
+    try{const{data}=await supabase.auth.updateUser({data:{onboarded:true,target_company:picks.company,experience_level:picks.level}});if(data?.user)setUser(data.user);}
+    catch(e){console.log("onboarding flag save failed:",e.message);}
   };
 
   if(loading)return(
@@ -2820,18 +2456,10 @@ function AppInner(){
 
   if(page==="landing")return<LandingPage onStart={()=>setPage("auth")}/>;
   if(page==="auth")return<AuthPage onLogin={routeAfterAuth} onBack={()=>setPage("landing")} pendingJob={pendingJob}/>;
-
-  if(page==="app"&&showOnboarding)return(
-    <OnboardingFlow user={user} onComplete={handleOnboardingComplete}/>
-  );
-
+  if(page==="app"&&showOnboarding)return<OnboardingFlow user={user} onComplete={handleOnboardingComplete}/>;
   return<MainApp user={user} onLogout={()=>supabase.auth.signOut()} pendingJob={pendingJob} onPendingJobHandled={clearJobParams}/>;
 }
 
 export default function App(){
-  return(
-    <ErrorBoundary>
-      <AppInner/>
-    </ErrorBoundary>
-  );
+  return<ErrorBoundary><AppInner/></ErrorBoundary>;
 }
