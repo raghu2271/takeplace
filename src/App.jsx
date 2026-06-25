@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
@@ -2717,7 +2717,7 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
 // FIX (defense in depth for issue #3): any future render-time crash now shows
 // a friendly recoverable screen instead of a blank/black page with no clue
 // what happened.
-class ErrorBoundary extends (typeof React!=="undefined"?React.Component:Object){
+class ErrorBoundary extends React.Component{
   constructor(props){
     super(props);
     this.state={hasError:false};
