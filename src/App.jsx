@@ -1,6 +1,6 @@
 
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
@@ -2376,7 +2376,7 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
 }
 
 // ── ERROR BOUNDARY ────────────────────────────────────────────────────────────
-class ErrorBoundary extends (typeof React!=="undefined"?React.Component:Object){
+class ErrorBoundary extends React.Component{
   constructor(props){super(props);this.state={hasError:false};}
   static getDerivedStateFromError(){return{hasError:true};}
   componentDidCatch(err,info){console.error("App crashed:",err,info);}
