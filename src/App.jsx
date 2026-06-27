@@ -519,14 +519,6 @@ async function saveCached(table,company,role,payload){
 }
 async function generatePrepQA(company,role){
   const raw=await callGroq(
-    `You are a master-level interview coach with deep knowledge of ${company}'s real, previously-reported interview questions for ${role}.
-Return ONLY: {"questions":[{"q":"<exact question reported as asked at ${company}>","topic":"<DSA|System Design|Behavioral|HR|Technical>","difficulty":"Easy|Medium|Hard","reportedNote":"<1 short phrase like 'Asked in technical round 2' or 'Common HR opener at ${company}'>","answer":"<a strong, specific, master-level model answer, 4-6 sentences>","how_to_answer":"<2-3 sentence breakdown of the structure/approach to use when answering this>"}]}
-Give exactly 35 questions, ordered easiest to hardest, covering the realistic mix of round types for this company and role.`,7000);
-  return safeJSON(raw,null);
-
-}
-async function generatePrepQA(company,role){
-  const raw=await callGroq(
     `You are a master-level interview coach with deep knowledge of ${company}'s actual interview questions for ${role}.
 Return ONLY: {"questions":[{"q":"<exact question ${company} is known to ask>","topic":"<DSA|System Design|Behavioral|HR|Technical>","difficulty":"Easy|Medium|Hard","answer":"<a strong, specific, master-level model answer, 4-6 sentences>","how_to_answer":"<2-3 sentence breakdown of the structure/approach to use when answering this>"}]}
 Give exactly 12 questions, ordered easiest to hardest, covering the realistic mix of round types for this company and role.`,3200);
