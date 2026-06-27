@@ -571,24 +571,33 @@ function CompanyPrepTab({user,onPracticeForCompany}){
 
   const sc=d=>d==="Hard"?C.red:d==="Medium"?C.gold:C.green;
 
-  if(step==="pick")return(
+ if(step==="pick")return(
     <div className="fade">
-      <div style={{marginBottom:20}}>
+      <div style={{marginBottom:22}}>
         <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:5,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🏢 Interview Prep</div>
-        <div style={{color:C.soft,fontSize:13.5,lineHeight:1.7}}>See the exact interview roadmap for free. Unlock real questions + master-level answers with Prep Pro.</div>
+        <div style={{color:C.soft,fontSize:13.5,lineHeight:1.75,maxWidth:580}}>Tell us the company and role. We'll show you the exact rounds to expect — plus the real questions they've asked before, with model answers.</div>
       </div>
-      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18}}>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-          <input style={inp} placeholder="Company e.g. Google" value={company} onChange={e=>setCompany(e.target.value)}/>
-          <input style={inp} placeholder="Role e.g. SDE-1" value={role} onChange={e=>setRole(e.target.value)}/>
+      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:20}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:5,textTransform:"uppercase",letterSpacing:.7}}>Target Company</div>
+            <input style={inp} placeholder="e.g. Google, Amazon, TCS…" value={company} onChange={e=>setCompany(e.target.value)} onFocus={e=>e.target.style.borderColor=C.violet} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.08)"}/>
+          </div>
+          <div>
+            <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:5,textTransform:"uppercase",letterSpacing:.7}}>Role</div>
+            <input style={inp} placeholder="e.g. SDE-1, Data Analyst…" value={role} onChange={e=>setRole(e.target.value)} onFocus={e=>e.target.style.borderColor=C.violet} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.08)"}/>
+          </div>
         </div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
-          {quickCompanies.map(c=>(
-            <button key={c} onClick={()=>setCompany(c)} style={{padding:"4px 12px",borderRadius:20,border:`1px solid ${company===c?C.violet:C.border}`,background:company===c?C.violetPale:"transparent",color:company===c?C.violetL:C.soft,fontSize:11,fontWeight:700,cursor:"pointer"}}>{c}</button>
-          ))}
+        <div style={{marginBottom:18}}>
+          <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:7,textTransform:"uppercase",letterSpacing:.7}}>Or pick a popular company</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {quickCompanies.map(c=>(
+              <button key={c} onClick={()=>setCompany(c)} style={{padding:"6px 14px",borderRadius:20,border:`1px solid ${company===c?C.violet:C.border}`,background:company===c?C.violetPale:"transparent",color:company===c?C.violetL:C.soft,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{c}</button>
+            ))}
+          </div>
         </div>
-        <Btn v="violet" onClick={loadRoadmap} loading={loading} style={{width:"100%"}}>🗺️ See Free Roadmap</Btn>
-        {err&&<div style={{color:C.red,fontSize:12,marginTop:8}}>{err}</div>}
+        <Btn v="violet" onClick={loadRoadmap} loading={loading} style={{width:"100%",padding:"14px",fontSize:15,borderRadius:12}}>📋 Get Interview Questions →</Btn>
+        {err&&<div style={{color:C.red,fontSize:12,marginTop:10}}>{err}</div>}
       </div>
     </div>
   );
@@ -1261,7 +1270,7 @@ function Dashboard({user,onStartInterview,onGoToJobs,stats}){
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
         <div className="lift" onClick={onStartInterview} style={{background:`linear-gradient(135deg,${C.violetD}20,${C.violet}15)`,border:`1px solid ${C.violet}25`,borderRadius:16,padding:"20px",cursor:"pointer"}}>
           <div style={{fontSize:28,marginBottom:10}}>🎯</div>
-          <div style={{fontWeight:700,fontSize:14,color:C.ink,marginBottom:4}}>Resume Interview</div>
+          <div style={{fontWeight:700,fontSize:14,color:C.ink,marginBottom:4}}>AI Mock Interview</div>
           <div style={{color:C.soft,fontSize:12,lineHeight:1.6}}>Upload your resume, pick your company — get a fully personalized interview</div>
         </div>
         <div className="lift" onClick={onGoToJobs} style={{background:`linear-gradient(135deg,${C.tealD}15,${C.teal}10)`,border:`1px solid ${C.teal}20`,borderRadius:16,padding:"20px",cursor:"pointer"}}>
@@ -2629,12 +2638,16 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
         {tab===4&&<QuickMockTab user={user} onInterviewComplete={refreshStats}/>}
       </div>
 
-      <div className="bn" style={{position:"fixed",bottom:0,left:0,right:0,background:"rgba(8,12,20,.97)",backdropFilter:"blur(20px)",borderTop:`1px solid ${C.border}`,display:"flex",zIndex:200,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
-        {TABS.map(t=>(<button key={t.id} onClick={()=>setTabP(t.id)} style={{flex:1,padding:"10px 4px 8px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,color:tab===t.id?C.violetL:C.muted,fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>
-          <div style={{width:tab===t.id?24:0,height:2,borderRadius:1,background:C.violet,marginBottom:3,transition:"width .25s cubic-bezier(.22,1,.36,1)"}}/>
-          <span style={{fontSize:18,lineHeight:1}}>{t.icon}</span>
-          <span style={{fontSize:9,fontWeight:tab===t.id?700:500,letterSpacing:.3}}>{t.label}</span>
-        </button>))}
+     <div className="bn" style={{position:"fixed",bottom:12,left:12,right:12,background:"rgba(13,18,32,.92)",backdropFilter:"blur(24px)",border:`1px solid ${C.border}`,borderRadius:20,display:"flex",zIndex:200,padding:6,boxShadow:"0 12px 40px rgba(0,0,0,.5)",paddingBottom:"calc(6px + env(safe-area-inset-bottom,0px))"}}>
+        {TABS.map(t=>{
+          const active=tab===t.id;
+          return(
+            <button key={t.id} onClick={()=>setTabP(t.id)} style={{flex:1,padding:active?"9px 4px":"9px 2px",border:"none",borderRadius:14,background:active?`linear-gradient(135deg,${C.violetD}30,${C.violet}20)`:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,color:active?C.violetL:C.muted,fontFamily:"'Inter',sans-serif",transition:"all .25s cubic-bezier(.22,1,.36,1)"}}>
+              <span style={{fontSize:active?20:17,lineHeight:1,transition:"font-size .2s"}}>{t.icon}</span>
+              {active&&<span style={{fontSize:8.5,fontWeight:800,letterSpacing:.2,whiteSpace:"nowrap",maxWidth:64,overflow:"hidden",textOverflow:"ellipsis"}}>{t.label}</span>}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
