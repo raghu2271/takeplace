@@ -517,12 +517,13 @@ async function saveCached(table,company,role,payload){
   try{await supabase.from(table).upsert({company:company.toLowerCase(),role:role.toLowerCase(),data:payload,updated_at:new Date().toISOString()});}
   catch(e){console.log("cache save error:",e.message);}
 }
-async function generateRoadmap(company,role){
+async function generatePrepQA(company,role){
   const raw=await callGroq(
-    `You know ${company}'s real hiring process for ${role}.
-Return ONLY: {"steps":[{"round":"<name>","duration":"<e.g. 45 min>","what_happens":"<3-4 sentence detailed walkthrough of exactly what happens in this round>","how_to_prepare":"<2-3 sentence specific prep advice for this exact round>"}]}
-Give 5-7 rounds, in real order, from application to offer.`,1800);
+    `You are a master-level interview coach with deep knowledge of ${company}'s real, previously-reported interview questions for ${role}.
+Return ONLY: {"questions":[{"q":"<exact question reported as asked at ${company}>","topic":"<DSA|System Design|Behavioral|HR|Technical>","difficulty":"Easy|Medium|Hard","reportedNote":"<1 short phrase like 'Asked in technical round 2' or 'Common HR opener at ${company}'>","answer":"<a strong, specific, master-level model answer, 4-6 sentences>","how_to_answer":"<2-3 sentence breakdown of the structure/approach to use when answering this>"}]}
+Give exactly 35 questions, ordered easiest to hardest, covering the realistic mix of round types for this company and role.`,7000);
   return safeJSON(raw,null);
+
 }
 async function generatePrepQA(company,role){
   const raw=await callGroq(
@@ -634,36 +635,98 @@ function CompanyPrepTab({user,onPracticeForCompany}){
         </div>
       )}
 
-      {qa&&(
-        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:16}}>
-          <div style={{fontWeight:700,color:C.ink,fontSize:15,marginBottom:14}}>📚 {company} Interview Questions — {role}</div>
-          {qa.questions?.map((q,i)=>{
-            const isExp=expanded===i;
-            return(
-              <div key={i} style={{background:"rgba(255,255,255,.02)",border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:10}}>
-                <div style={{display:"flex",justifyContent:"space-between",gap:8,marginBottom:6}}>
-                  <div style={{fontWeight:600,fontSize:13,color:C.ink}}>Q{i+1}. {q.q}</div>
-                  <Tag color={sc(q.difficulty)} size={10}>{q.difficulty}</Tag>
-                </div>
-                <Tag color={C.teal} size={10}>{q.topic}</Tag>
-                <button onClick={()=>setExpanded(isExp?null:i)} style={{display:"block",background:"none",border:"none",color:C.violet,fontSize:11,fontWeight:700,cursor:"pointer",marginTop:8}}>
-                  {isExp?"▲ Hide answer":"▼ See model answer + how to answer"}
-                </button>
-                {isExp&&(
-                  <div style={{marginTop:10}}>
-                    <div style={{background:C.violetPale,borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:12.5,color:C.ink2,lineHeight:1.7}}>
-                      <strong style={{color:C.violetL}}>Model answer:</strong> {q.answer}
-                    </div>
-                    <div style={{background:C.tealPale,borderRadius:8,padding:"10px 12px",fontSize:12.5,color:C.ink2,lineHeight:1.7}}>
-                      <strong style={{color:C.tealL}}>How to answer:</strong> {q.how_to_answer}
-                    </div>
+    {qa&&(()=>{
+        const FREE_QA=5;
+        const freeQs=qa.questions?.slice(0,FREE_QA)||[];
+        const lockedQs=qa.questions?.slice(FREE_QA)||[];
+        return(
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:16}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:4}}>
+              <div style={{fontWeight:700,color:C.ink,fontSize:15}}>📚 {company} Interview Questions — {role}</div>
+              <Tag color={C.green} size={10}>{FREE_QA} free</Tag>
+            </div>
+            <div style={{color:C.soft,fontSize:11.5,marginBottom:14}}>Reported by real candidates who interviewed at {company}</div>
+
+            {freeQs.map((q,i)=>{
+              const isExp=expanded===i;
+              return(
+                <div key={i} style={{background:"rgba(255,255,255,.02)",border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:10}}>
+                  <div style={{display:"flex",justifyContent:"space-between",gap:8,marginBottom:6}}>
+                    <div style={{fontWeight:600,fontSize:13,color:C.ink}}>Q{i+1}. {q.q}</div>
+                    <Tag color={sc(q.difficulty)} size={10}>{q.difficulty}</Tag>
                   </div>
-                )}
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:4}}>
+                    <Tag color={C.teal} size={10}>{q.topic}</Tag>
+                    {q.reportedNote&&<Tag color={C.gold} size={10}>📍 {q.reportedNote}</Tag>}
+                  </div>
+                  <button onClick={()=>setExpanded(isExp?null:i)} style={{display:"block",background:"none",border:"none",color:C.violet,fontSize:11,fontWeight:700,cursor:"pointer",marginTop:8}}>
+                    {isExp?"▲ Hide answer":"▼ See model answer + how to answer"}
+                  </button>
+                  {isExp&&(
+                    <div style={{marginTop:10}}>
+                      <div style={{background:C.violetPale,borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:12.5,color:C.ink2,lineHeight:1.7}}>
+                        <strong style={{color:C.violetL}}>Model answer:</strong> {q.answer}
+                      </div>
+                      <div style={{background:C.tealPale,borderRadius:8,padding:"10px 12px",fontSize:12.5,color:C.ink2,lineHeight:1.7}}>
+                        <strong style={{color:C.tealL}}>How to answer:</strong> {q.how_to_answer}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {!isPrepPro&&lockedQs.length>0&&(
+              <div style={{position:"relative",marginTop:6}}>
+                <div style={{filter:"blur(4px)",pointerEvents:"none",userSelect:"none"}}>
+                  {lockedQs.slice(0,3).map((q,i)=>(
+                    <div key={i} style={{background:"rgba(255,255,255,.02)",border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:10}}>
+                      <div style={{fontWeight:600,fontSize:13,color:C.ink}}>Q{FREE_QA+i+1}. {q.q}</div>
+                      <Tag color={C.teal} size={10}>{q.topic}</Tag>
+                    </div>
+                  ))}
+                </div>
+                <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"linear-gradient(180deg,transparent,rgba(13,18,32,.85) 40%)",borderRadius:10,padding:20}}>
+                  <div style={{fontSize:24,marginBottom:6}}>🔒</div>
+                  <div style={{fontWeight:800,fontSize:14,color:C.ink,textAlign:"center"}}>{lockedQs.length} more {company} questions locked</div>
+                  <div style={{color:C.soft,fontSize:11.5,marginTop:4,marginBottom:14,textAlign:"center",maxWidth:280}}>Full model answers + how-to-answer breakdowns for every question</div>
+                  <Btn v="gold" small onClick={()=>setShowUpgrade(true)}>🔓 Unlock all {qa.questions.length} questions</Btn>
+                </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+            )}
+
+            {isPrepPro&&lockedQs.map((q,i)=>{
+              const realIdx=FREE_QA+i;
+              const isExp=expanded===realIdx;
+              return(
+                <div key={realIdx} style={{background:"rgba(255,255,255,.02)",border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:10}}>
+                  <div style={{display:"flex",justifyContent:"space-between",gap:8,marginBottom:6}}>
+                    <div style={{fontWeight:600,fontSize:13,color:C.ink}}>Q{realIdx+1}. {q.q}</div>
+                    <Tag color={sc(q.difficulty)} size={10}>{q.difficulty}</Tag>
+                  </div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:4}}>
+                    <Tag color={C.teal} size={10}>{q.topic}</Tag>
+                    {q.reportedNote&&<Tag color={C.gold} size={10}>📍 {q.reportedNote}</Tag>}
+                  </div>
+                  <button onClick={()=>setExpanded(isExp?null:realIdx)} style={{display:"block",background:"none",border:"none",color:C.violet,fontSize:11,fontWeight:700,cursor:"pointer",marginTop:8}}>
+                    {isExp?"▲ Hide answer":"▼ See model answer + how to answer"}
+                  </button>
+                  {isExp&&(
+                    <div style={{marginTop:10}}>
+                      <div style={{background:C.violetPale,borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:12.5,color:C.ink2,lineHeight:1.7}}>
+                        <strong style={{color:C.violetL}}>Model answer:</strong> {q.answer}
+                      </div>
+                      <div style={{background:C.tealPale,borderRadius:8,padding:"10px 12px",fontSize:12.5,color:C.ink2,lineHeight:1.7}}>
+                        <strong style={{color:C.tealL}}>How to answer:</strong> {q.how_to_answer}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       <Btn v="violet" onClick={()=>onPracticeForCompany?.(company,role)} style={{width:"100%",padding:14}}>🎙️ Practice this live now →</Btn>
       {showUpgrade&&<PrepUpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut}/>}
