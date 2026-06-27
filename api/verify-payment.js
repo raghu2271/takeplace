@@ -6,7 +6,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY // service role key — never expose this to the client
 );
 
-const PLAN_DAYS = { week: 7, month: 30 };
+const PLAN_DAYS = { week: 7, month: 30, prep_week: 7, prep_month: 30 };
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
