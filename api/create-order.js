@@ -1,10 +1,11 @@
 const Razorpay = require("razorpay");
 
 const PLANS = {
-  week:  { amount: 4900,  currency: "INR" }, // ₹49 in paise
-  month: { amount: 19900, currency: "INR" }, // ₹199 in paise
+  week:       { amount: 4900,  currency: "INR" }, // ₹49 in paise
+  month:      { amount: 19900, currency: "INR" }, // ₹199 in paise
+  prep_week:  { amount: 5900,  currency: "INR" }, // ₹59 in paise
+  prep_month: { amount: 19900, currency: "INR" }, // ₹199 in paise
 };
-
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
