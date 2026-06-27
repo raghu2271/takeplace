@@ -461,6 +461,217 @@ function UpgradeModal({onClose,onChoosePlan,checkingOut}){
     </div>
   );
 }
+// ── PREP Q&A SUBSCRIPTION (separate from mock-interview slots) ───────────────
+async function fetchActivePrepSub(userId){
+  if(!userId)return null;
+  try{
+    const{data}=await supabase.from("user_subscriptions").select("*")
+      .eq("user_id",userId).eq("status","active").gte("expires_at",new Date().toISOString())
+      .in("plan",["prep_week","prep_month"]).order("expires_at",{ascending:false}).limit(1).single();
+    return data||null;
+  }catch{return null;}
+}
+function usePrepSubscription(userId){
+  const[sub,setSub]=useState(null);
+  const[loading,setLoading]=useState(true);
+  const refresh=useCallback(()=>{
+    if(!userId){setSub(null);setLoading(false);return;}
+    setLoading(true);
+    fetchActivePrepSub(userId).then(s=>{setSub(s);setLoading(false);});
+  },[userId]);
+  useEffect(()=>{refresh();},[refresh]);
+  return{isPrepPro:!!sub,plan:sub?.plan||null,expiresAt:sub?.expires_at||null,loading,refresh};
+}
+
+function PrepUpgradeModal({onClose,onChoosePlan,checkingOut}){
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:20,padding:28,maxWidth:380,width:"100%"}}>
+        <div style={{fontWeight:900,fontSize:20,color:C.ink,marginBottom:6,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🔓 Unlock master-level Q&A</div>
+        <div style={{color:C.soft,fontSize:13,marginBottom:20,lineHeight:1.7}}>Exact questions companies ask + model answers + how-to-answer breakdowns. Unlimited companies, unlimited roles.</div>
+        {[
+          {plan:"prep_week",label:"1 Week",price:"₹59",desc:"All companies, all roles, 7 days"},
+          {plan:"prep_month",label:"1 Month",price:"₹199",desc:"All companies, all roles, 30 days",popular:true},
+        ].map(p=>(
+          <button key={p.plan} disabled={checkingOut} onClick={()=>onChoosePlan(p.plan)}
+            style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 16px",borderRadius:12,border:`1.5px solid ${p.popular?C.violet:C.border}`,background:p.popular?C.violetPale:"transparent",marginBottom:10,cursor:checkingOut?"not-allowed":"pointer",opacity:checkingOut?.6:1}}>
+            <div>
+              <div style={{fontWeight:700,color:C.ink,fontSize:14}}>{p.label} {p.popular&&<span style={{color:C.violetL,fontSize:10}}>★ BEST VALUE</span>}</div>
+              <div style={{color:C.soft,fontSize:11.5,marginTop:2}}>{p.desc}</div>
+            </div>
+            <div style={{fontWeight:900,fontSize:18,color:C.violetL,fontFamily:"'JetBrains Mono',monospace"}}>{p.price}</div>
+          </button>
+        ))}
+        <button onClick={onClose} style={{width:"100%",background:"none",border:"none",color:C.muted,fontSize:12,marginTop:6,cursor:"pointer"}}>Maybe later</button>
+      </div>
+    </div>
+  );
+}
+
+// ── COMPANY PREP (Free Roadmap + Paid Q&A) ───────────────────────────────────
+async function fetchCached(table,company,role){
+  try{const{data}=await supabase.from(table).select("*").eq("company",company.toLowerCase()).eq("role",role.toLowerCase()).single();return data?.data||null;}
+  catch{return null;}
+}
+async function saveCached(table,company,role,payload){
+  try{await supabase.from(table).upsert({company:company.toLowerCase(),role:role.toLowerCase(),data:payload,updated_at:new Date().toISOString()});}
+  catch(e){console.log("cache save error:",e.message);}
+}
+async function generateRoadmap(company,role){
+  const raw=await callGroq(
+    `You know ${company}'s real hiring process for ${role}.
+Return ONLY: {"steps":[{"round":"<name>","duration":"<e.g. 45 min>","what_happens":"<3-4 sentence detailed walkthrough of exactly what happens in this round>","how_to_prepare":"<2-3 sentence specific prep advice for this exact round>"}]}
+Give 5-7 rounds, in real order, from application to offer.`,1800);
+  return safeJSON(raw,null);
+}
+async function generatePrepQA(company,role){
+  const raw=await callGroq(
+    `You are a master-level interview coach with deep knowledge of ${company}'s actual interview questions for ${role}.
+Return ONLY: {"questions":[{"q":"<exact question ${company} is known to ask>","topic":"<DSA|System Design|Behavioral|HR|Technical>","difficulty":"Easy|Medium|Hard","answer":"<a strong, specific, master-level model answer, 4-6 sentences>","how_to_answer":"<2-3 sentence breakdown of the structure/approach to use when answering this>"}]}
+Give exactly 12 questions, ordered easiest to hardest, covering the realistic mix of round types for this company and role.`,3200);
+  return safeJSON(raw,null);
+}
+
+function CompanyPrepTab({user,onPracticeForCompany}){
+  const[step,setStep]=useState("pick");
+  const[company,setCompany]=useState("");
+  const[role,setRole]=useState("");
+  const[loading,setLoading]=useState(false);
+  const[roadmap,setRoadmap]=useState(null);
+  const[qa,setQa]=useState(null);
+  const[qaLoading,setQaLoading]=useState(false);
+  const[expanded,setExpanded]=useState(null);
+  const[err,setErr]=useState("");
+  const[showUpgrade,setShowUpgrade]=useState(false);
+  const[checkingOut,setCheckingOut]=useState(false);
+
+  const{isPrepPro,refresh:refreshPrepSub}=usePrepSubscription(user?.id);
+  const quickCompanies=TARGET_COMPANIES.map(c=>c.name);
+
+  const loadRoadmap=async()=>{
+    if(!company.trim()||!role.trim()){setErr("Enter both company and role");return;}
+    setLoading(true);setErr("");setRoadmap(null);setQa(null);
+    try{
+      let r=await fetchCached("company_roadmaps",company,role);
+      if(!r){r=await generateRoadmap(company,role);if(!r)throw new Error();await saveCached("company_roadmaps",company,role,r);}
+      setRoadmap(r);setStep("roadmap");
+    }catch{setErr("⚠ Could not load roadmap. Try again.");}
+    setLoading(false);
+  };
+
+  const unlockQA=async()=>{
+    if(!isPrepPro){setShowUpgrade(true);return;}
+    setQaLoading(true);
+    try{
+      let data=await fetchCached("company_prep_qa",company,role);
+      if(!data){data=await generatePrepQA(company,role);if(!data)throw new Error();await saveCached("company_prep_qa",company,role,data);}
+      setQa(data);
+    }catch{setErr("⚠ Could not load questions. Try again.");}
+    setQaLoading(false);
+  };
+
+  const handleChoosePlan=async(plan)=>{
+    setCheckingOut(true);
+    await startCheckout(plan,user,()=>{setShowUpgrade(false);setCheckingOut(false);refreshPrepSub();unlockQA();});
+    setCheckingOut(false);
+  };
+
+  const sc=d=>d==="Hard"?C.red:d==="Medium"?C.gold:C.green;
+
+  if(step==="pick")return(
+    <div className="fade">
+      <div style={{marginBottom:20}}>
+        <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:5,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🏢 Interview Prep</div>
+        <div style={{color:C.soft,fontSize:13.5,lineHeight:1.7}}>See the exact interview roadmap for free. Unlock real questions + master-level answers with Prep Pro.</div>
+      </div>
+      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+          <input style={inp} placeholder="Company e.g. Google" value={company} onChange={e=>setCompany(e.target.value)}/>
+          <input style={inp} placeholder="Role e.g. SDE-1" value={role} onChange={e=>setRole(e.target.value)}/>
+        </div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+          {quickCompanies.map(c=>(
+            <button key={c} onClick={()=>setCompany(c)} style={{padding:"4px 12px",borderRadius:20,border:`1px solid ${company===c?C.violet:C.border}`,background:company===c?C.violetPale:"transparent",color:company===c?C.violetL:C.soft,fontSize:11,fontWeight:700,cursor:"pointer"}}>{c}</button>
+          ))}
+        </div>
+        <Btn v="violet" onClick={loadRoadmap} loading={loading} style={{width:"100%"}}>🗺️ See Free Roadmap</Btn>
+        {err&&<div style={{color:C.red,fontSize:12,marginTop:8}}>{err}</div>}
+      </div>
+    </div>
+  );
+
+  if(step==="roadmap")return(
+    <div className="fade">
+      <button onClick={()=>{setStep("pick");setQa(null);}} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginBottom:16}}>← Different company</button>
+
+      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:14}}>
+          <div style={{fontWeight:700,color:C.ink,fontSize:15}}>🗺️ {company} Roadmap — {role}</div>
+          <Tag color={C.green}>Free</Tag>
+        </div>
+        {roadmap?.steps?.map((s,i)=>(
+          <div key={i} style={{display:"flex",gap:12,marginBottom:14,position:"relative"}}>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
+              <div style={{width:28,height:28,borderRadius:"50%",background:C.violetPale,color:C.violetL,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:12,flexShrink:0}}>{i+1}</div>
+              {i<roadmap.steps.length-1&&<div style={{width:2,flex:1,background:C.border,marginTop:4}}/>}
+            </div>
+            <div style={{paddingBottom:6}}>
+              <div style={{fontWeight:700,fontSize:13,color:C.ink}}>{s.round} <span style={{color:C.muted,fontSize:11,fontWeight:400}}>· {s.duration}</span></div>
+              <div style={{color:C.soft,fontSize:12.5,marginTop:4,lineHeight:1.7}}>{s.what_happens}</div>
+              <div style={{background:C.tealPale,borderRadius:8,padding:"8px 11px",marginTop:6,fontSize:12,color:C.tealL}}>💡 {s.how_to_prepare}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {!qa&&(
+        <div onClick={unlockQA} className="lift" style={{background:`linear-gradient(135deg,${C.violet}15,${C.gold}10)`,border:`1px solid ${C.violet}30`,borderRadius:16,padding:"20px",textAlign:"center",marginBottom:16}}>
+          <div style={{fontSize:28,marginBottom:8}}>{isPrepPro?"📖":"🔒"}</div>
+          <div style={{fontWeight:800,fontSize:15,color:C.ink,marginBottom:6}}>Real Questions {company} Asks — With Answers</div>
+          <div style={{color:C.soft,fontSize:12.5,marginBottom:14,lineHeight:1.7}}>Exact previously-asked questions, master-level model answers, and how to structure your response.</div>
+          {!isPrepPro&&<div style={{color:C.gold,fontSize:11,fontWeight:700,marginBottom:12}}>₹59/week or ₹199/month · unlimited companies</div>}
+          <Btn v="gold" loading={qaLoading} onClick={(e)=>{e.stopPropagation();unlockQA();}}>{isPrepPro?"Load Questions →":"🔓 Unlock Now"}</Btn>
+        </div>
+      )}
+
+      {qa&&(
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:16}}>
+          <div style={{fontWeight:700,color:C.ink,fontSize:15,marginBottom:14}}>📚 {company} Interview Questions — {role}</div>
+          {qa.questions?.map((q,i)=>{
+            const isExp=expanded===i;
+            return(
+              <div key={i} style={{background:"rgba(255,255,255,.02)",border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:8,marginBottom:6}}>
+                  <div style={{fontWeight:600,fontSize:13,color:C.ink}}>Q{i+1}. {q.q}</div>
+                  <Tag color={sc(q.difficulty)} size={10}>{q.difficulty}</Tag>
+                </div>
+                <Tag color={C.teal} size={10}>{q.topic}</Tag>
+                <button onClick={()=>setExpanded(isExp?null:i)} style={{display:"block",background:"none",border:"none",color:C.violet,fontSize:11,fontWeight:700,cursor:"pointer",marginTop:8}}>
+                  {isExp?"▲ Hide answer":"▼ See model answer + how to answer"}
+                </button>
+                {isExp&&(
+                  <div style={{marginTop:10}}>
+                    <div style={{background:C.violetPale,borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:12.5,color:C.ink2,lineHeight:1.7}}>
+                      <strong style={{color:C.violetL}}>Model answer:</strong> {q.answer}
+                    </div>
+                    <div style={{background:C.tealPale,borderRadius:8,padding:"10px 12px",fontSize:12.5,color:C.ink2,lineHeight:1.7}}>
+                      <strong style={{color:C.tealL}}>How to answer:</strong> {q.how_to_answer}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <Btn v="violet" onClick={()=>onPracticeForCompany?.(company,role)} style={{width:"100%",padding:14}}>🎙️ Practice this live now →</Btn>
+      {showUpgrade&&<PrepUpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut}/>}
+    </div>
+  );
+
+  return null;
+}
 
 // ── SPEECH ENGINE HOOK ────────────────────────────────────────────────────────
 // FIX: All speech bugs consolidated into one reusable hook so both
@@ -2305,8 +2516,7 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
 
   const setTabP=(t)=>{setTab(t);sessionStorage.setItem("tp_tab",t);};
 
-  const TABS=[{icon:"🏠",label:"Home",id:0},{icon:"🔥",label:"Jobs",id:1},{icon:"🎯",label:"Resume Interview",id:2},{icon:"🎤",label:"Quick Mock",id:3}];
-
+ const TABS=[{icon:"🏠",label:"Home",id:0},{icon:"🔥",label:"Jobs",id:1},{icon:"🎯",label:"Resume Interview",id:2},{icon:"🏢",label:"Interview Prep",id:3},{icon:"🎤",label:"Quick Mock",id:4}];
   useEffect(()=>{fetchUserStats(user?.id).then(s=>setStats(s));},[user]);
   useEffect(()=>{loadRazorpayScript();},[]);
 
@@ -2359,8 +2569,9 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
       <div style={{maxWidth:900,margin:"0 auto",padding:"22px 16px"}}>
         {tab===0&&<Dashboard user={user} onStartInterview={()=>setTabP(2)} onGoToJobs={()=>setTabP(1)} stats={stats}/>}
         {tab===1&&<JobsTab onPracticeForJob={handlePracticeForJob}/>}
-        {tab===2&&<ResumeInterviewTab user={user} onInterviewComplete={refreshStats} prefillCompany={prefillCompany} prefillRole={prefillRole}/>}
-        {tab===3&&<QuickMockTab user={user} onInterviewComplete={refreshStats}/>}
+        {tab===2&&<ResumeInterviewTab user={user} onInterviewComplete={refreshStats} prefillCompany={prefillCompany} prefillRole={prefillRole}/>}  
+        {tab===3&&<CompanyPrepTab user={user} onPracticeForCompany={handlePracticeForJob}/>}
+        {tab===4&&<QuickMockTab user={user} onInterviewComplete={refreshStats}/>}
       </div>
 
       <div className="bn" style={{position:"fixed",bottom:0,left:0,right:0,background:"rgba(8,12,20,.97)",backdropFilter:"blur(20px)",borderTop:`1px solid ${C.border}`,display:"flex",zIndex:200,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
