@@ -2367,7 +2367,7 @@ function JobsTab({onPracticeForJob}){
 function LandingPage({onStart}){
   const[scrolled,setScrolled]=useState(false);
   useEffect(()=>{const h=()=>setScrolled(window.scrollY>60);window.addEventListener("scroll",h);return()=>window.removeEventListener("scroll",h);},[]);
-
+ 
   const features=[
     {icon:"🎯",title:"Resume-personalized questions",desc:"AI reads your actual projects and tech stack — questions about your TakePlace app, your internship, your specific tech."},
     {icon:"🎥",title:"Full-screen camera room",desc:"Full HD camera, self-view PiP, LIVE indicator. Build composure under real conditions."},
@@ -2376,235 +2376,434 @@ function LandingPage({onStart}){
     {icon:"🏢",title:"Company-style matching",desc:"Google interviews differently than TCS. We mirror each company's real culture and difficulty."},
     {icon:"🔓",title:"15 mock interviews per role",desc:"2 free per role. Unlock all 15 from ₹49."},
   ];
-
+ 
   const testimonials=[
     {name:"Priya M.",role:"SDE at Wipro",text:"The AI asked specifically about my TakePlace project. That's exactly what happened in my real interview. I was so prepared I almost corrected the interviewer.",score:91,company:"Wipro"},
     {name:"Arun K.",role:"Data Analyst at TCS",text:"The live filler word detector caught me saying 'basically' 12 times per answer. Fixed it before the real interview. Got the offer.",score:83,company:"TCS"},
     {name:"Sneha R.",role:"Full Stack Dev at Infosys",text:"Resume interview + Amazon target = they asked about my app's architecture in depth. I'd answered that question three times in practice. Offer in round 2.",score:94,company:"Amazon"},
   ];
-
+ 
+  const landingCSS=`
+    @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+    .marquee-track{display:flex;gap:20px;animation:marquee 25s linear infinite;}
+    .marquee-wrap{overflow:hidden;}
+    @keyframes heroFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+    .hero-card{animation:heroFloat 4s ease-in-out infinite;}
+    .cta-glow{box-shadow:0 0 40px rgba(124,110,250,.35),0 4px 20px rgba(124,110,250,.25);transition:all .25s;}
+    .cta-glow:hover{box-shadow:0 0 60px rgba(124,110,250,.5),0 8px 30px rgba(124,110,250,.4);transform:translateY(-2px);}
+    .feature-card{transition:transform .18s,box-shadow .18s;}
+    .feature-card:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(0,0,0,.25);}
+    .nav-link-btn{background:none;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;color:rgba(255,255,255,.6);padding:8px 14px;border-radius:8px;transition:color .2s;}
+    .nav-link-btn:hover{color:rgba(255,255,255,.9);}
+    @media(max-width:768px){
+      .hero-grid{grid-template-columns:1fr!important;}
+      .hero-mockup{display:block!important;}
+      .hero-text{text-align:center;}
+      .hero-cta-row{justify-content:center!important;}
+      .hero-stats{justify-content:center!important;}
+      .feature-grid{grid-template-columns:1fr!important;}
+      .step-grid{grid-template-columns:1fr!important;}
+      .testimonial-grid{grid-template-columns:1fr!important;}
+      .pricing-grid{grid-template-columns:1fr!important;}
+    }
+  `;
+ 
   return(
-    <div style={{background:C.lBg,color:C.lText,fontFamily:"'Inter',sans-serif",overflowX:"hidden"}}>
-      <style>{CSS}{`
-        @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-        .marquee-track{display:flex;gap:20px;animation:marquee 25s linear infinite;}
-        .marquee-wrap{overflow:hidden;}
-        @keyframes heroFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-        .hero-card{animation:heroFloat 4s ease-in-out infinite;}
-        .cta-glow{box-shadow:0 0 40px rgba(124,110,250,.3),0 4px 20px rgba(124,110,250,.25);}
-        .cta-glow:hover{box-shadow:0 0 60px rgba(124,110,250,.4),0 8px 30px rgba(124,110,250,.35);}
-      `}</style>
-
-      <nav style={{position:"fixed",top:0,left:0,right:0,zIndex:1000,background:scrolled?"rgba(8,12,20,.97)":"transparent",backdropFilter:scrolled?"blur(20px)":"none",borderBottom:scrolled?"1px solid rgba(255,255,255,.08)":"none",transition:"all .3s",padding:"0 24px"}}>
-        <div style={{maxWidth:1100,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:64}}>
-          <div style={{fontWeight:900,fontSize:22,color:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",display:"flex",alignItems:"center",gap:8}}>
-            <span>🎤</span><span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</span>
+    <div style={{background:"#080C14",color:"#F1F5F9",fontFamily:"'Inter',sans-serif",overflowX:"hidden"}}>
+      <style>{landingCSS}</style>
+ 
+      {/* ── NAV ── */}
+      <nav style={{
+        position:"fixed",top:0,left:0,right:0,zIndex:1000,
+        background:scrolled?"rgba(8,12,20,.97)":"transparent",
+        backdropFilter:scrolled?"blur(20px)":"none",
+        borderBottom:scrolled?"1px solid rgba(255,255,255,.08)":"none",
+        transition:"all .3s",padding:"0 28px"
+      }}>
+        <div style={{maxWidth:1140,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:66}}>
+          {/* Logo */}
+          <div style={{fontWeight:900,fontSize:22,fontFamily:"'Plus Jakarta Sans',sans-serif",display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>window.scrollTo({top:0,behavior:"smooth"})}>
+            <span style={{fontSize:20}}>🎤</span>
+            <span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</span>
           </div>
+ 
+          {/* Desktop nav links */}
+          <div style={{display:"flex",gap:4,alignItems:"center"}}>
+            <button className="nav-link-btn" onClick={()=>document.getElementById("features")?.scrollIntoView({behavior:"smooth"})}>Features</button>
+            <button className="nav-link-btn" onClick={()=>document.getElementById("pricing")?.scrollIntoView({behavior:"smooth"})}>Pricing</button>
+            <button className="nav-link-btn" onClick={onStart}>Jobs</button>
+          </div>
+ 
+          {/* Right CTAs */}
           <div style={{display:"flex",gap:10,alignItems:"center"}}>
-            <button onClick={onStart} style={{background:"none",border:"none",cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:14,color:"rgba(255,255,255,.6)",padding:"8px 12px"}}>Sign In</button>
-            <Btn v="violet" onClick={onStart} style={{padding:"9px 22px",fontSize:14}}>Get started free →</Btn>
+            <button onClick={onStart} className="nav-link-btn">Sign In</button>
+            <button onClick={onStart} style={{
+              background:"linear-gradient(135deg,#5B4EE8,#7C6EFA)",
+              border:"none",borderRadius:10,padding:"10px 22px",
+              color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",
+              fontFamily:"'Inter',sans-serif",
+              boxShadow:"0 4px 16px rgba(124,110,250,.4)",transition:"all .2s"
+            }}>Get started free →</button>
           </div>
         </div>
       </nav>
-
-      <section style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"130px 24px 90px",position:"relative",overflow:"hidden",background:`linear-gradient(160deg,#040610 0%,#080C14 40%,#0D1230 100%)`}}>
-        <div style={{position:"absolute",top:"5%",right:"5%",width:500,height:500,borderRadius:"50%",background:`radial-gradient(circle,${C.violet}10,transparent 65%)`,pointerEvents:"none"}}/>
-        <div style={{position:"absolute",bottom:"10%",left:"-5%",width:360,height:360,borderRadius:"50%",background:`radial-gradient(circle,${C.teal}08,transparent 65%)`,pointerEvents:"none"}}/>
-        <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(rgba(255,255,255,.025) 1px,transparent 1px)",backgroundSize:"36px 36px",pointerEvents:"none"}}/>
-
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:60,maxWidth:1100,width:"100%",alignItems:"center",position:"relative",zIndex:1}}>
-          <div>
-            <div className="fade" style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(124,110,250,.12)",border:"1px solid rgba(124,110,250,.25)",borderRadius:24,padding:"7px 18px",marginBottom:28,fontSize:12,color:C.violetL,fontWeight:700}}>
-              <span style={{width:6,height:6,borderRadius:"50%",background:C.violetL,display:"inline-block",animation:"pulse 1.5s infinite"}}/>
+ 
+      {/* ── HERO ── */}
+      <section style={{
+        minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",
+        padding:"110px 28px 80px",position:"relative",overflow:"hidden",
+        background:"linear-gradient(160deg,#04060E 0%,#080C14 45%,#0D1230 100%)"
+      }}>
+        {/* bg glow blobs */}
+        <div style={{position:"absolute",top:"8%",right:"3%",width:520,height:520,borderRadius:"50%",background:"radial-gradient(circle,rgba(124,110,250,.12),transparent 65%)",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",bottom:"10%",left:"-4%",width:380,height:380,borderRadius:"50%",background:"radial-gradient(circle,rgba(0,212,170,.07),transparent 65%)",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(rgba(255,255,255,.022) 1px,transparent 1px)",backgroundSize:"38px 38px",pointerEvents:"none"}}/>
+ 
+        <div className="hero-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:64,maxWidth:1140,width:"100%",alignItems:"center",position:"relative",zIndex:1}}>
+ 
+          {/* LEFT — headline */}
+          <div className="hero-text">
+            {/* pill badge */}
+            <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(124,110,250,.12)",border:"1px solid rgba(124,110,250,.28)",borderRadius:24,padding:"7px 18px",marginBottom:28,fontSize:12,color:"#A89BFC",fontWeight:700}}>
+              <span style={{width:6,height:6,borderRadius:"50%",background:"#A89BFC",display:"inline-block",animation:"pulse 1.5s infinite"}}/>
               India's only AI interview with live camera + resume personalization
             </div>
-            <h1 className="fade" style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(32px,4vw,56px)",lineHeight:1.08,marginBottom:24,animationDelay:".1s",letterSpacing:"-1px",color:"#fff"}}>
+ 
+            <h1 style={{
+              fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,
+              fontSize:"clamp(36px,4.5vw,60px)",lineHeight:1.07,
+              marginBottom:22,letterSpacing:"-1.5px",color:"#fff"
+            }}>
               Walk in ready.<br/>
               <span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>Not nervous.</span>
             </h1>
-            <p className="fade" style={{fontSize:17,color:"rgba(255,255,255,.6)",lineHeight:1.8,maxWidth:480,marginBottom:40,animationDelay:".2s"}}>
-              Upload your resume, name the company — Priya interviews you like she's actually hiring. Camera on, mic live, real questions about your real experience.
+ 
+            <p style={{fontSize:17,color:"rgba(255,255,255,.58)",lineHeight:1.82,maxWidth:490,marginBottom:38,fontWeight:400}}>
+              Upload your resume, name the company — <strong style={{color:"rgba(255,255,255,.85)",fontWeight:600}}>Priya</strong> interviews you like she's actually hiring. Camera on, mic live, real questions about your real experience.
             </p>
-            <div className="fade" style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:40,animationDelay:".3s"}}>
-              <button onClick={onStart} className="cta-glow" style={{padding:"16px 36px",borderRadius:12,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,color:"#fff",fontWeight:800,fontSize:16,fontFamily:"'Inter',sans-serif",transition:"all .2s"}}>
+ 
+            <div className="hero-cta-row" style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:44}}>
+              <button onClick={onStart} className="cta-glow" style={{
+                padding:"15px 34px",borderRadius:12,border:"none",cursor:"pointer",
+                background:"linear-gradient(135deg,#5B4EE8,#7C6EFA,#A89BFC)",
+                color:"#fff",fontWeight:800,fontSize:16,fontFamily:"'Inter',sans-serif",
+              }}>
                 🎙️ Start free interview →
               </button>
-              <button onClick={onStart} style={{padding:"16px 26px",borderRadius:12,border:"1px solid rgba(255,255,255,.2)",cursor:"pointer",background:"transparent",color:"rgba(255,255,255,.8)",fontWeight:600,fontSize:16,fontFamily:"'Inter',sans-serif"}}>Browse live jobs</button>
+              <button onClick={onStart} style={{
+                padding:"15px 26px",borderRadius:12,
+                border:"1px solid rgba(255,255,255,.18)",cursor:"pointer",
+                background:"rgba(255,255,255,.05)",
+                color:"rgba(255,255,255,.78)",fontWeight:600,fontSize:16,
+                fontFamily:"'Inter',sans-serif",transition:"all .2s"
+              }}>Browse live jobs</button>
             </div>
-            <div className="fade" style={{display:"flex",gap:20,alignItems:"center",animationDelay:".4s"}}>
-              {[["50K+","Interviews",C.violetL],["87%","Better scores",C.teal],["3.4×","More offers",C.gold]].map(([v,l,c],i)=>(
-                <div key={i} style={{textAlign:"center"}}>
-                  <div className="mono" style={{fontWeight:700,fontSize:22,color:c}}>{v}</div>
-                  <div style={{fontSize:11,color:"rgba(255,255,255,.4)",fontWeight:600,textTransform:"uppercase",letterSpacing:.6}}>{l}</div>
+ 
+            {/* Stats row */}
+            <div className="hero-stats" style={{display:"flex",gap:0,alignItems:"center"}}>
+              {[
+                {v:"50K+",l:"Interviews",c:"#A89BFC"},
+                {v:"87%",l:"Better scores",c:"#00D4AA"},
+                {v:"3.4×",l:"More offers",c:"#F59E0B"},
+              ].map((s,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:0}}>
+                  {i>0&&<div style={{width:1,height:38,background:"rgba(255,255,255,.1)",margin:"0 24px"}}/>}
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontWeight:900,fontSize:24,color:s.c,fontFamily:"'JetBrains Mono',monospace",lineHeight:1}}>{s.v}</div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,.38)",fontWeight:700,textTransform:"uppercase",letterSpacing:.7,marginTop:4}}>{s.l}</div>
+                  </div>
                 </div>
-              )).reduce((acc,el,i)=>i===0?[el]:[...acc,<div key={`d${i}`} style={{width:1,height:36,background:"rgba(255,255,255,.1)"}}/>,el],[])}
+              ))}
             </div>
           </div>
-
-          <div className="hero-card" style={{position:"relative"}}>
-            <div style={{position:"absolute",top:-16,right:-8,background:C.bgCard,border:`1px solid ${C.green}40`,borderRadius:14,padding:"10px 16px",boxShadow:`0 8px 24px rgba(0,0,0,.5)`,zIndex:10,display:"flex",alignItems:"center",gap:10}}>
-              <div style={{width:36,height:36,borderRadius:10,background:C.greenPale,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"JetBrains Mono,monospace",fontWeight:700,fontSize:16,color:C.green}}>89</div>
-              <div><div style={{fontSize:12,fontWeight:700,color:"#fff"}}>Strong Hire ✓</div><div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>Google SDE · Just now</div></div>
-            </div>
-            <div style={{background:"#04060E",borderRadius:20,border:"1px solid rgba(255,255,255,.1)",overflow:"hidden",boxShadow:"0 24px 60px rgba(0,0,0,.7)"}}>
-              <div style={{background:"rgba(255,255,255,.03)",padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"1px solid rgba(255,255,255,.05)"}}>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <div style={{width:6,height:6,borderRadius:"50%",background:C.red,boxShadow:`0 0 6px ${C.red}`}}/>
-                  <span style={{color:"rgba(255,255,255,.6)",fontSize:10,fontWeight:700,letterSpacing:1.5}}>LIVE INTERVIEW</span>
-                </div>
-                <div style={{background:`${C.violet}20`,borderRadius:6,padding:"3px 10px",fontSize:10,color:C.violetL,fontWeight:700}}>Google</div>
-                <div style={{display:"flex",gap:4}}>{[1,2,3,4,5].map(i=><div key={i} style={{width:18,height:2,borderRadius:1,background:i<=2?C.green:i===3?C.violet:"rgba(255,255,255,.15)"}}/>)}</div>
+ 
+          {/* RIGHT — interview mockup card (matches screenshot) */}
+          <div className="hero-card hero-mockup" style={{position:"relative"}}>
+            {/* Floating score badge — top right like screenshot */}
+            <div style={{
+              position:"absolute",top:-20,right:-12,
+              background:"#0D1220",border:"1px solid rgba(34,197,94,.35)",
+              borderRadius:16,padding:"12px 18px",
+              boxShadow:"0 8px 32px rgba(0,0,0,.6)",
+              zIndex:10,display:"flex",alignItems:"center",gap:12,
+              minWidth:210
+            }}>
+              <div style={{
+                width:42,height:42,borderRadius:12,
+                background:"rgba(34,197,94,.15)",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontFamily:"'JetBrains Mono',monospace",fontWeight:900,fontSize:18,color:"#22C55E"
+              }}>89</div>
+              <div>
+                <div style={{fontSize:14,fontWeight:800,color:"#fff",lineHeight:1.2}}>Strong Hire ✓</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.38)",marginTop:2}}>Google SDE · Just now</div>
               </div>
-              <div style={{padding:"24px",textAlign:"center",background:"linear-gradient(180deg,#07091A,#04060E)"}}>
-                <div style={{width:80,height:80,margin:"0 auto 12px",filter:`drop-shadow(0 0 16px ${C.violet}40)`}}><AIFace speaking={true} size={80}/></div>
-                <div style={{color:"#fff",fontWeight:700,fontSize:13,marginBottom:2}}>Priya Sharma</div>
-                <div style={{color:"rgba(255,255,255,.4)",fontSize:10,marginBottom:16}}>Senior Hiring Manager · Google</div>
-                <div style={{background:"rgba(255,255,255,.04)",borderRadius:10,padding:"12px 14px",textAlign:"left",marginBottom:12}}>
-                  <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:6}}><Tag color={C.teal} size={9}>Technical</Tag><span style={{fontSize:9,color:C.muted,fontFamily:"JetBrains Mono,monospace"}}>01:24 remaining</span></div>
-                  <div style={{color:"rgba(255,255,255,.85)",fontSize:11,lineHeight:1.65}}>How did you handle CORS with the Groq API in TakePlace?</div>
-                  <div style={{height:2,background:"rgba(255,255,255,.06)",borderRadius:2,marginTop:10,overflow:"hidden"}}><div style={{height:"100%",width:"65%",background:C.teal,borderRadius:2,boxShadow:`0 0 6px ${C.teal}60`}}/></div>
+            </div>
+ 
+            {/* Main interview card */}
+            <div style={{
+              background:"#04060E",borderRadius:22,
+              border:"1px solid rgba(255,255,255,.1)",
+              overflow:"hidden",
+              boxShadow:"0 32px 80px rgba(0,0,0,.75)"
+            }}>
+              {/* Top bar — LIVE INTERVIEW · Google */}
+              <div style={{
+                background:"rgba(255,255,255,.03)",
+                padding:"12px 18px",
+                display:"flex",alignItems:"center",justifyContent:"space-between",
+                borderBottom:"1px solid rgba(255,255,255,.06)"
+              }}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{width:7,height:7,borderRadius:"50%",background:"#EF4444",boxShadow:"0 0 8px #EF4444"}}/>
+                  <span style={{color:"rgba(255,255,255,.65)",fontSize:11,fontWeight:800,letterSpacing:2}}>LIVE INTERVIEW</span>
                 </div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-                  {[["Pace","78%",C.teal],["Clarity","82%",C.violet],["Fillers","0",C.green]].map(([l,v,c])=>(
-                    <div key={l} style={{background:"rgba(255,255,255,.03)",borderRadius:8,padding:"8px"}}><div style={{fontSize:11,fontWeight:700,color:c,fontFamily:"JetBrains Mono,monospace"}}>{v}</div><div style={{fontSize:9,color:"rgba(255,255,255,.35)",marginTop:2}}>{l}</div></div>
+                <div style={{background:"rgba(124,110,250,.25)",border:"1px solid rgba(124,110,250,.4)",borderRadius:8,padding:"4px 14px",fontSize:12,color:"#A89BFC",fontWeight:800}}>Google</div>
+                <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                  {[1,2,3,4,5].map(i=>(
+                    <div key={i} style={{width:i<=2?22:18,height:3,borderRadius:2,background:i<3?"#22C55E":i===3?"#7C6EFA":"rgba(255,255,255,.12)"}}/>
                   ))}
                 </div>
               </div>
-              <div style={{background:"rgba(4,6,14,.95)",padding:"12px 16px",display:"flex",justifyContent:"center",gap:12,borderTop:"1px solid rgba(255,255,255,.05)"}}>
-                <div style={{width:36,height:36,borderRadius:"50%",background:"rgba(255,255,255,.06)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>🎙️</div>
-                <div style={{padding:"10px 28px",borderRadius:20,background:`linear-gradient(135deg,${C.violetD},${C.violet})`,color:"#fff",fontWeight:700,fontSize:12,cursor:"default"}}>Done ✓</div>
-                <div style={{width:36,height:36,borderRadius:"50%",background:"rgba(239,68,68,.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>📵</div>
+ 
+              {/* Avatar area */}
+              <div style={{
+                padding:"28px 24px 20px",textAlign:"center",
+                background:"linear-gradient(180deg,#07091A 0%,#04060E 100%)"
+              }}>
+                {/* Priya avatar */}
+                <div style={{
+                  width:96,height:96,margin:"0 auto 14px",
+                  borderRadius:"50%",
+                  border:"2.5px solid #7C6EFA",
+                  padding:4,
+                  boxShadow:"0 0 32px rgba(124,110,250,.4)",
+                  animation:"ringPulse 2s infinite"
+                }}>
+                  <AIFace speaking={true} size={84}/>
+                </div>
+                <div style={{color:"#fff",fontWeight:800,fontSize:15,marginBottom:3}}>Priya Sharma</div>
+                <div style={{color:"rgba(255,255,255,.38)",fontSize:11,marginBottom:20}}>Senior Hiring Manager · Google</div>
+ 
+                {/* Question card */}
+                <div style={{
+                  background:"rgba(255,255,255,.04)",borderRadius:12,
+                  padding:"14px 16px",textAlign:"left",marginBottom:14,
+                  border:"1px solid rgba(255,255,255,.07)"
+                }}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                    <span style={{background:"rgba(0,212,170,.15)",color:"#00D4AA",fontSize:10,fontWeight:800,padding:"3px 10px",borderRadius:20,border:"1px solid rgba(0,212,170,.25)"}}>Technical</span>
+                    <span style={{color:"rgba(255,255,255,.28)",fontSize:10,fontFamily:"'JetBrains Mono',monospace",fontWeight:700}}>01:24 remaining</span>
+                  </div>
+                  <div style={{color:"rgba(255,255,255,.88)",fontSize:13,lineHeight:1.7,fontWeight:500}}>
+                    How did you handle CORS with the Groq API in TakePlace?
+                  </div>
+                  {/* Progress bar */}
+                  <div style={{height:2,background:"rgba(255,255,255,.06)",borderRadius:2,marginTop:12,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:"58%",background:"#00D4AA",borderRadius:2,boxShadow:"0 0 6px rgba(0,212,170,.6)"}}/>
+                  </div>
+                </div>
+ 
+                {/* Live metrics row */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:4}}>
+                  {[["Pace","78%","#00D4AA"],["Clarity","82%","#7C6EFA"],["Fillers","0","#22C55E"]].map(([l,v,c])=>(
+                    <div key={l} style={{background:"rgba(255,255,255,.03)",borderRadius:10,padding:"10px 6px",border:"1px solid rgba(255,255,255,.06)"}}>
+                      <div style={{fontSize:15,fontWeight:800,color:c,fontFamily:"'JetBrains Mono',monospace"}}>{v}</div>
+                      <div style={{fontSize:9,color:"rgba(255,255,255,.32)",marginTop:3,fontWeight:600,textTransform:"uppercase",letterSpacing:.5}}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+ 
+              {/* Controls bottom bar */}
+              <div style={{
+                background:"rgba(4,6,14,.98)",padding:"14px 18px",
+                display:"flex",justifyContent:"center",gap:14,alignItems:"center",
+                borderTop:"1px solid rgba(255,255,255,.05)"
+              }}>
+                <div style={{width:40,height:40,borderRadius:"50%",background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🎙️</div>
+                <div style={{
+                  padding:"11px 32px",borderRadius:22,
+                  background:"linear-gradient(135deg,#5B4EE8,#7C6EFA,#A89BFC)",
+                  color:"#fff",fontWeight:800,fontSize:13,
+                  boxShadow:"0 4px 20px rgba(124,110,250,.5)",cursor:"default"
+                }}>Done ✓</div>
+                <div style={{width:40,height:40,borderRadius:"50%",background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>📵</div>
               </div>
             </div>
           </div>
         </div>
       </section>
-
-      <section style={{padding:"28px 0",background:"#0A0E1A",borderTop:"1px solid rgba(255,255,255,.06)",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
-        <div style={{textAlign:"center",marginBottom:16}}>
-          <div style={{fontSize:10,color:"rgba(255,255,255,.3)",fontWeight:700,letterSpacing:2,textTransform:"uppercase"}}>Practiced for interviews at</div>
+ 
+      {/* ── COMPANY MARQUEE ── */}
+      <section style={{padding:"26px 0",background:"#0A0E1A",borderTop:"1px solid rgba(255,255,255,.06)",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
+        <div style={{textAlign:"center",marginBottom:14}}>
+          <div style={{fontSize:10,color:"rgba(255,255,255,.28)",fontWeight:700,letterSpacing:2.5,textTransform:"uppercase"}}>Practiced for interviews at</div>
         </div>
         <div className="marquee-wrap">
           <div className="marquee-track">
             {[...TARGET_COMPANIES,...TARGET_COMPANIES].map((c,i)=>(
-              <div key={i} style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.08)",borderRadius:10,padding:"9px 18px",display:"flex",alignItems:"center",gap:8,flexShrink:0,minWidth:120}}>
+              <div key={i} style={{
+                background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)",
+                borderRadius:10,padding:"9px 20px",
+                display:"flex",alignItems:"center",gap:8,flexShrink:0,minWidth:118
+              }}>
                 <span style={{fontWeight:800,fontSize:13,color:c.color}}>{c.name}</span>
               </div>
             ))}
           </div>
         </div>
       </section>
-
-      <section style={{padding:"90px 24px",maxWidth:1060,margin:"0 auto"}}>
-        <div style={{textAlign:"center",marginBottom:56}}>
-          <div style={{fontSize:10,color:C.teal,fontWeight:800,letterSpacing:3,marginBottom:10,textTransform:"uppercase"}}>How it works</div>
-          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:36,color:C.lText,letterSpacing:-.5}}>From resume to offer in 3 steps</h2>
+ 
+      {/* ── HOW IT WORKS ── */}
+      <section style={{padding:"92px 28px",maxWidth:1100,margin:"0 auto"}}>
+        <div style={{textAlign:"center",marginBottom:58}}>
+          <div style={{fontSize:10,color:"#00D4AA",fontWeight:800,letterSpacing:3.5,marginBottom:12,textTransform:"uppercase"}}>How it works</div>
+          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(26px,3.5vw,38px)",color:"#fff",letterSpacing:-.5}}>From resume to offer in 3 steps</h2>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:22}}>
+        <div className="step-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:22}}>
           {[
-            {n:"01",title:"Upload your resume",desc:"Paste or upload PDF/DOCX. Enter company and role. 60 seconds to set up."},
-            {n:"02",title:"Interview on camera",desc:"Priya speaks your personalized questions aloud — you answer on mic, on camera, 90-second clock. Mic only opens after she stops speaking."},
-            {n:"03",title:"Get your debrief + scorecard",desc:"Score across 5 dimensions. Per-question breakdown with ideal answers. Shareable PNG. Specific next steps."},
+            {n:"01",col:"#7C6EFA",title:"Upload your resume",desc:"Paste or upload PDF/DOCX. Enter company and role. 60 seconds to set up."},
+            {n:"02",col:"#00D4AA",title:"Interview on camera",desc:"Priya speaks your personalized questions aloud — you answer on mic, on camera, 90-second clock. Mic only opens after she stops speaking."},
+            {n:"03",col:"#F59E0B",title:"Get your debrief + scorecard",desc:"Score across 5 dimensions. Per-question breakdown with ideal answers. Shareable PNG. Specific next steps."},
           ].map((s,i)=>(
-            <div key={i} className="lift" style={{background:C.lCard,border:`1.5px solid ${C.lBorder}`,borderRadius:20,padding:28}}>
-              <div style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:700,fontSize:40,color:"#E2E8F0",marginBottom:16,lineHeight:1}}>{s.n}</div>
-              <div style={{fontWeight:700,fontSize:17,color:C.lText,marginBottom:10}}>{s.title}</div>
-              <div style={{color:C.lMuted,fontSize:14,lineHeight:1.8}}>{s.desc}</div>
+            <div key={i} className="feature-card" style={{background:"#0D1220",border:`1.5px solid rgba(255,255,255,.07)`,borderRadius:20,padding:"28px 26px"}}>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:900,fontSize:44,color:s.col,marginBottom:18,lineHeight:1,opacity:.7}}>{s.n}</div>
+              <div style={{fontWeight:800,fontSize:17,color:"#F1F5F9",marginBottom:10}}>{s.title}</div>
+              <div style={{color:"rgba(255,255,255,.45)",fontSize:13.5,lineHeight:1.82}}>{s.desc}</div>
             </div>
           ))}
         </div>
       </section>
-
-      <section style={{padding:"90px 24px",background:"#F1F5F9"}}>
-        <div style={{maxWidth:1060,margin:"0 auto"}}>
-          <div style={{textAlign:"center",marginBottom:56}}>
-            <div style={{fontSize:10,color:C.violet,fontWeight:800,letterSpacing:3,marginBottom:10,textTransform:"uppercase"}}>Features</div>
-            <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:36,color:C.lText,letterSpacing:-.5}}>Built to replicate the real thing</h2>
+ 
+      {/* ── FEATURES ── */}
+      <section id="features" style={{padding:"92px 28px",background:"#0A0E1A"}}>
+        <div style={{maxWidth:1100,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:58}}>
+            <div style={{fontSize:10,color:"#7C6EFA",fontWeight:800,letterSpacing:3.5,marginBottom:12,textTransform:"uppercase"}}>Features</div>
+            <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(26px,3.5vw,38px)",color:"#fff",letterSpacing:-.5}}>Built to replicate the real thing</h2>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(290px,1fr))",gap:18}}>
+          <div className="feature-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:18}}>
             {features.map((f,i)=>(
-              <div key={i} className="lift" style={{background:C.lCard,border:`1.5px solid ${C.lBorder}`,borderRadius:18,padding:26,display:"flex",gap:16}}>
-                <div style={{fontSize:28,flexShrink:0,marginTop:2}}>{f.icon}</div>
-                <div><div style={{fontWeight:700,fontSize:15,color:C.lText,marginBottom:7}}>{f.title}</div><div style={{color:C.lMuted,fontSize:13,lineHeight:1.8}}>{f.desc}</div></div>
+              <div key={i} className="feature-card" style={{background:"#0D1220",border:"1px solid rgba(255,255,255,.07)",borderRadius:18,padding:"24px 22px",display:"flex",gap:16}}>
+                <div style={{fontSize:26,flexShrink:0,marginTop:2}}>{f.icon}</div>
+                <div>
+                  <div style={{fontWeight:700,fontSize:15,color:"#F1F5F9",marginBottom:8}}>{f.title}</div>
+                  <div style={{color:"rgba(255,255,255,.42)",fontSize:13,lineHeight:1.8}}>{f.desc}</div>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
-
-      <section style={{padding:"90px 24px",maxWidth:1060,margin:"0 auto"}}>
+ 
+      {/* ── TESTIMONIALS ── */}
+      <section style={{padding:"92px 28px",maxWidth:1100,margin:"0 auto"}}>
         <div style={{textAlign:"center",marginBottom:52}}>
-          <div style={{fontSize:10,color:C.violet,fontWeight:800,letterSpacing:3,marginBottom:10,textTransform:"uppercase"}}>Success stories</div>
-          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:36,color:C.lText,letterSpacing:-.5}}>They got hired. You're next.</h2>
+          <div style={{fontSize:10,color:"#7C6EFA",fontWeight:800,letterSpacing:3.5,marginBottom:12,textTransform:"uppercase"}}>Success stories</div>
+          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(26px,3.5vw,38px)",color:"#fff",letterSpacing:-.5}}>They got hired. You're next.</h2>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:18}}>
+        <div className="testimonial-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:18}}>
           {testimonials.map((r,i)=>(
-            <div key={i} className="lift" style={{background:C.lCard,border:`1.5px solid ${C.lBorder}`,borderRadius:20,padding:28}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
-                {[...Array(5)].map((_,j)=><span key={j} style={{color:C.gold,fontSize:14}}>★</span>)}
-                <span style={{marginLeft:4,background:C.greenPale,color:C.green,fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:20,border:`1px solid ${C.green}25`}}>{r.score}%</span>
-                <span style={{marginLeft:2,background:C.violetPale,color:C.violet,fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:20,border:`1px solid ${C.violet}25`}}>{r.company}</span>
+            <div key={i} className="feature-card" style={{background:"#0D1220",border:"1px solid rgba(255,255,255,.07)",borderRadius:20,padding:"26px 24px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+                {[...Array(5)].map((_,j)=><span key={j} style={{color:"#F59E0B",fontSize:14}}>★</span>)}
+                <span style={{background:"rgba(34,197,94,.12)",color:"#22C55E",fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20,border:"1px solid rgba(34,197,94,.25)",marginLeft:4}}>{r.score}%</span>
+                <span style={{background:"rgba(124,110,250,.12)",color:"#A89BFC",fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20,border:"1px solid rgba(124,110,250,.25)"}}>{r.company}</span>
               </div>
-              <div style={{color:C.lText,fontSize:14,lineHeight:1.85,marginBottom:20}}>"{r.text}"</div>
-              <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <div style={{width:38,height:38,borderRadius:"50%",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:"#fff"}}>{r.name.split(" ").map(n=>n[0]).join("")}</div>
-                <div><div style={{fontWeight:700,color:C.lText,fontSize:13.5}}>{r.name}</div><div style={{color:C.lMuted,fontSize:12}}>{r.role}</div></div>
+              <div style={{color:"rgba(255,255,255,.7)",fontSize:14,lineHeight:1.87,marginBottom:20}}>"{r.text}"</div>
+              <div style={{display:"flex",alignItems:"center",gap:10,borderTop:"1px solid rgba(255,255,255,.06)",paddingTop:14}}>
+                <div style={{width:38,height:38,borderRadius:"50%",background:"linear-gradient(135deg,#7C6EFA,#00D4AA)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:"#fff"}}>
+                  {r.name.split(" ").map(n=>n[0]).join("")}
+                </div>
+                <div>
+                  <div style={{fontWeight:700,color:"#F1F5F9",fontSize:13.5}}>{r.name}</div>
+                  <div style={{color:"rgba(255,255,255,.38)",fontSize:12}}>{r.role}</div>
+                </div>
               </div>
             </div>
           ))}
         </div>
       </section>
-
-      <section style={{padding:"90px 24px",background:"#F1F5F9"}}>
-        <div style={{maxWidth:900,margin:"0 auto"}}>
+ 
+      {/* ── PRICING ── */}
+      <section id="pricing" style={{padding:"92px 28px",background:"#0A0E1A"}}>
+        <div style={{maxWidth:920,margin:"0 auto"}}>
           <div style={{textAlign:"center",marginBottom:52}}>
-            <div style={{fontSize:10,color:C.violet,fontWeight:800,letterSpacing:3,marginBottom:10,textTransform:"uppercase"}}>Pricing</div>
-            <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:36,color:C.lText,letterSpacing:-.5}}>2 free per role. Unlock all 15 for less than a coffee.</h2>
+            <div style={{fontSize:10,color:"#7C6EFA",fontWeight:800,letterSpacing:3.5,marginBottom:12,textTransform:"uppercase"}}>Pricing</div>
+            <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(24px,3.2vw,36px)",color:"#fff",letterSpacing:-.5}}>2 free per role. Unlock all 15 for less than a coffee.</h2>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))",gap:22,alignItems:"start"}}>
+          <div className="pricing-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:22,alignItems:"start"}}>
             {[
-              {name:"Free",price:"₹0",period:"",color:C.lText,features:["2 mock interviews per role","Basic per-question feedback","Live job feed","Streak tracking"],cta:"Start Free",v:"ghost"},
-              {name:"Week",price:"₹49",period:"/week",color:C.gold,features:["All 15 mocks, every role","All company style modes","Full detailed reports","Shareable scorecards","Filler word detection"],cta:"Get 1 Week — ₹49",v:"gold"},
-              {name:"Month",price:"₹199",period:"/month",color:C.violet,popular:true,features:["Everything in Week","Best value — 4× the days","Score history + trajectory","AI ideal answer coach","Priority support"],cta:"Get 1 Month — ₹199",v:"violet"},
+              {name:"Free",price:"₹0",period:"",color:"rgba(255,255,255,.5)",features:["2 mock interviews per role","Basic per-question feedback","Live job feed","Streak tracking"],cta:"Start Free",bg:"transparent",border:"rgba(255,255,255,.1)"},
+              {name:"Week",price:"₹49",period:"/week",color:"#F59E0B",popular:false,features:["All 15 mocks, every role","All company style modes","Full detailed reports","Shareable scorecards","Filler word detection"],cta:"Get 1 Week — ₹49",bg:"rgba(245,158,11,.07)",border:"rgba(245,158,11,.3)"},
+              {name:"Month",price:"₹199",period:"/month",color:"#A89BFC",popular:true,features:["Everything in Week","Best value — 4× the days","Score history + trajectory","AI ideal answer coach","Priority support"],cta:"Get 1 Month — ₹199",bg:"rgba(124,110,250,.1)",border:"rgba(124,110,250,.45)"},
             ].map((p,i)=>(
-              <div key={i} style={{background:C.lCard,border:p.popular?`2px solid ${C.violet}`:`1.5px solid ${C.lBorder}`,borderRadius:22,padding:28,position:"relative",boxShadow:p.popular?`0 12px 40px ${C.violet}15`:"none"}}>
-                {p.popular&&<div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)",background:`linear-gradient(135deg,${C.violetD},${C.violet})`,color:"#fff",fontSize:11,fontWeight:800,padding:"4px 16px",borderRadius:20,whiteSpace:"nowrap"}}>⭐ MOST POPULAR</div>}
-                <div style={{fontSize:12,fontWeight:800,color:p.color,marginBottom:6,letterSpacing:.8}}>{p.name.toUpperCase()}</div>
-                <div style={{fontWeight:900,fontSize:36,color:C.lText,fontFamily:"'JetBrains Mono',monospace"}}>{p.price}<span style={{fontSize:12,fontWeight:400,color:C.lMuted}}>{p.period}</span></div>
-                <div style={{height:1,background:C.lBorder,margin:"16px 0"}}/>
-                {p.features.map((f,j)=><div key={j} style={{display:"flex",gap:9,alignItems:"flex-start",marginBottom:10}}><span style={{color:p.color,fontWeight:800,fontSize:13,flexShrink:0,marginTop:1}}>✓</span><span style={{color:C.lMuted,fontSize:13}}>{f}</span></div>)}
-                <Btn v={p.v} onClick={onStart} style={{width:"100%",padding:"12px",marginTop:10,borderRadius:10,fontSize:14,color:p.v==="ghost"?C.lText:undefined}}>{p.cta}</Btn>
+              <div key={i} style={{
+                background:p.bg,border:`1.5px solid ${p.border}`,
+                borderRadius:22,padding:"28px 24px",position:"relative",
+                boxShadow:p.popular?"0 12px 48px rgba(124,110,250,.2)":"none"
+              }}>
+                {p.popular&&(
+                  <div style={{position:"absolute",top:-15,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,#5B4EE8,#7C6EFA)",color:"#fff",fontSize:11,fontWeight:800,padding:"5px 18px",borderRadius:20,whiteSpace:"nowrap",boxShadow:"0 4px 12px rgba(124,110,250,.4)"}}>⭐ MOST POPULAR</div>
+                )}
+                <div style={{fontSize:11,fontWeight:800,color:p.color,marginBottom:7,letterSpacing:1}}>{p.name.toUpperCase()}</div>
+                <div style={{fontWeight:900,fontSize:38,color:"#F1F5F9",fontFamily:"'JetBrains Mono',monospace",lineHeight:1,marginBottom:4}}>{p.price}<span style={{fontSize:13,fontWeight:400,color:"rgba(255,255,255,.35)"}}>{p.period}</span></div>
+                <div style={{height:1,background:"rgba(255,255,255,.07)",margin:"18px 0"}}/>
+                {p.features.map((f,j)=>(
+                  <div key={j} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:11}}>
+                    <span style={{color:p.color,fontWeight:800,fontSize:13,flexShrink:0,marginTop:1}}>✓</span>
+                    <span style={{color:"rgba(255,255,255,.55)",fontSize:13}}>{f}</span>
+                  </div>
+                ))}
+                <button onClick={onStart} style={{
+                  width:"100%",padding:"13px",marginTop:14,borderRadius:10,
+                  border:`1px solid ${p.border}`,
+                  background:p.popular?"linear-gradient(135deg,#5B4EE8,#7C6EFA)":i===1?"rgba(245,158,11,.15)":"rgba(255,255,255,.06)",
+                  color:p.popular?"#fff":p.color,fontWeight:800,fontSize:14,cursor:"pointer",
+                  fontFamily:"'Inter',sans-serif",transition:"all .2s",
+                  boxShadow:p.popular?"0 4px 20px rgba(124,110,250,.4)":"none"
+                }}>{p.cta}</button>
               </div>
             ))}
           </div>
         </div>
       </section>
-
-      <section style={{padding:"90px 24px",textAlign:"center",background:"#080C14"}}>
-        <div style={{maxWidth:600,margin:"0 auto",background:`linear-gradient(160deg,#0D1220,#11163A)`,border:"1px solid rgba(124,110,250,.2)",borderRadius:28,padding:"60px 36px",boxShadow:`0 24px 60px rgba(124,110,250,.15)`}}>
-          <div style={{fontSize:52,marginBottom:14,animation:"float 3s ease-in-out infinite"}}>🎤</div>
-          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:34,color:"#fff",marginBottom:12,letterSpacing:-.5}}>Your next interview is real.<br/><span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>This one can be too.</span></h2>
-          <p style={{color:"rgba(255,255,255,.55)",fontSize:15,marginBottom:36,lineHeight:1.75}}>Camera on. Mic live. Resume read. Free to start.</p>
-          <button onClick={onStart} className="cta-glow" style={{padding:"16px 48px",borderRadius:12,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,color:"#fff",fontWeight:800,fontSize:16,fontFamily:"'Inter',sans-serif",transition:"all .2s"}}>
-            Start free now →
-          </button>
+ 
+      {/* ── FINAL CTA ── */}
+      <section style={{padding:"92px 28px",textAlign:"center",background:"#080C14"}}>
+        <div style={{maxWidth:580,margin:"0 auto",background:"linear-gradient(160deg,#0D1220,#11163A)",border:"1px solid rgba(124,110,250,.22)",borderRadius:28,padding:"64px 40px",boxShadow:"0 24px 64px rgba(124,110,250,.15)"}}>
+          <div style={{fontSize:52,marginBottom:16,animation:"float 3s ease-in-out infinite"}}>🎤</div>
+          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(24px,3.5vw,36px)",color:"#fff",marginBottom:14,letterSpacing:-.5,lineHeight:1.15}}>
+            Your next interview is real.<br/>
+            <span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>This one can be too.</span>
+          </h2>
+          <p style={{color:"rgba(255,255,255,.48)",fontSize:15,marginBottom:38,lineHeight:1.75}}>Camera on. Mic live. Resume read. Free to start.</p>
+          <button onClick={onStart} className="cta-glow" style={{
+            padding:"16px 52px",borderRadius:12,border:"none",cursor:"pointer",
+            background:"linear-gradient(135deg,#5B4EE8,#7C6EFA,#A89BFC)",
+            color:"#fff",fontWeight:800,fontSize:17,fontFamily:"'Inter',sans-serif",
+          }}>Start free now →</button>
         </div>
       </section>
-
-      <footer style={{borderTop:"1px solid rgba(255,255,255,.06)",padding:"28px 24px",background:"#04060E"}}>
-        <div style={{maxWidth:1060,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-          <div style={{fontWeight:900,fontSize:18,color:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",display:"flex",alignItems:"center",gap:6}}><span>🎤</span><span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</span></div>
-          <div style={{color:"rgba(255,255,255,.3)",fontSize:12}}>© 2026 TakePlace · Built by Raghu Dadigela</div>
-          <div style={{display:"flex",gap:16,alignItems:"center"}}>
-            <a href="mailto:takeplace.in@gmail.com" style={{color:"rgba(255,255,255,.6)",fontWeight:600,fontSize:13}}>✉ takeplace.in@gmail.com</a>
-            <a href="https://takeplace.vercel.app" target="_blank" rel="noreferrer" style={{color:"rgba(255,255,255,.3)",fontSize:12}}>takeplace.vercel.app</a>
+ 
+      {/* ── FOOTER ── */}
+      <footer style={{borderTop:"1px solid rgba(255,255,255,.06)",padding:"28px 28px",background:"#04060E"}}>
+        <div style={{maxWidth:1100,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14}}>
+          <div style={{fontWeight:900,fontSize:17,fontFamily:"'Plus Jakarta Sans',sans-serif",display:"flex",alignItems:"center",gap:6}}>
+            <span>🎤</span>
+            <span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</span>
+          </div>
+          <div style={{color:"rgba(255,255,255,.25)",fontSize:12}}>© 2026 TakePlace · Built by Raghu Dadigela</div>
+          <div style={{display:"flex",gap:18,alignItems:"center"}}>
+            <a href="mailto:takeplace.in@gmail.com" style={{color:"rgba(255,255,255,.5)",fontWeight:600,fontSize:13,textDecoration:"none"}}>✉ takeplace.in@gmail.com</a>
+            <a href="https://takeplace.vercel.app" target="_blank" rel="noreferrer" style={{color:"rgba(255,255,255,.25)",fontSize:12,textDecoration:"none"}}>takeplace.vercel.app</a>
           </div>
         </div>
       </footer>
     </div>
   );
 }
-
 // ── ONBOARDING ────────────────────────────────────────────────────────────────
 function OnboardingFlow({user,onComplete}){
   const[step,setStep]=useState(0);
