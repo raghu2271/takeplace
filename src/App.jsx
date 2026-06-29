@@ -3014,13 +3014,13 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
         {tab===4&&<QuickMockTab user={user} onInterviewComplete={refreshStats}/>}
       </div>
 
-      <div className="bn" style={{position:"fixed",bottom:12,left:12,right:12,background:"rgba(13,18,32,.92)",backdropFilter:"blur(24px)",border:`1px solid ${C.border}`,borderRadius:20,display:"flex",zIndex:200,padding:6,boxShadow:"0 12px 40px rgba(0,0,0,.5)",paddingBottom:"calc(6px + env(safe-area-inset-bottom,0px))"}}>
+     <div className="bn" style={{position:"fixed",bottom:0,left:0,right:0,background:"rgba(8,12,20,.96)",backdropFilter:"blur(24px)",borderTop:`1px solid ${C.border}`,display:"flex",zIndex:200,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
         {TABS.map(t=>{
           const active=tab===t.id;
           return(
-            <button key={t.id} onClick={()=>setTabP(t.id)} style={{flex:1,padding:active?"9px 4px":"9px 2px",border:"none",borderRadius:14,background:active?`linear-gradient(135deg,${C.violetD}30,${C.violet}20)`:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,color:active?C.violetL:C.muted,fontFamily:"'Inter',sans-serif",transition:"all .25s cubic-bezier(.22,1,.36,1)"}}>
-              <span style={{fontSize:active?20:17,lineHeight:1,transition:"font-size .2s"}}>{t.icon}</span>
-              {active&&<span style={{fontSize:8.5,fontWeight:800,letterSpacing:.2,whiteSpace:"nowrap",maxWidth:64,overflow:"hidden",textOverflow:"ellipsis"}}>{t.label}</span>}
+          <button key={t.id} onClick={()=>setTabP(t.id)} style={{flex:1,padding:"10px 4px 8px",border:"none",borderRadius:0,background:active?"rgba(124,110,250,.12)":"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,color:active?C.violetL:C.muted,fontFamily:"'Inter',sans-serif",transition:"all .2s",borderTop:active?`2px solid ${C.violet}`:"2px solid transparent"}}>
+              <span style={{fontSize:active?21:19,lineHeight:1,transition:"font-size .18s"}}>{t.icon}</span>
+              <span style={{fontSize:9.5,fontWeight:active?800:600,letterSpacing:.2,whiteSpace:"nowrap",maxWidth:58,overflow:"hidden",textOverflow:"ellipsis",color:active?C.violetL:"rgba(255,255,255,.45)"}}>{t.label}</span>
             </button>
           );
         })}
