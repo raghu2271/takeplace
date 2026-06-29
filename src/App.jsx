@@ -517,16 +517,6 @@ async function saveCached(table,company,role,payload){
   try{await supabase.from(table).upsert({company:company.toLowerCase(),role:role.toLowerCase(),data:payload,updated_at:new Date().toISOString()});}
   catch(e){console.log("cache save error:",e.message);}
 }
-async function generateRoadmap(company, role) {
-  const raw = await callGroq(
-    `You are an expert interview coach with deep knowledge of ${company}'s hiring process for ${role}.
-Return ONLY valid JSON:
-{"steps":[{"round":"<Round Name>","duration":"<e.g. 30-45 min>","what_happens":"<2-3 sentence description of what this round involves>","how_to_prepare":"<specific actionable tip for this round>"}]}
-Give exactly 4-6 steps covering the realistic full interview process at ${company} for ${role}, in order.`,
-    1800
-  );
-  return safeJSON(raw, null);
-}
 async function generatePrepQA(company,role){
   const raw=await callGroq(
     `You are a master-level interview coach with deep knowledge of ${company}'s actual interview questions for ${role}.
@@ -540,9 +530,9 @@ function CompanyPrepTab({user,onPracticeForCompany}){
   const[company,setCompany]=useState("");
   const[role,setRole]=useState("");
   const[loading,setLoading]=useState(false);
-  const[roadmap,setRoadmap]=useState(null);
-  const[qa,setQa]=useState(null);
-  const[qaLoading,setQaLoading]=useState(false);
+  const[slotLoading,setSlotLoading]=useState(null);
+  const[activeSlot,setActiveSlot]=useState(null);
+  const[slotData,setSlotData]=useState({});
   const[expanded,setExpanded]=useState(null);
   const[err,setErr]=useState("");
   const[showUpgrade,setShowUpgrade]=useState(false);
@@ -551,198 +541,168 @@ function CompanyPrepTab({user,onPracticeForCompany}){
   const{isPrepPro,refresh:refreshPrepSub}=usePrepSubscription(user?.id);
   const quickCompanies=TARGET_COMPANIES.map(c=>c.name);
 
-  const loadRoadmap=async()=>{
-    if(!company.trim()||!role.trim()){setErr("Enter both company and role");return;}
-    setLoading(true);setErr("");setRoadmap(null);setQa(null);
-    try{
-      let r=await fetchCached("company_roadmaps",company,role);
-      if(!r){r=await generateRoadmap(company,role);if(!r)throw new Error();await saveCached("company_roadmaps",company,role,r);}
-      setRoadmap(r);setStep("roadmap");
-    }catch{setErr("⚠ Could not load roadmap. Try again.");}
-    setLoading(false);
+  const SLOTS=[
+    {id:1,label:"Slot 1",desc:"15 starter questions · Free",questions:15,free:true,icon:"🟢",focus:"intro,behavioral,core technical basics"},
+    {id:2,label:"Slot 2",desc:"30 questions · Technical deep-dive",questions:30,free:false,icon:"🔒",focus:"advanced technical,DSA,system design"},
+    {id:3,label:"Slot 3",desc:"30 questions · HR & Behavioral",questions:30,free:false,icon:"🔒",focus:"HR rounds,leadership,situational,behavioral STAR"},
+    {id:4,label:"Slot 4",desc:"30 questions · Hard & Final round",questions:30,free:false,icon:"🔒",focus:"hard problems,architecture,negotiation,closing round"},
+  ];
+
+  const generateSlotQuestions=async(comp,rl,slot)=>{
+    const raw=await callGroq(
+      `You are a master-level interview coach with deep knowledge of ${comp}'s actual interview questions for ${rl}.
+This is Slot ${slot.id} focused on: ${slot.focus}.
+Return ONLY valid JSON with no markdown:
+{"questions":[{"q":"<exact question ${comp} is known to ask>","topic":"<DSA|System Design|Behavioral|HR|Technical>","difficulty":"Easy|Medium|Hard","answer":"<strong specific model answer 4-6 sentences>","how_to_answer":"<2-3 sentence breakdown of approach>"}]}
+Give exactly ${slot.questions} questions all themed around: ${slot.focus}. Order from easiest to hardest.`,
+      slot.questions<=15?2000:4000
+    );
+    return safeJSON(raw,null);
   };
 
-  const unlockQA=async()=>{
-    if(!isPrepPro){setShowUpgrade(true);return;}
-    setQaLoading(true);
+  const handlePickSlot=async(slot)=>{
+    if(!slot.free&&!isPrepPro){setShowUpgrade(true);return;}
+    if(slotData[slot.id]){setActiveSlot(slot.id);setStep("questions");setExpanded(null);return;}
+    setSlotLoading(slot.id);setErr("");
     try{
-      let data=await fetchCached("company_prep_qa",company,role);
-      if(!data){data=await generatePrepQA(company,role);if(!data)throw new Error();await saveCached("company_prep_qa",company,role,data);}
-      setQa(data);
+      const cacheKey=`prep_slot_${slot.id}`;
+      let data=await fetchCached(cacheKey,company,role);
+      if(!data||!data.questions||data.questions.length<5){
+        data=await generateSlotQuestions(company,role,slot);
+        if(!data)throw new Error("No data");
+        await saveCached(cacheKey,company,role,data);
+      }
+      setSlotData(prev=>({...prev,[slot.id]:data}));
+      setActiveSlot(slot.id);setStep("questions");setExpanded(null);
     }catch{setErr("⚠ Could not load questions. Try again.");}
-    setQaLoading(false);
+    setSlotLoading(null);
   };
 
   const handleChoosePlan=async(plan)=>{
     setCheckingOut(true);
-    await startCheckout(plan,user,()=>{setShowUpgrade(false);setCheckingOut(false);refreshPrepSub();unlockQA();});
+    await startCheckout(plan,user,()=>{setShowUpgrade(false);setCheckingOut(false);refreshPrepSub();});
     setCheckingOut(false);
   };
 
   const sc=d=>d==="Hard"?C.red:d==="Medium"?C.gold:C.green;
+  const currentSlot=SLOTS.find(s=>s.id===activeSlot);
+  const currentQa=slotData[activeSlot];
 
- if(step==="pick")return(
+  if(step==="pick")return(
     <div className="fade">
       <div style={{marginBottom:22}}>
         <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:5,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🏢 Interview Prep</div>
-        <div style={{color:C.soft,fontSize:13.5,lineHeight:1.75,maxWidth:580}}>Tell us the company and role. We'll show you the exact rounds to expect — plus the real questions they've asked before, with model answers.</div>
+        <div style={{color:C.soft,fontSize:13.5,lineHeight:1.75,maxWidth:580}}>Pick your company and role. Get real interview questions with model answers across 4 topic slots.</div>
       </div>
-      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:20}}>
+
+      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:16}}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
           <div>
             <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:5,textTransform:"uppercase",letterSpacing:.7}}>Target Company</div>
-            <input style={inp} placeholder="e.g. Google, Amazon, TCS…" value={company} onChange={e=>setCompany(e.target.value)} onFocus={e=>e.target.style.borderColor=C.violet} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.08)"}/>
+            <input style={inp} placeholder="e.g. Google, TCS…" value={company} onChange={e=>setCompany(e.target.value)} onFocus={e=>e.target.style.borderColor=C.violet} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.08)"}/>
           </div>
           <div>
             <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:5,textTransform:"uppercase",letterSpacing:.7}}>Role</div>
             <input style={inp} placeholder="e.g. SDE-1, Data Analyst…" value={role} onChange={e=>setRole(e.target.value)} onFocus={e=>e.target.style.borderColor=C.violet} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.08)"}/>
           </div>
         </div>
-        <div style={{marginBottom:18}}>
-          <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:7,textTransform:"uppercase",letterSpacing:.7}}>Or pick a popular company</div>
+        <div style={{marginBottom:0}}>
+          <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:7,textTransform:"uppercase",letterSpacing:.7}}>Popular companies</div>
           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
             {quickCompanies.map(c=>(
               <button key={c} onClick={()=>setCompany(c)} style={{padding:"6px 14px",borderRadius:20,border:`1px solid ${company===c?C.violet:C.border}`,background:company===c?C.violetPale:"transparent",color:company===c?C.violetL:C.soft,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{c}</button>
             ))}
           </div>
         </div>
-        <Btn v="violet" onClick={loadRoadmap} loading={loading} style={{width:"100%",padding:"14px",fontSize:15,borderRadius:12}}>📋 Get Interview Questions →</Btn>
-        {err&&<div style={{color:C.red,fontSize:12,marginTop:10}}>{err}</div>}
       </div>
-    </div>
-  );
 
-  if(step==="roadmap")return(
-    <div className="fade">
-      <button onClick={()=>{setStep("pick");setQa(null);}} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginBottom:16}}>← Different company</button>
+      {err&&<div style={{color:C.red,fontSize:12,marginBottom:12,background:C.redPale,padding:"8px 12px",borderRadius:8}}>{err}</div>}
 
-      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:14}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:14}}>
-          <div style={{fontWeight:700,color:C.ink,fontSize:15}}>🗺️ {company} Roadmap — {role}</div>
-          <Tag color={C.green}>Free</Tag>
-        </div>
-        {roadmap?.steps?.map((s,i)=>(
-          <div key={i} style={{display:"flex",gap:12,marginBottom:14,position:"relative"}}>
-            <div style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
-              <div style={{width:28,height:28,borderRadius:"50%",background:C.violetPale,color:C.violetL,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:12,flexShrink:0}}>{i+1}</div>
-              {i<roadmap.steps.length-1&&<div style={{width:2,flex:1,background:C.border,marginTop:4}}/>}
+      {/* 4 SLOT CARDS */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        {SLOTS.map(slot=>{
+          const isLoading=slotLoading===slot.id;
+          const isDone=!!slotData[slot.id];
+          const locked=!slot.free&&!isPrepPro;
+          return(
+            <div key={slot.id} onClick={()=>{if(!company.trim()||!role.trim()){setErr("Enter company and role first");return;}handlePickSlot(slot);}}
+              className="lift"
+              style={{background:locked?"rgba(255,255,255,.02)":slot.free?`linear-gradient(135deg,${C.violet}15,${C.teal}08)`:C.bgCard,border:`1.5px solid ${slot.free?C.violet+"40":locked?C.border:C.violet+"25"}`,borderRadius:16,padding:20,cursor:"pointer",position:"relative",overflow:"hidden"}}>
+              {slot.free&&<div style={{position:"absolute",top:10,right:10}}><Tag color={C.green} size={10}>FREE</Tag></div>}
+              {isDone&&!locked&&<div style={{position:"absolute",top:10,right:10}}><Tag color={C.teal} size={10}>✓ Loaded</Tag></div>}
+              <div style={{fontSize:28,marginBottom:10}}>{isLoading?<Spin size={22} color={C.violet}/>:slot.free?"🟢":"🔒"}</div>
+              <div style={{fontWeight:800,fontSize:15,color:locked?C.muted:C.ink,marginBottom:4}}>{slot.label}</div>
+              <div style={{color:locked?C.muted:C.soft,fontSize:12,lineHeight:1.6,marginBottom:10}}>{slot.desc}</div>
+              <div style={{fontSize:11,color:locked?C.muted:C.soft,lineHeight:1.5,fontStyle:"italic"}}>{slot.focus}</div>
+              {locked&&(
+                <div style={{marginTop:12,display:"inline-block",background:C.goldPale,border:`1px solid ${C.gold}30`,borderRadius:8,padding:"4px 10px",fontSize:11,color:C.gold,fontWeight:700}}>₹59/week to unlock</div>
+              )}
             </div>
-            <div style={{paddingBottom:6}}>
-              <div style={{fontWeight:700,fontSize:13,color:C.ink}}>{s.round} <span style={{color:C.muted,fontSize:11,fontWeight:400}}>· {s.duration}</span></div>
-              <div style={{color:C.soft,fontSize:12.5,marginTop:4,lineHeight:1.7}}>{s.what_happens}</div>
-              <div style={{background:C.tealPale,borderRadius:8,padding:"8px 11px",marginTop:6,fontSize:12,color:C.tealL}}>💡 {s.how_to_prepare}</div>
-            </div>
+          );
+        })}
+      </div>
+
+      {!isPrepPro&&(
+        <div style={{background:`linear-gradient(135deg,${C.gold}12,${C.violet}08)`,border:`1px solid ${C.gold}25`,borderRadius:14,padding:"16px 20px",marginTop:16,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:13,color:C.ink}}>🔓 Unlock Slots 2, 3 & 4</div>
+            <div style={{color:C.soft,fontSize:12,marginTop:2}}>90 more questions · all companies · all roles</div>
           </div>
-        ))}
-      </div>
-
-      {!qa&&(
-        <div onClick={unlockQA} className="lift" style={{background:`linear-gradient(135deg,${C.violet}15,${C.gold}10)`,border:`1px solid ${C.violet}30`,borderRadius:16,padding:"20px",textAlign:"center",marginBottom:16}}>
-          <div style={{fontSize:28,marginBottom:8}}>{isPrepPro?"📖":"🔒"}</div>
-          <div style={{fontWeight:800,fontSize:15,color:C.ink,marginBottom:6}}>Real Questions {company} Asks — With Answers</div>
-          <div style={{color:C.soft,fontSize:12.5,marginBottom:14,lineHeight:1.7}}>Exact previously-asked questions, master-level model answers, and how to structure your response.</div>
-          {!isPrepPro&&<div style={{color:C.gold,fontSize:11,fontWeight:700,marginBottom:12}}>₹59/week or ₹199/month · unlimited companies</div>}
-          <Btn v="gold" loading={qaLoading} onClick={(e)=>{e.stopPropagation();unlockQA();}}>{isPrepPro?"Load Questions →":"🔓 Unlock Now"}</Btn>
+          <Btn v="gold" small onClick={()=>setShowUpgrade(true)}>Upgrade ₹59/week →</Btn>
         </div>
       )}
 
-    {qa&&(()=>{
-        const FREE_QA=5;
-        const freeQs=qa.questions?.slice(0,FREE_QA)||[];
-        const lockedQs=qa.questions?.slice(FREE_QA)||[];
-        return(
-          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:16}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:4}}>
-              <div style={{fontWeight:700,color:C.ink,fontSize:15}}>📚 {company} Interview Questions — {role}</div>
-              <Tag color={C.green} size={10}>{FREE_QA} free</Tag>
-            </div>
-            <div style={{color:C.soft,fontSize:11.5,marginBottom:14}}>Reported by real candidates who interviewed at {company}</div>
-
-            {freeQs.map((q,i)=>{
-              const isExp=expanded===i;
-              return(
-                <div key={i} style={{background:"rgba(255,255,255,.02)",border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:10}}>
-                  <div style={{display:"flex",justifyContent:"space-between",gap:8,marginBottom:6}}>
-                    <div style={{fontWeight:600,fontSize:13,color:C.ink}}>Q{i+1}. {q.q}</div>
-                    <Tag color={sc(q.difficulty)} size={10}>{q.difficulty}</Tag>
-                  </div>
-                  <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:4}}>
-                    <Tag color={C.teal} size={10}>{q.topic}</Tag>
-                    {q.reportedNote&&<Tag color={C.gold} size={10}>📍 {q.reportedNote}</Tag>}
-                  </div>
-                  <button onClick={()=>setExpanded(isExp?null:i)} style={{display:"block",background:"none",border:"none",color:C.violet,fontSize:11,fontWeight:700,cursor:"pointer",marginTop:8}}>
-                    {isExp?"▲ Hide answer":"▼ See model answer + how to answer"}
-                  </button>
-                  {isExp&&(
-                    <div style={{marginTop:10}}>
-                      <div style={{background:C.violetPale,borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:12.5,color:C.ink2,lineHeight:1.7}}>
-                        <strong style={{color:C.violetL}}>Model answer:</strong> {q.answer}
-                      </div>
-                      <div style={{background:C.tealPale,borderRadius:8,padding:"10px 12px",fontSize:12.5,color:C.ink2,lineHeight:1.7}}>
-                        <strong style={{color:C.tealL}}>How to answer:</strong> {q.how_to_answer}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {!isPrepPro&&lockedQs.length>0&&(
-              <div style={{position:"relative",marginTop:6}}>
-                <div style={{filter:"blur(4px)",pointerEvents:"none",userSelect:"none"}}>
-                  {lockedQs.slice(0,3).map((q,i)=>(
-                    <div key={i} style={{background:"rgba(255,255,255,.02)",border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:10}}>
-                      <div style={{fontWeight:600,fontSize:13,color:C.ink}}>Q{FREE_QA+i+1}. {q.q}</div>
-                      <Tag color={C.teal} size={10}>{q.topic}</Tag>
-                    </div>
-                  ))}
-                </div>
-                <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"linear-gradient(180deg,transparent,rgba(13,18,32,.85) 40%)",borderRadius:10,padding:20}}>
-                  <div style={{fontSize:24,marginBottom:6}}>🔒</div>
-                  <div style={{fontWeight:800,fontSize:14,color:C.ink,textAlign:"center"}}>{lockedQs.length} more {company} questions locked</div>
-                  <div style={{color:C.soft,fontSize:11.5,marginTop:4,marginBottom:14,textAlign:"center",maxWidth:280}}>Full model answers + how-to-answer breakdowns for every question</div>
-                  <Btn v="gold" small onClick={()=>setShowUpgrade(true)}>🔓 Unlock all {qa.questions.length} questions</Btn>
-                </div>
-              </div>
-            )}
-
-            {isPrepPro&&lockedQs.map((q,i)=>{
-              const realIdx=FREE_QA+i;
-              const isExp=expanded===realIdx;
-              return(
-                <div key={realIdx} style={{background:"rgba(255,255,255,.02)",border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:10}}>
-                  <div style={{display:"flex",justifyContent:"space-between",gap:8,marginBottom:6}}>
-                    <div style={{fontWeight:600,fontSize:13,color:C.ink}}>Q{realIdx+1}. {q.q}</div>
-                    <Tag color={sc(q.difficulty)} size={10}>{q.difficulty}</Tag>
-                  </div>
-                  <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:4}}>
-                    <Tag color={C.teal} size={10}>{q.topic}</Tag>
-                    {q.reportedNote&&<Tag color={C.gold} size={10}>📍 {q.reportedNote}</Tag>}
-                  </div>
-                  <button onClick={()=>setExpanded(isExp?null:realIdx)} style={{display:"block",background:"none",border:"none",color:C.violet,fontSize:11,fontWeight:700,cursor:"pointer",marginTop:8}}>
-                    {isExp?"▲ Hide answer":"▼ See model answer + how to answer"}
-                  </button>
-                  {isExp&&(
-                    <div style={{marginTop:10}}>
-                      <div style={{background:C.violetPale,borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:12.5,color:C.ink2,lineHeight:1.7}}>
-                        <strong style={{color:C.violetL}}>Model answer:</strong> {q.answer}
-                      </div>
-                      <div style={{background:C.tealPale,borderRadius:8,padding:"10px 12px",fontSize:12.5,color:C.ink2,lineHeight:1.7}}>
-                        <strong style={{color:C.tealL}}>How to answer:</strong> {q.how_to_answer}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        );
-      })()}
-
-      <Btn v="violet" onClick={()=>onPracticeForCompany?.(company,role)} style={{width:"100%",padding:14}}>🎙️ Practice this live now →</Btn>
       {showUpgrade&&<PrepUpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut}/>}
     </div>
   );
+
+  if(step==="questions"&&currentQa){
+    return(
+      <div className="fade">
+        <button onClick={()=>{setStep("pick");setErr("");}} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginBottom:16,fontFamily:"'Inter',sans-serif"}}>← Back to slots</button>
+
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:10}}>
+            <div>
+              <div style={{fontWeight:800,fontSize:16,color:C.ink}}>{company} · {role}</div>
+              <div style={{color:C.soft,fontSize:12,marginTop:2}}>{currentSlot?.label} — {currentSlot?.desc}</div>
+              <div style={{color:C.muted,fontSize:11,marginTop:3,fontStyle:"italic"}}>{currentSlot?.focus}</div>
+            </div>
+            <Tag color={currentSlot?.free?C.green:C.violet}>{currentQa.questions?.length||0} questions</Tag>
+          </div>
+
+          {currentQa.questions?.map((q,i)=>{
+            const isExp=expanded===i;
+            return(
+              <div key={i} style={{background:"rgba(255,255,255,.02)",border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:8,marginBottom:6,flexWrap:"wrap"}}>
+                  <div style={{fontWeight:600,fontSize:13,color:C.ink,flex:1}}>Q{i+1}. {q.q}</div>
+                  <Tag color={sc(q.difficulty)} size={10}>{q.difficulty}</Tag>
+                </div>
+                <Tag color={C.teal} size={10}>{q.topic}</Tag>
+                <button onClick={()=>setExpanded(isExp?null:i)} style={{display:"block",background:"none",border:"none",color:C.violet,fontSize:11,fontWeight:700,cursor:"pointer",marginTop:8,fontFamily:"'Inter',sans-serif"}}>
+                  {isExp?"▲ Hide answer":"▼ See model answer + how to answer"}
+                </button>
+                {isExp&&(
+                  <div style={{marginTop:10}}>
+                    <div style={{background:C.violetPale,borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:12.5,color:C.ink2,lineHeight:1.7}}>
+                      <strong style={{color:C.violetL}}>Model answer:</strong> {q.answer}
+                    </div>
+                    <div style={{background:C.tealPale,borderRadius:8,padding:"10px 12px",fontSize:12.5,color:C.ink2,lineHeight:1.7}}>
+                      <strong style={{color:C.tealL}}>How to answer:</strong> {q.how_to_answer}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <Btn v="violet" onClick={()=>onPracticeForCompany?.(company,role)} style={{width:"100%",padding:14}}>🎙️ Practice live interview for {company} →</Btn>
+        {showUpgrade&&<PrepUpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut}/>}
+      </div>
+    );
+  }
 
   return null;
 }
