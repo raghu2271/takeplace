@@ -517,6 +517,16 @@ async function saveCached(table,company,role,payload){
   try{await supabase.from(table).upsert({company:company.toLowerCase(),role:role.toLowerCase(),data:payload,updated_at:new Date().toISOString()});}
   catch(e){console.log("cache save error:",e.message);}
 }
+async function generateRoadmap(company, role) {
+  const raw = await callGroq(
+    `You are an expert interview coach with deep knowledge of ${company}'s hiring process for ${role}.
+Return ONLY valid JSON:
+{"steps":[{"round":"<Round Name>","duration":"<e.g. 30-45 min>","what_happens":"<2-3 sentence description of what this round involves>","how_to_prepare":"<specific actionable tip for this round>"}]}
+Give exactly 4-6 steps covering the realistic full interview process at ${company} for ${role}, in order.`,
+    1800
+  );
+  return safeJSON(raw, null);
+}
 async function generatePrepQA(company,role){
   const raw=await callGroq(
     `You are a master-level interview coach with deep knowledge of ${company}'s actual interview questions for ${role}.
