@@ -1249,7 +1249,7 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
-function Dashboard({user,onStartInterview,onGoToJobs,stats}){
+function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
   const name=user?.user_metadata?.full_name?.split(" ")[0]||"there";
   const results=stats?.results||[];
   const streak=stats?.streak||{streak:0,longest:0};
@@ -1392,41 +1392,82 @@ function Dashboard({user,onStartInterview,onGoToJobs,stats}){
         </div>
       )}
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      {/* 4-card quick action grid */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
         <div className="lift" onClick={onStartInterview} style={{background:`linear-gradient(135deg,${C.violetD}20,${C.violet}15)`,border:`1px solid ${C.violet}25`,borderRadius:16,padding:"20px",cursor:"pointer"}}>
           <div style={{fontSize:28,marginBottom:10}}>🎯</div>
           <div style={{fontWeight:700,fontSize:14,color:C.ink,marginBottom:4}}>AI Mock Interview</div>
-          <div style={{color:C.soft,fontSize:12,lineHeight:1.6}}>Upload your resume, pick your company — get a fully personalized interview</div>
+          <div style={{color:C.soft,fontSize:12,lineHeight:1.6}}>Upload resume, pick company — get a fully personalized interview on camera</div>
         </div>
         <div className="lift" onClick={onGoToJobs} style={{background:`linear-gradient(135deg,${C.tealD}15,${C.teal}10)`,border:`1px solid ${C.teal}20`,borderRadius:16,padding:"20px",cursor:"pointer"}}>
           <div style={{fontSize:28,marginBottom:10}}>🔥</div>
           <div style={{fontWeight:700,fontSize:14,color:C.ink,marginBottom:4}}>Live Job Feed</div>
           <div style={{color:C.soft,fontSize:12,lineHeight:1.6}}>Real fresher openings across India · updated daily</div>
         </div>
+        <div className="lift" onClick={()=>onGoToTab(3)} style={{background:`linear-gradient(135deg,${C.gold}15,${C.gold}08)`,border:`1px solid ${C.gold}20`,borderRadius:16,padding:"20px",cursor:"pointer"}}>
+          <div style={{fontSize:28,marginBottom:10}}>🏢</div>
+          <div style={{fontWeight:700,fontSize:14,color:C.ink,marginBottom:4}}>Interview Prep</div>
+          <div style={{color:C.soft,fontSize:12,lineHeight:1.6}}>Real questions Google, TCS, Wipro ask — with model answers</div>
+        </div>
+        <div className="lift" onClick={()=>onGoToTab(4)} style={{background:`linear-gradient(135deg,${C.teal}10,${C.violet}10)`,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",cursor:"pointer"}}>
+          <div style={{fontSize:28,marginBottom:10}}>🎤</div>
+          <div style={{fontWeight:700,fontSize:14,color:C.ink,marginBottom:4}}>Quick Mock</div>
+          <div style={{color:C.soft,fontSize:12,lineHeight:1.6}}>No resume needed — pick a role and start practicing in 30 seconds</div>
+        </div>
       </div>
-    </div>
-  );
-}
 
-// ── PER-QUESTION FEEDBACK CARD ────────────────────────────────────────────────
-function QuestionFeedbackCard({p,i,sc}){
-  const[exp,setExp]=useState(false);
-  return(
-    <div style={{background:"rgba(255,255,255,.02)",borderRadius:10,padding:"14px",marginBottom:9,border:`1px solid ${C.border}`}}>
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6,gap:8}}>
-        <div style={{fontWeight:600,color:C.ink,fontSize:12.5}}>Q{i+1}. {p.question}</div>
-        <div className="mono" style={{fontWeight:700,fontSize:13,color:sc(p.score),flexShrink:0}}>{p.score}%</div>
-      </div>
-      <div style={{color:C.soft,fontSize:12.5,lineHeight:1.7,marginBottom:6}}>{p.feedback}</div>
-      <Bar pct={p.score} color={sc(p.score)}/>
-      {p.idealAnswer&&(
-        <>
-          <button onClick={()=>setExp(e=>!e)} style={{background:"none",border:"none",color:C.violet,fontSize:11,cursor:"pointer",marginTop:8,fontFamily:"'Inter',sans-serif",fontWeight:700}}>
-            {exp?"▲ Hide ideal answer":"▼ See ideal answer"}
-          </button>
-          {exp&&<div style={{background:C.violetPale,border:`1px solid ${C.violet}15`,borderRadius:8,padding:"10px 12px",marginTop:8,fontSize:12,color:C.ink2,lineHeight:1.7}}>{p.idealAnswer}</div>}
-        </>
-      )}
+      {/* Daily tip card */}
+      {(()=>{
+        const tips=[
+          {icon:"💡",tip:"Answer behavioral questions using STAR: Situation, Task, Action, Result.",color:C.violet},
+          {icon:"⚡",tip:"Google interviewers want to see HOW you think, not just the answer.",color:C.teal},
+          {icon:"🎯",tip:"For TCS/Infosys: prepare HR questions as seriously as technical ones.",color:C.gold},
+          {icon:"🗣️",tip:"Avoid filler words. 'Um' and 'basically' lower your confidence score.",color:C.green},
+          {icon:"📊",tip:"Always quantify your impact: 'improved performance by 40%' beats 'made it faster'.",color:C.violet},
+        ];
+        const tip=tips[new Date().getDay()%tips.length];
+        return(
+          <div style={{background:`${tip.color}10`,border:`1px solid ${tip.color}25`,borderRadius:14,padding:"14px 18px",marginBottom:16,display:"flex",alignItems:"flex-start",gap:12}}>
+            <span style={{fontSize:22,flexShrink:0}}>{tip.icon}</span>
+            <div>
+              <div style={{fontSize:10,fontWeight:800,color:tip.color,letterSpacing:1.2,textTransform:"uppercase",marginBottom:4}}>Daily Interview Tip</div>
+              <div style={{fontSize:13,color:C.ink2,lineHeight:1.7}}>{tip.tip}</div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Progress checklist */}
+      {(()=>{
+        const done=results.length;
+        const checks=[
+          {label:"Complete your first mock interview",done:done>=1,icon:"🎯"},
+          {label:"Upload your resume for personalized questions",done:!!user?.user_metadata?.onboarded,icon:"📄"},
+          {label:"Practice 3 interviews in a row",done:done>=3,icon:"🔥"},
+          {label:"Score 75+ on any interview",done:results.some(r=>r.overall_score>=75),icon:"⭐"},
+          {label:"Try Interview Prep for your target company",done:false,icon:"🏢"},
+        ];
+        const doneCount=checks.filter(c=>c.done).length;
+        return(
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:16}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div style={{fontWeight:700,color:C.ink,fontSize:14}}>🚀 Your Progress</div>
+              <div style={{fontSize:11,color:C.soft,fontWeight:600}}>{doneCount}/{checks.length} complete</div>
+            </div>
+            <div style={{background:"rgba(255,255,255,.04)",borderRadius:6,height:6,marginBottom:14,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${(doneCount/checks.length)*100}%`,background:`linear-gradient(90deg,${C.violet},${C.teal})`,borderRadius:6,transition:"width 1s ease"}}/>
+            </div>
+            {checks.map((c,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:i<checks.length-1?`1px solid ${C.border}`:"none"}}>
+                <div style={{width:22,height:22,borderRadius:"50%",background:c.done?C.greenPale:"rgba(255,255,255,.04)",border:`1px solid ${c.done?C.green+"50":C.border}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:11}}>
+                  {c.done?"✓":"○"}
+                </div>
+                <span style={{fontSize:12.5,color:c.done?C.ink2:C.muted,fontWeight:c.done?500:400,textDecoration:c.done?"line-through":"none"}}>{c.icon} {c.label}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -2698,6 +2739,9 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
   const[prefillCompany,setPrefillCompany]=useState("");
   const[prefillRole,setPrefillRole]=useState("");
 
+  // Add useSubscription
+  const{isPro}=useSubscription(user?.id);
+
   const name=user?.user_metadata?.full_name||user?.email?.split("@")[0]||"there";
   const firstName=name.split(" ")[0];
   const initials=name.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
@@ -2705,7 +2749,7 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
 
   const setTabP=(t)=>{setTab(t);sessionStorage.setItem("tp_tab",t);};
 
- const TABS=[{icon:"🏠",label:"Home",id:0},{icon:"🔥",label:"Jobs",id:1},{icon:"🎯",label:"Resume Interview",id:2},{icon:"🏢",label:"Interview Prep",id:3},{icon:"🎤",label:"Quick Mock",id:4}];
+  const TABS=[{icon:"🏠",label:"Home",id:0},{icon:"🔥",label:"Jobs",id:1},{icon:"🎯",label:"Resume Interview",id:2},{icon:"🏢",label:"Interview Prep",id:3},{icon:"🎤",label:"Quick Mock",id:4}];
   useEffect(()=>{fetchUserStats(user?.id).then(s=>setStats(s));},[user]);
   useEffect(()=>{loadRazorpayScript();},[]);
 
@@ -2726,6 +2770,14 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
   return(
     <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Inter',sans-serif",paddingBottom:76}}>
       <style>{CSS}{`@media(min-width:640px){.bn{display:none!important;}.ttb{display:flex!important;}}@media(max-width:639px){.ttb{display:none!important;}.bn{display:flex!important;}}`}</style>
+
+      {/* Announcement banner */}
+      {!isPro&&(
+        <div style={{background:`linear-gradient(90deg,${C.violetD},${C.violet})`,padding:"8px 20px",textAlign:"center",fontSize:12,color:"#fff",fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:10,flexWrap:"wrap"}}>
+          <span>🎉 New: Interview Prep with company-specific questions is live!</span>
+          <button onClick={()=>setTabP(3)} style={{background:"rgba(255,255,255,.2)",border:"1px solid rgba(255,255,255,.3)",borderRadius:20,padding:"2px 12px",color:"#fff",fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:700}}>Try it free →</button>
+        </div>
+      )}
 
       <div style={{background:"rgba(8,12,20,.95)",backdropFilter:"blur(20px)",borderBottom:`1px solid ${C.border}`,padding:"0 20px",position:"sticky",top:0,zIndex:100}}>
         <div style={{maxWidth:900,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:58}}>
@@ -2756,14 +2808,14 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
       </div>
 
       <div style={{maxWidth:900,margin:"0 auto",padding:"22px 16px"}}>
-        {tab===0&&<Dashboard user={user} onStartInterview={()=>setTabP(2)} onGoToJobs={()=>setTabP(1)} stats={stats}/>}
+        {tab===0&&<Dashboard user={user} onStartInterview={()=>setTabP(2)} onGoToJobs={()=>setTabP(1)} onGoToTab={setTabP} stats={stats}/>}
         {tab===1&&<JobsTab onPracticeForJob={handlePracticeForJob}/>}
-        {tab===2&&<ResumeInterviewTab user={user} onInterviewComplete={refreshStats} prefillCompany={prefillCompany} prefillRole={prefillRole}/>}  
+        {tab===2&&<ResumeInterviewTab user={user} onInterviewComplete={refreshStats} prefillCompany={prefillCompany} prefillRole={prefillRole}/>}
         {tab===3&&<CompanyPrepTab user={user} onPracticeForCompany={handlePracticeForJob}/>}
         {tab===4&&<QuickMockTab user={user} onInterviewComplete={refreshStats}/>}
       </div>
 
-     <div className="bn" style={{position:"fixed",bottom:12,left:12,right:12,background:"rgba(13,18,32,.92)",backdropFilter:"blur(24px)",border:`1px solid ${C.border}`,borderRadius:20,display:"flex",zIndex:200,padding:6,boxShadow:"0 12px 40px rgba(0,0,0,.5)",paddingBottom:"calc(6px + env(safe-area-inset-bottom,0px))"}}>
+      <div className="bn" style={{position:"fixed",bottom:12,left:12,right:12,background:"rgba(13,18,32,.92)",backdropFilter:"blur(24px)",border:`1px solid ${C.border}`,borderRadius:20,display:"flex",zIndex:200,padding:6,boxShadow:"0 12px 40px rgba(0,0,0,.5)",paddingBottom:"calc(6px + env(safe-area-inset-bottom,0px))"}}>
         {TABS.map(t=>{
           const active=tab===t.id;
           return(
