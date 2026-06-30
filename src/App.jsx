@@ -572,10 +572,10 @@ function CompanyPrepTab({user,onPracticeForCompany}){
   const[showUpgrade,setShowUpgrade]=useState(false);
   const[checkingOut,setCheckingOut]=useState(false);
   const fileRef=useRef();
-
+ 
   const{isPrepPro,refresh:refreshPrepSub}=usePrepSubscription(user?.id);
   const quickCompanies=TARGET_COMPANIES.map(c=>c.name);
-
+ 
   const SLOTS=[
     {id:1,label:"Slot 1",desc:"15 questions · Intro + Basics",questions:15,free:true,
      focus:"self introduction, why this company, basic technical screening, core fundamentals for the role"},
@@ -586,7 +586,7 @@ function CompanyPrepTab({user,onPracticeForCompany}){
     {id:4,label:"Slot 4",desc:"30 questions · Final Round",questions:30,free:false,
      focus:"hard architecture, scalability, trade-offs, edge cases, senior judgment, salary negotiation"},
   ];
-
+ 
   const handleFile=async(e)=>{
     const f=e.target.files[0];if(!f)return;
     setFileName(f.name);
@@ -598,16 +598,16 @@ function CompanyPrepTab({user,onPracticeForCompany}){
       setResumeText(text);
     }catch(e2){setErr("Could not read file: "+e2.message);}
   };
-
+ 
   const generateBatch=async(comp,rl,lvl,focus,count,resumeTxt)=>{
     const hasResume=resumeTxt&&resumeTxt.trim().length>50;
     const resumeSnip=hasResume?resumeTxt.slice(0,1200):"";
-
+ 
     const prompt=`You are a real interviewer at ${comp} conducting a ${lvl}-level interview for ${rl}.
-
+ 
 ${hasResume?`Candidate resume:\n---\n${resumeSnip}\n---\n`:""}
 Generate exactly ${count} interview questions that ${comp} ACTUALLY asks ${lvl}-level ${rl} candidates in real interviews.
-
+ 
 STRICT RULES:
 - Questions must be SHORT and CONVERSATIONAL — exactly how a real interviewer speaks
 - Maximum 15 words per question
@@ -615,7 +615,7 @@ STRICT RULES:
 - Match the EXACT difficulty for ${lvl} level at ${comp}
 - If resume provided, reference candidate's actual projects/skills in at least 3 questions
 - Focus area: ${focus}
-
+ 
 Examples of GOOD short questions:
 "Tell me about yourself."
 "Why do you want to join ${comp}?"
@@ -623,27 +623,24 @@ Examples of GOOD short questions:
 "Explain polymorphism with an example."
 "Tell me about a time you failed."
 "How would you design a URL shortener?"
-
+ 
 Return ONLY this JSON (no markdown):
 {"questions":[{"q":"<short conversational question max 15 words>","topic":"<Technical|Behavioral|HR|DSA|System Design|Intro>","difficulty":"<Easy|Medium|Hard>","answer":"<2-3 sentence direct model answer, natural spoken tone>","how_to_answer":"<1-2 sentence tip on how to structure the answer>"}]}`;
-
+ 
     const raw=await callGroq(prompt,count<=15?2200:3200);
     const data=safeJSON(raw,null);
     return data?.questions||[];
   };
-
+ 
   const handlePickSlot=async(slot)=>{
     if(!company.trim()||!role.trim()){setErr("⚠ Enter company and role first");return;}
     if(!slot.free&&!isPrepPro){setShowUpgrade(true);return;}
-
-    // if already loaded, just show
+ 
     if(slotData[slot.id]){setActiveSlot(slot.id);setStep("questions");setExpanded(null);return;}
-
+ 
     setSlotLoading(slot.id);setErr("");
     try{
-      // check cache
       const cacheKey=`prep_slot_${slot.id}`;
-      // skip cache if resume provided (personalized)
       if(!resumeText.trim()){
         const cached=await fetchCached(cacheKey,company,role);
         if(cached?.questions?.length>=slot.questions*0.7){
@@ -652,8 +649,7 @@ Return ONLY this JSON (no markdown):
           setSlotLoading(null);return;
         }
       }
-
-      // generate
+ 
       let allQ=[];
       if(slot.questions<=15){
         allQ=await generateBatch(company,role,level,slot.focus,15,resumeText);
@@ -662,7 +658,7 @@ Return ONLY this JSON (no markdown):
         const b2=await generateBatch(company,role,level,slot.focus,15,resumeText);
         allQ=[...b1,...b2];
       }
-
+ 
       if(!allQ.length)throw new Error("empty");
       const data={questions:allQ};
       if(!resumeText.trim())await saveCached(cacheKey,company,role,data);
@@ -674,110 +670,98 @@ Return ONLY this JSON (no markdown):
     }
     setSlotLoading(null);
   };
-
+ 
   const handleChoosePlan=async(plan)=>{
     setCheckingOut(true);
     await startCheckout(plan,user,()=>{setShowUpgrade(false);setCheckingOut(false);refreshPrepSub();});
     setCheckingOut(false);
   };
-
+ 
   const sc=d=>d==="Hard"?C.red:d==="Medium"?C.gold:C.green;
   const currentSlot=SLOTS.find(s=>s.id===activeSlot);
   const currentQa=slotData[activeSlot];
-
+ 
   // ── PICK SCREEN ──
   if(step==="pick")return(
     <div className="fade">
-      <div style={{marginBottom:20}}>
-        <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:4,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🏢 Interview Prep</div>
-        <div style={{color:C.soft,fontSize:13,lineHeight:1.7}}>Upload your resume + pick company → get the <strong style={{color:C.ink}}>exact short questions</strong> that company asks at your level.</div>
+      <div style={{marginBottom:22}}>
+        <div style={{fontWeight:900,fontSize:23,color:C.ink,marginBottom:5,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🏢 Interview Prep</div>
+        <div style={{color:C.soft,fontSize:14,lineHeight:1.7,fontWeight:500}}>Upload your resume + pick company → get the <strong style={{color:C.ink,fontWeight:800}}>exact short questions</strong> that company asks at your level.</div>
       </div>
-
-      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:14}}>
-
-        {/* Company + Role */}
+ 
+      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:14,boxShadow:C.shCard}}>
+ 
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
           <div>
-            <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:5,textTransform:"uppercase",letterSpacing:.7}}>Target Company</div>
+            <div style={{fontSize:11.5,fontWeight:800,color:C.soft,marginBottom:6,textTransform:"uppercase",letterSpacing:.7}}>Target Company</div>
             <input style={inp} placeholder="e.g. Google, TCS, Wipro…" value={company}
-              onChange={e=>{setCompany(e.target.value);setErr("");setSlotData({});}}
-              onFocus={e=>e.target.style.borderColor=C.violet}
-              onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.08)"}/>
+              onChange={e=>{setCompany(e.target.value);setErr("");setSlotData({});}}/>
           </div>
           <div>
-            <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:5,textTransform:"uppercase",letterSpacing:.7}}>Role</div>
+            <div style={{fontSize:11.5,fontWeight:800,color:C.soft,marginBottom:6,textTransform:"uppercase",letterSpacing:.7}}>Role</div>
             <input style={inp} placeholder="e.g. SDE-1, Data Analyst…" value={role}
-              onChange={e=>{setRole(e.target.value);setErr("");setSlotData({});}}
-              onFocus={e=>e.target.style.borderColor=C.violet}
-              onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.08)"}/>
+              onChange={e=>{setRole(e.target.value);setErr("");setSlotData({});}}/>
           </div>
         </div>
-
-        {/* Level */}
+ 
         <div style={{marginBottom:14}}>
-          <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:7,textTransform:"uppercase",letterSpacing:.7}}>Your Level</div>
+          <div style={{fontSize:11.5,fontWeight:800,color:C.soft,marginBottom:8,textTransform:"uppercase",letterSpacing:.7}}>Your Level</div>
           <div style={{display:"flex",gap:8}}>
             {["Fresher","1-2 years","3-5 years"].map(l=>(
               <button key={l} onClick={()=>{setLevel(l);setSlotData({});}}
-                style={{flex:1,padding:"9px 6px",borderRadius:10,border:`1px solid ${level===l?C.violet:C.border}`,background:level===l?C.violetPale:"transparent",color:level===l?C.violetL:C.soft,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{l}</button>
+                style={{flex:1,padding:"10px 6px",borderRadius:10,border:`1.5px solid ${level===l?C.violet:C.border}`,background:level===l?C.violetPale:C.white,color:level===l?C.violetD:C.ink2,fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{l}</button>
             ))}
           </div>
         </div>
-
-        {/* Resume Upload */}
+ 
         <div style={{marginBottom:4}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:7}}>
-            <div style={{fontSize:11,fontWeight:700,color:C.soft,textTransform:"uppercase",letterSpacing:.7}}>Resume <span style={{color:C.muted,fontWeight:400,textTransform:"none",letterSpacing:0}}>(optional — for personalized questions)</span></div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+            <div style={{fontSize:11.5,fontWeight:800,color:C.soft,textTransform:"uppercase",letterSpacing:.7}}>Resume <span style={{color:C.muted,fontWeight:500,textTransform:"none",letterSpacing:0}}>(optional — for personalized questions)</span></div>
             <button onClick={()=>fileRef.current.click()}
-              style={{padding:"6px 14px",borderRadius:8,border:`1px solid ${C.violet}30`,background:C.violetPale,color:C.violetL,fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:700}}>
+              style={{padding:"7px 14px",borderRadius:8,border:`1.5px solid ${C.violet}40`,background:C.violetPale,color:C.violetD,fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:800}}>
               📎 Upload PDF / DOCX
             </button>
             <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" onChange={handleFile} style={{display:"none"}}/>
           </div>
           {fileName&&(
-            <div style={{background:C.greenPale,border:`1px solid ${C.green}30`,borderRadius:8,padding:"6px 12px",marginBottom:8,fontSize:12,color:C.green,display:"flex",alignItems:"center",gap:8}}>
+            <div style={{background:C.greenPale,border:`1px solid ${C.green}30`,borderRadius:8,padding:"7px 12px",marginBottom:8,fontSize:12.5,color:C.green,display:"flex",alignItems:"center",gap:8,fontWeight:700}}>
               ✅ {fileName} loaded
-              <button onClick={()=>{setFileName("");setResumeText("");setSlotData({});}} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:11,marginLeft:"auto",fontFamily:"'Inter',sans-serif"}}>✕ Remove</button>
+              <button onClick={()=>{setFileName("");setResumeText("");setSlotData({});}} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:11.5,marginLeft:"auto",fontFamily:"'Inter',sans-serif",fontWeight:700}}>✕ Remove</button>
             </div>
           )}
           {!fileName&&(
-            <textarea style={{...inp,minHeight:80,resize:"vertical",fontSize:12,fontFamily:"'JetBrains Mono',monospace",lineHeight:1.6}}
+            <textarea style={{...inp,minHeight:80,resize:"vertical",fontSize:13,fontFamily:"'JetBrains Mono',monospace",lineHeight:1.6}}
               placeholder="Or paste resume text here (optional)…"
-              value={resumeText} onChange={e=>{setResumeText(e.target.value);setSlotData({});}}
-              onFocus={e=>e.target.style.borderColor=C.violet}
-              onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.08)"}/>
+              value={resumeText} onChange={e=>{setResumeText(e.target.value);setSlotData({});}}/>
           )}
         </div>
       </div>
-
-      {/* Quick company picker */}
+ 
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:7,textTransform:"uppercase",letterSpacing:.7}}>Quick select</div>
+        <div style={{fontSize:11.5,fontWeight:800,color:C.soft,marginBottom:8,textTransform:"uppercase",letterSpacing:.7}}>Quick select</div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           {quickCompanies.map(c=>(
             <button key={c} onClick={()=>{setCompany(c);setErr("");setSlotData({});}}
-              style={{padding:"6px 14px",borderRadius:20,border:`1px solid ${company===c?C.violet:C.border}`,background:company===c?C.violetPale:"transparent",color:company===c?C.violetL:C.soft,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{c}</button>
+              style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${company===c?C.violet:C.border}`,background:company===c?C.violetPale:C.white,color:company===c?C.violetD:C.ink2,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{c}</button>
           ))}
         </div>
       </div>
-
-      {err&&<div style={{color:C.red,fontSize:12.5,marginBottom:14,background:C.redPale,padding:"10px 14px",borderRadius:10}}>{err}</div>}
-
-      {/* Target display */}
+ 
+      {err&&<div style={{color:C.red,fontSize:13,marginBottom:14,background:C.redPale,padding:"10px 14px",borderRadius:10,fontWeight:600}}>{err}</div>}
+ 
       {company&&role&&(
-        <div style={{background:`${C.violet}10`,border:`1px solid ${C.violet}25`,borderRadius:10,padding:"10px 16px",marginBottom:14,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+        <div style={{background:`${C.violet}0C`,border:`1px solid ${C.violet}28`,borderRadius:10,padding:"10px 16px",marginBottom:14,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
           <span style={{fontSize:16}}>🎯</span>
-          <span style={{color:C.violetL,fontWeight:700,fontSize:13}}>{company}</span>
+          <span style={{color:C.violetD,fontWeight:800,fontSize:13.5}}>{company}</span>
           <span style={{color:C.muted}}>·</span>
-          <span style={{color:C.ink2,fontSize:13}}>{role}</span>
+          <span style={{color:C.ink2,fontSize:13.5,fontWeight:600}}>{role}</span>
           <span style={{color:C.muted}}>·</span>
-          <span style={{color:C.soft,fontSize:12}}>{level}</span>
-          {resumeText&&<><span style={{color:C.muted}}>·</span><span style={{color:C.green,fontSize:12,fontWeight:700}}>📄 Resume added</span></>}
-          <span style={{color:C.soft,fontSize:11,marginLeft:"auto"}}>Pick a slot ↓</span>
+          <span style={{color:C.soft,fontSize:12.5,fontWeight:600}}>{level}</span>
+          {resumeText&&<><span style={{color:C.muted}}>·</span><span style={{color:C.green,fontSize:12.5,fontWeight:800}}>📄 Resume added</span></>}
+          <span style={{color:C.soft,fontSize:11.5,marginLeft:"auto",fontWeight:600}}>Pick a slot ↓</span>
         </div>
       )}
-
-      {/* 4 Slot Cards */}
+ 
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
         {SLOTS.map(slot=>{
           const isLoading=slotLoading===slot.id;
@@ -786,10 +770,10 @@ Return ONLY this JSON (no markdown):
           return(
             <div key={slot.id} onClick={()=>handlePickSlot(slot)} className="lift"
               style={{
-                background:locked?"rgba(255,255,255,.015)":isDone?C.greenPale:slot.free?`linear-gradient(135deg,${C.violet}18,${C.teal}08)`:C.bgCard,
+                background:locked?C.bgSubtle:isDone?C.greenPale:slot.free?`linear-gradient(135deg,${C.violet}14,${C.teal}0A)`:C.bgCard,
                 border:`1.5px solid ${isDone?C.green+"50":slot.free?C.violet+"50":locked?C.border:C.violet+"30"}`,
                 borderRadius:16,padding:20,cursor:isLoading?"wait":"pointer",
-                position:"relative",overflow:"hidden",transition:"all .2s"
+                position:"relative",overflow:"hidden",transition:"all .2s",boxShadow:C.shCard
               }}>
               <div style={{position:"absolute",top:10,right:10}}>
                 {isDone&&!locked?<Tag color={C.green} size={9}>✓ Loaded</Tag>
@@ -800,78 +784,70 @@ Return ONLY this JSON (no markdown):
               <div style={{fontSize:28,marginBottom:10,lineHeight:1}}>
                 {isLoading?<Spin size={24} color={slot.free?C.violet:C.gold}/>:slot.free?"🟢":locked?"🔒":"📖"}
               </div>
-              <div style={{fontWeight:800,fontSize:14,color:locked?C.muted:C.ink,marginBottom:3}}>{slot.label}</div>
-              <div style={{color:locked?C.muted:C.soft,fontSize:12,fontWeight:600,marginBottom:6}}>{slot.desc}</div>
-              <div style={{fontSize:10.5,color:locked?C.muted+"80":C.soft,lineHeight:1.6,fontStyle:"italic"}}>{slot.focus}</div>
-              {isLoading&&<div style={{marginTop:8,fontSize:11,color:C.violet,fontWeight:600}}>Loading {slot.questions} questions…</div>}
-              {locked&&<div style={{marginTop:10,background:C.goldPale,border:`1px solid ${C.gold}30`,borderRadius:8,padding:"4px 10px",fontSize:11,color:C.gold,fontWeight:700,display:"inline-block"}}>₹59/week →</div>}
+              <div style={{fontWeight:800,fontSize:14.5,color:locked?C.muted:C.ink,marginBottom:3}}>{slot.label}</div>
+              <div style={{color:locked?C.muted:C.soft,fontSize:12.5,fontWeight:700,marginBottom:6}}>{slot.desc}</div>
+              <div style={{fontSize:11,color:locked?C.muted:C.soft,lineHeight:1.6,fontStyle:"italic",fontWeight:500}}>{slot.focus}</div>
+              {isLoading&&<div style={{marginTop:8,fontSize:11.5,color:C.violet,fontWeight:700}}>Loading {slot.questions} questions…</div>}
+              {locked&&<div style={{marginTop:10,background:C.goldPale,border:`1px solid ${C.gold}30`,borderRadius:8,padding:"4px 10px",fontSize:11.5,color:C.gold,fontWeight:800,display:"inline-block"}}>₹59/week →</div>}
             </div>
           );
         })}
       </div>
-
-      {/* Upgrade banner */}
+ 
       {!isPrepPro&&(
-        <div style={{background:`linear-gradient(135deg,${C.gold}12,${C.violet}08)`,border:`1px solid ${C.gold}25`,borderRadius:14,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+        <div style={{background:`linear-gradient(135deg,${C.gold}10,${C.violet}08)`,border:`1px solid ${C.gold}30`,borderRadius:14,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap"}}>
           <div>
-            <div style={{fontWeight:700,fontSize:13,color:C.ink}}>🔓 Unlock Slots 2, 3 & 4 — 90 more questions</div>
-            <div style={{color:C.soft,fontSize:12,marginTop:2}}>All companies · All roles · Personalized with resume</div>
+            <div style={{fontWeight:800,fontSize:13.5,color:C.ink}}>🔓 Unlock Slots 2, 3 & 4 — 90 more questions</div>
+            <div style={{color:C.soft,fontSize:12.5,marginTop:2,fontWeight:500}}>All companies · All roles · Personalized with resume</div>
           </div>
           <Btn v="gold" small onClick={()=>setShowUpgrade(true)}>Upgrade ₹59/week →</Btn>
         </div>
       )}
-
+ 
       {showUpgrade&&<PrepUpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut}/>}
     </div>
   );
-
+ 
   // ── QUESTIONS SCREEN ──
   if(step==="questions"&&currentQa){
     return(
       <div className="fade">
-        {/* Back + header */}
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
           <button onClick={()=>{setStep("pick");setExpanded(null);}}
-            style={{background:"none",border:`1px solid ${C.border}`,color:C.soft,fontSize:12,cursor:"pointer",padding:"7px 14px",borderRadius:8,fontFamily:"'Inter',sans-serif",fontWeight:600}}>← Back</button>
+            style={{background:C.white,border:`1.5px solid ${C.border}`,color:C.ink2,fontSize:12.5,cursor:"pointer",padding:"7px 14px",borderRadius:8,fontFamily:"'Inter',sans-serif",fontWeight:700}}>← Back</button>
           <div>
-            <div style={{fontWeight:800,fontSize:15,color:C.ink}}>{company} · {role} · {level}</div>
-            <div style={{color:C.soft,fontSize:11.5,marginTop:1}}>{currentSlot?.label} — {currentSlot?.desc}{resumeText?" · 📄 Personalized from resume":""}</div>
+            <div style={{fontWeight:800,fontSize:15.5,color:C.ink}}>{company} · {role} · {level}</div>
+            <div style={{color:C.soft,fontSize:12,marginTop:1,fontWeight:600}}>{currentSlot?.label} — {currentSlot?.desc}{resumeText?" · 📄 Personalized from resume":""}</div>
           </div>
         </div>
-
-        {/* Questions list */}
-        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:16,marginBottom:14}}>
+ 
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:16,marginBottom:14,boxShadow:C.shCard}}>
           {currentQa.questions?.map((q,i)=>{
             const isExp=expanded===i;
             return(
-              <div key={i} style={{border:`1px solid ${isExp?C.violet+"50":C.border}`,borderRadius:12,padding:14,marginBottom:9,background:isExp?`${C.violet}06`:"rgba(255,255,255,.015)",transition:"all .2s"}}>
+              <div key={i} style={{border:`1.5px solid ${isExp?C.violet+"50":C.border}`,borderRadius:12,padding:14,marginBottom:9,background:isExp?`${C.violet}06`:C.white,transition:"all .2s"}}>
                 <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
-                  {/* Number */}
-                  <div style={{width:26,height:26,borderRadius:7,background:C.violetPale,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:11,color:C.violetL,flexShrink:0,fontFamily:"JetBrains Mono,monospace"}}>{i+1}</div>
+                  <div style={{width:26,height:26,borderRadius:7,background:C.violetPale,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:11,color:C.violetD,flexShrink:0,fontFamily:"JetBrains Mono,monospace"}}>{i+1}</div>
                   <div style={{flex:1}}>
-                    {/* Question */}
-                    <div style={{fontWeight:600,fontSize:14,color:C.ink,lineHeight:1.5,marginBottom:6}}>{q.q}</div>
-                    {/* Tags */}
+                    <div style={{fontWeight:700,fontSize:14.5,color:C.ink,lineHeight:1.5,marginBottom:7}}>{q.q}</div>
                     <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
                       <Tag color={C.teal} size={10}>{q.topic}</Tag>
                       <Tag color={sc(q.difficulty)} size={10}>{q.difficulty}</Tag>
                     </div>
-                    {/* Toggle btn */}
                     <button onClick={()=>setExpanded(isExp?null:i)}
-                      style={{display:"inline-flex",alignItems:"center",gap:5,background:isExp?C.violetPale:"rgba(255,255,255,.04)",border:`1px solid ${isExp?C.violet+"40":"rgba(255,255,255,.08)"}`,borderRadius:7,color:isExp?C.violetL:C.soft,fontSize:11,fontWeight:700,cursor:"pointer",padding:"5px 11px",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>
+                      style={{display:"inline-flex",alignItems:"center",gap:5,background:isExp?C.violetPale:C.bgSubtle,border:`1.5px solid ${isExp?C.violet+"40":C.border}`,borderRadius:7,color:isExp?C.violetD:C.ink2,fontSize:11.5,fontWeight:800,cursor:"pointer",padding:"5px 11px",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>
                       {isExp?"▲ Hide":"▼ See answer"}
                     </button>
-
-                    {/* Answer */}
+ 
                     {isExp&&(
                       <div style={{marginTop:10}}>
                         <div style={{background:C.violetPale,borderRadius:10,padding:"11px 13px",marginBottom:8,border:`1px solid ${C.violet}20`}}>
-                          <div style={{fontSize:9,fontWeight:800,color:C.violetL,letterSpacing:1.2,textTransform:"uppercase",marginBottom:5}}>✦ Model Answer</div>
-                          <div style={{fontSize:13,color:C.ink2,lineHeight:1.8}}>{q.answer}</div>
+                          <div style={{fontSize:9.5,fontWeight:800,color:C.violetD,letterSpacing:1.2,textTransform:"uppercase",marginBottom:5}}>✦ Model Answer</div>
+                          <div style={{fontSize:13.5,color:C.ink2,lineHeight:1.8,fontWeight:500}}>{q.answer}</div>
                         </div>
                         <div style={{background:C.tealPale,borderRadius:10,padding:"11px 13px",border:`1px solid ${C.teal}20`}}>
-                          <div style={{fontSize:9,fontWeight:800,color:C.tealL,letterSpacing:1.2,textTransform:"uppercase",marginBottom:5}}>💡 How To Answer</div>
-                          <div style={{fontSize:13,color:C.ink2,lineHeight:1.8}}>{q.how_to_answer}</div>
+                          <div style={{fontSize:9.5,fontWeight:800,color:C.tealD,letterSpacing:1.2,textTransform:"uppercase",marginBottom:5}}>💡 How To Answer</div>
+                          <div style={{fontSize:13.5,color:C.ink2,lineHeight:1.8,fontWeight:500}}>{q.how_to_answer}</div>
                         </div>
                       </div>
                     )}
@@ -881,19 +857,18 @@ Return ONLY this JSON (no markdown):
             );
           })}
         </div>
-
-        <Btn v="violet" onClick={()=>onPracticeForCompany?.(company,role)} style={{width:"100%",padding:14,fontSize:14}}>
+ 
+        <Btn v="violet" onClick={()=>onPracticeForCompany?.(company,role)} style={{width:"100%",padding:14,fontSize:14.5}}>
           🎙️ Practice live mock interview for {company} →
         </Btn>
-
+ 
         {showUpgrade&&<PrepUpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut}/>}
       </div>
     );
   }
-
+ 
   return null;
 }
-
 // ── SPEECH ENGINE HOOK ────────────────────────────────────────────────────────
 // FIX: All speech bugs consolidated into one reusable hook so both
 // ResumeInterviewTab and QuickMockTab use identical, correct behaviour.
@@ -1055,6 +1030,26 @@ function useSpeechEngine({phaseRef, onTimerEnd, QTIME=90}){
 }
 
 // ── INTERVIEW ROOM ────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// PASS 3a — INTERVIEW ROOM (CONTRAST FIX) + DASHBOARD
+// Replace your "function InterviewRoom(...)" block AND your "function Dashboard(...)"
+// block with these two. Everything else in your file stays as-is.
+//
+// WHAT WAS BROKEN (from your screenshot):
+// The Interview Room used to be written assuming a dark page background, so it
+// used pure white text (#fff) and translucent-white panels (rgba(255,255,255,..))
+// directly in inline styles instead of the C tokens. That's fine on a dark page,
+// but once your global theme became white, the ROOM ITSELF is still intentionally
+// dark (a "studio" look — explained in earlier passes), so white text on its own
+// dark background should actually still be visible... EXCEPT several elements
+// were using near-invisible low-opacity whites (e.g. "rgba(255,255,255,.2)" for
+// placeholder text) which read as washed-out/invisible especially the question
+// text, transcript box, and live metrics. I've increased every text contrast
+// level here, added explicit font-weights, and made the mic/transcript/question
+// areas much bolder so nothing is unreadable again.
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── INTERVIEW ROOM ────────────────────────────────────────────────────────────
 function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening,liveText,interimText,timeLeft,feedback,loadingFeedback,onFinish,onNext,onEnd,onToggleMic,micMuted,fillerCount,liveMetrics}){
   const videoRef=useRef(null);
   const streamRef=useRef(null);
@@ -1093,29 +1088,29 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
         @keyframes voiceBar{0%,100%{transform:scaleY(.15)}50%{transform:scaleY(1)}}
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-        @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(124,110,250,.55)}70%{box-shadow:0 0 0 28px rgba(124,110,250,0)}100%{box-shadow:0 0 0 0 rgba(124,110,250,0)}}
+        @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(124,114,240,.55)}70%{box-shadow:0 0 0 28px rgba(124,114,240,0)}100%{box-shadow:0 0 0 0 rgba(124,114,240,0)}}
         @keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
         .vbar{width:3px;border-radius:2px;background:currentColor;display:inline-block;transform-origin:center bottom;}
         .metric-bar{height:3px;border-radius:2px;transition:width .8s cubic-bezier(.22,1,.36,1);}
       `}</style>
 
-      <div style={{flex:1,background:"linear-gradient(180deg,#04060E 0%,#080C14 100%)",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden"}}>
-        <div style={{position:"absolute",top:"20%",left:"50%",transform:"translateX(-50%)",width:400,height:400,borderRadius:"50%",background:`radial-gradient(circle,${C.violet}08,transparent 70%)`,pointerEvents:"none"}}/>
+      <div style={{flex:1,background:"linear-gradient(180deg,#070912 0%,#0B0E1A 100%)",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:"20%",left:"50%",transform:"translateX(-50%)",width:400,height:400,borderRadius:"50%",background:"radial-gradient(circle,rgba(124,114,240,.10),transparent 70%)",pointerEvents:"none"}}/>
 
         {/* Top bar */}
-        <div style={{position:"absolute",top:0,left:0,right:0,padding:"16px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",background:"linear-gradient(to bottom,rgba(4,6,14,.9),transparent)",zIndex:20}}>
+        <div style={{position:"absolute",top:0,left:0,right:0,padding:"16px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",background:"linear-gradient(to bottom,rgba(7,9,18,.92),transparent)",zIndex:20}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{width:7,height:7,borderRadius:"50%",background:C.red,animation:"pulse .9s infinite",boxShadow:`0 0 8px ${C.red}`}}/>
-            <span style={{color:"rgba(255,255,255,.7)",fontWeight:700,fontSize:11,letterSpacing:1.5}}>LIVE</span>
-            {company&&<div className="glass" style={{borderRadius:20,padding:"4px 14px",color:"rgba(255,255,255,.8)",fontSize:12,fontWeight:700}}>{company}</div>}
+            <div style={{width:7,height:7,borderRadius:"50%",background:"#EF4444",animation:"pulse .9s infinite",boxShadow:"0 0 8px #EF4444"}}/>
+            <span style={{color:"rgba(255,255,255,.85)",fontWeight:800,fontSize:11,letterSpacing:1.5}}>LIVE</span>
+            {company&&<div style={{background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.16)",borderRadius:20,padding:"4px 14px",color:"#fff",fontSize:12,fontWeight:700}}>{company}</div>}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <div style={{display:"flex",gap:5,alignItems:"center"}}>
               {questions.map((_,i)=>(
-                <div key={i} style={{width:i===qIndex?28:20,height:3,borderRadius:2,background:i<qIndex?C.green:i===qIndex?C.violet:"rgba(255,255,255,.12)",transition:"all .3s"}}/>
+                <div key={i} style={{width:i===qIndex?28:20,height:3,borderRadius:2,background:i<qIndex?"#22C55E":i===qIndex?"#7C72F0":"rgba(255,255,255,.18)",transition:"all .3s"}}/>
               ))}
             </div>
-            <div className="glass" style={{borderRadius:20,padding:"4px 14px",color:"rgba(255,255,255,.6)",fontSize:11,fontWeight:700,fontFamily:"JetBrains Mono,monospace"}}>
+            <div style={{background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.16)",borderRadius:20,padding:"4px 14px",color:"#fff",fontSize:11,fontWeight:800,fontFamily:"JetBrains Mono,monospace"}}>
               {qIndex+1}/{questions.length}
             </div>
           </div>
@@ -1123,57 +1118,56 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
 
         {/* AI Avatar */}
         <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:16,zIndex:5}}>
-          <div style={{borderRadius:"50%",padding:6,border:`2px solid ${aiSpeaking?C.violet:"rgba(255,255,255,.08)"}`,boxShadow:aiSpeaking?`0 0 40px ${C.violet}30`:"none",animation:aiSpeaking?"ringPulse 1.8s infinite":"none",transition:"all .4s"}}>
+          <div style={{borderRadius:"50%",padding:6,border:`2px solid ${aiSpeaking?"#7C72F0":"rgba(255,255,255,.14)"}`,boxShadow:aiSpeaking?"0 0 40px rgba(124,114,240,.35)":"none",animation:aiSpeaking?"ringPulse 1.8s infinite":"none",transition:"all .4s"}}>
             <AIFace speaking={aiSpeaking} size={160}/>
           </div>
           <div style={{textAlign:"center"}}>
-            <div style={{color:"#fff",fontWeight:800,fontSize:16}}>Priya Sharma</div>
-            <div style={{color:"rgba(255,255,255,.4)",fontSize:12,marginTop:2}}>Senior Hiring Manager{company?` · ${company}`:role?` · ${role}`:""}</div>
+            <div style={{color:"#fff",fontWeight:800,fontSize:17}}>Priya Sharma</div>
+            <div style={{color:"rgba(255,255,255,.55)",fontSize:12.5,marginTop:2,fontWeight:500}}>Senior Hiring Manager{company?` · ${company}`:role?` · ${role}`:""}</div>
             {aiSpeaking&&(
               <div style={{display:"flex",justifyContent:"center",gap:3,alignItems:"flex-end",marginTop:8,height:16}}>
                 {[.35,.55,.8,.55,.35].map((d,i)=>(
-                  <span key={i} className="vbar" style={{height:16,color:C.violet,animation:`voiceBar ${d}s ease-in-out ${i*.07}s infinite`}}/>
+                  <span key={i} className="vbar" style={{height:16,color:"#7C72F0",animation:`voiceBar ${d}s ease-in-out ${i*.07}s infinite`}}/>
                 ))}
               </div>
             )}
-            {/* FIX: show clear status so user knows exactly when to speak */}
             {!aiSpeaking&&phase==="answering"&&(
-              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginTop:8,background:listening?"rgba(0,212,170,.12)":"rgba(255,255,255,.05)",borderRadius:20,padding:"4px 14px",border:`1px solid ${listening?C.teal+"40":"rgba(255,255,255,.08)"}`}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginTop:8,background:listening?"rgba(45,212,174,.15)":"rgba(255,255,255,.08)",borderRadius:20,padding:"5px 14px",border:`1px solid ${listening?"rgba(45,212,174,.4)":"rgba(255,255,255,.14)"}`}}>
                 {listening
-                  ?<><div style={{width:5,height:5,borderRadius:"50%",background:C.teal,animation:"pulse 1s infinite"}}/><span style={{color:C.teal,fontSize:11,fontWeight:700}}>Your mic is live — speak now</span></>
-                  :<span style={{color:"rgba(255,255,255,.35)",fontSize:11}}>Mic starting…</span>
+                  ?<><div style={{width:5,height:5,borderRadius:"50%",background:"#2DD4AE",animation:"pulse 1s infinite"}}/><span style={{color:"#2DD4AE",fontSize:11.5,fontWeight:800}}>Your mic is live — speak now</span></>
+                  :<span style={{color:"rgba(255,255,255,.6)",fontSize:11.5,fontWeight:600}}>Mic starting…</span>
                 }
               </div>
             )}
             {phase==="speaking"&&(
-              <div style={{marginTop:8,color:"rgba(255,255,255,.4)",fontSize:11}}>Priya is asking your question…</div>
+              <div style={{marginTop:8,color:"rgba(255,255,255,.55)",fontSize:11.5,fontWeight:500}}>Priya is asking your question…</div>
             )}
           </div>
         </div>
 
         {/* Live metrics panel */}
         {phase==="answering"&&(
-          <div className="glass-strong" style={{position:"absolute",right:20,top:"50%",transform:"translateY(-50%)",borderRadius:14,padding:"16px",width:130,zIndex:20}}>
-            <div style={{fontSize:9,color:"rgba(255,255,255,.35)",fontWeight:700,letterSpacing:1.2,textTransform:"uppercase",marginBottom:12}}>Live analysis</div>
+          <div style={{position:"absolute",right:20,top:"50%",transform:"translateY(-50%)",background:"rgba(20,22,34,.92)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,.12)",borderRadius:14,padding:"16px",width:134,zIndex:20}}>
+            <div style={{fontSize:9.5,color:"rgba(255,255,255,.55)",fontWeight:800,letterSpacing:1.2,textTransform:"uppercase",marginBottom:12}}>Live analysis</div>
             {[
-              {label:"Pace",val:liveMetrics?.pace||0,color:C.teal},
-              {label:"Clarity",val:liveMetrics?.clarity||0,color:C.violet},
-              {label:"Fillers",val:Math.max(0,100-((fillerCount||0)*8)),color:fillerCount>3?C.red:fillerCount>1?C.gold:C.green},
+              {label:"Pace",val:liveMetrics?.pace||0,color:"#2DD4AE"},
+              {label:"Clarity",val:liveMetrics?.clarity||0,color:"#7C72F0"},
+              {label:"Fillers",val:Math.max(0,100-((fillerCount||0)*8)),color:fillerCount>3?"#EF4444":fillerCount>1?"#E08E1F":"#22C55E"},
             ].map(({label,val,color})=>(
               <div key={label} style={{marginBottom:10}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                  <span style={{fontSize:10,color:"rgba(255,255,255,.5)",fontWeight:600}}>{label}</span>
-                  <span style={{fontSize:10,color,fontFamily:"JetBrains Mono,monospace",fontWeight:700}}>{val}%</span>
+                  <span style={{fontSize:10,color:"rgba(255,255,255,.7)",fontWeight:700}}>{label}</span>
+                  <span style={{fontSize:10,color,fontFamily:"JetBrains Mono,monospace",fontWeight:800}}>{val}%</span>
                 </div>
-                <div style={{background:"rgba(255,255,255,.06)",borderRadius:2,height:3}}>
+                <div style={{background:"rgba(255,255,255,.1)",borderRadius:2,height:3}}>
                   <div className="metric-bar" style={{width:`${val}%`,background:color}}/>
                 </div>
               </div>
             ))}
             {fillerCount>0&&(
-              <div style={{marginTop:8,padding:"6px 8px",background:"rgba(245,158,11,.1)",borderRadius:8,border:"1px solid rgba(245,158,11,.2)"}}>
-                <div style={{fontSize:10,color:C.gold,fontWeight:700}}>{fillerCount} filler{fillerCount>1?"s":""}</div>
-                <div style={{fontSize:9,color:"rgba(255,255,255,.35)",marginTop:1}}>detected</div>
+              <div style={{marginTop:8,padding:"6px 8px",background:"rgba(224,142,31,.14)",borderRadius:8,border:"1px solid rgba(224,142,31,.28)"}}>
+                <div style={{fontSize:10,color:"#E08E1F",fontWeight:800}}>{fillerCount} filler{fillerCount>1?"s":""}</div>
+                <div style={{fontSize:9,color:"rgba(255,255,255,.5)",marginTop:1}}>detected</div>
               </div>
             )}
           </div>
@@ -1181,18 +1175,18 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
 
         {/* Question card + transcript */}
         <div style={{position:"absolute",bottom:72,left:0,right:0,padding:"0 16px",zIndex:20}}>
-          <div className="glass-strong" style={{borderRadius:14,padding:"14px 18px",marginBottom:10}}>
+          <div style={{background:"rgba(20,22,34,.94)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,.12)",borderRadius:14,padding:"14px 18px",marginBottom:10}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-              <Tag color={C.violet}>{q?.type}</Tag>
+              <span style={{background:"rgba(124,114,240,.2)",color:"#B7AEFA",fontSize:11,padding:"3px 10px",borderRadius:20,fontWeight:800,border:"1px solid rgba(124,114,240,.35)"}}>{q?.type}</span>
               {phase==="answering"&&(
-                <span className="mono" style={{color:tcol,fontWeight:700,fontSize:14,filter:`drop-shadow(0 0 6px ${tcol}80)`}}>
+                <span style={{fontFamily:"JetBrains Mono,monospace",color:tcol,fontWeight:800,fontSize:15}}>
                   ⏱ {fmtTime(timeLeft)}
                 </span>
               )}
             </div>
-            <div style={{color:"#fff",fontSize:15,lineHeight:1.7,fontWeight:500}}>{q?.q}</div>
+            <div style={{color:"#fff",fontSize:16,lineHeight:1.7,fontWeight:600}}>{q?.q}</div>
             {phase==="answering"&&(
-              <div style={{height:2,background:"rgba(255,255,255,.06)",borderRadius:2,marginTop:12,overflow:"hidden"}}>
+              <div style={{height:2,background:"rgba(255,255,255,.12)",borderRadius:2,marginTop:12,overflow:"hidden"}}>
                 <div style={{height:"100%",width:`${pct}%`,background:tcol,borderRadius:2,transition:"width 1s linear",boxShadow:`0 0 8px ${tcol}80`}}/>
               </div>
             )}
@@ -1200,43 +1194,43 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
 
           {/* Live transcript box */}
           {phase==="answering"&&(
-            <div className="glass" style={{borderRadius:12,padding:"12px 16px",border:`1px solid ${listening?`${C.teal}30`:"rgba(255,255,255,.06)"}`,minHeight:54,marginBottom:8,transition:"border-color .3s"}}>
+            <div style={{background:"rgba(20,22,34,.85)",backdropFilter:"blur(16px)",borderRadius:12,padding:"12px 16px",border:`1px solid ${listening?"rgba(45,212,174,.4)":"rgba(255,255,255,.12)"}`,minHeight:56,marginBottom:8,transition:"border-color .3s"}}>
               <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:5}}>
-                {listening&&<div style={{width:5,height:5,borderRadius:"50%",background:C.teal,animation:"pulse 1s infinite",boxShadow:`0 0 6px ${C.teal}`}}/>}
-                <span style={{color:listening?C.teal:"rgba(255,255,255,.25)",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase"}}>
+                {listening&&<div style={{width:5,height:5,borderRadius:"50%",background:"#2DD4AE",animation:"pulse 1s infinite",boxShadow:"0 0 6px #2DD4AE"}}/>}
+                <span style={{color:listening?"#2DD4AE":"rgba(255,255,255,.5)",fontSize:9.5,fontWeight:800,letterSpacing:1.5,textTransform:"uppercase"}}>
                   {listening?"Mic active — keep going":"Mic standby"}
                 </span>
               </div>
-              <div style={{color:"#fff",fontSize:13,lineHeight:1.7}}>
+              <div style={{color:"#fff",fontSize:14,lineHeight:1.7,fontWeight:500}}>
                 {liveText&&<span>{liveText}</span>}
-                {interimText&&!liveText.endsWith(interimText)&&<span style={{color:"rgba(255,255,255,.35)",fontStyle:"italic"}}> {interimText}</span>}
-                {!liveText&&!interimText&&<span style={{color:"rgba(255,255,255,.2)",fontStyle:"italic"}}>Your words appear here as you speak…</span>}
+                {interimText&&!liveText.endsWith(interimText)&&<span style={{color:"rgba(255,255,255,.55)",fontStyle:"italic"}}> {interimText}</span>}
+                {!liveText&&!interimText&&<span style={{color:"rgba(255,255,255,.4)",fontStyle:"italic",fontWeight:400}}>Your words appear here as you speak…</span>}
               </div>
             </div>
           )}
 
           {/* Feedback card */}
           {phase==="done-q"&&loadingFeedback&&(
-            <div className="glass" style={{borderRadius:12,padding:"12px 16px",display:"flex",alignItems:"center",gap:10,color:"rgba(255,255,255,.5)",fontSize:13}}>
-              <Spin size={14} color={C.violet}/> Scoring your answer…
+            <div style={{background:"rgba(20,22,34,.85)",backdropFilter:"blur(16px)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,padding:"12px 16px",display:"flex",alignItems:"center",gap:10,color:"rgba(255,255,255,.8)",fontSize:13.5,fontWeight:600}}>
+              <Spin size={14} color="#7C72F0"/> Scoring your answer…
             </div>
           )}
           {phase==="done-q"&&!loadingFeedback&&feedback&&(
-            <div className="glass-strong" style={{borderRadius:14,padding:"14px 18px",border:`1px solid ${feedback.score>=75?C.green+"40":feedback.score>=50?C.violet+"40":C.red+"40"}`,animation:"slideIn .3s ease forwards"}}>
+            <div style={{background:"rgba(20,22,34,.95)",backdropFilter:"blur(20px)",borderRadius:14,padding:"14px 18px",border:`1px solid ${feedback.score>=75?"rgba(34,197,94,.45)":feedback.score>=50?"rgba(124,114,240,.45)":"rgba(239,68,68,.45)"}`,animation:"slideIn .3s ease forwards"}}>
               <div style={{display:"flex",alignItems:"flex-start",gap:14}}>
-                <div style={{width:46,height:46,borderRadius:12,background:feedback.score>=75?`${C.green}15`:feedback.score>=50?`${C.violet}15`:`${C.red}15`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:15,flexShrink:0,color:feedback.score>=75?C.green:feedback.score>=50?C.violetL:C.red,fontFamily:"JetBrains Mono,monospace"}}>
+                <div style={{width:46,height:46,borderRadius:12,background:feedback.score>=75?"rgba(34,197,94,.18)":feedback.score>=50?"rgba(124,114,240,.18)":"rgba(239,68,68,.18)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:16,flexShrink:0,color:feedback.score>=75?"#4ADE80":feedback.score>=50?"#B7AEFA":"#F87171",fontFamily:"JetBrains Mono,monospace"}}>
                   {feedback.score}
                 </div>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{color:"#fff",fontWeight:700,fontSize:13,marginBottom:3}}>
+                  <div style={{color:"#fff",fontWeight:800,fontSize:14,marginBottom:3}}>
                     {feedback.score>=75?"Strong answer ✓":feedback.score>=50?"Solid attempt":"Needs work"}
                   </div>
-                  {feedback.tip&&<div style={{color:"rgba(255,255,255,.6)",fontSize:12,lineHeight:1.65}}>{feedback.tip}</div>}
-                  {feedback.what_was_good&&<div style={{color:C.green,fontSize:11.5,marginTop:4}}>✓ {feedback.what_was_good}</div>}
-                  {feedback.missing&&<div style={{color:C.gold,fontSize:11.5,marginTop:2}}>Missing: {feedback.missing}</div>}
+                  {feedback.tip&&<div style={{color:"rgba(255,255,255,.78)",fontSize:12.5,lineHeight:1.65,fontWeight:500}}>{feedback.tip}</div>}
+                  {feedback.what_was_good&&<div style={{color:"#4ADE80",fontSize:11.5,marginTop:4,fontWeight:600}}>✓ {feedback.what_was_good}</div>}
+                  {feedback.missing&&<div style={{color:"#E08E1F",fontSize:11.5,marginTop:2,fontWeight:600}}>Missing: {feedback.missing}</div>}
                 </div>
                 <button onClick={()=>onNext(qIndex)}
-                  style={{padding:"10px 20px",borderRadius:10,border:"none",cursor:"pointer",background:isLast?`linear-gradient(135deg,${C.violetD},${C.violet})`:`linear-gradient(135deg,${C.tealD},${C.teal})`,color:isLast?"#fff":C.bg,fontWeight:800,fontSize:12,fontFamily:"'Inter',sans-serif",flexShrink:0}}>
+                  style={{padding:"10px 20px",borderRadius:10,border:"none",cursor:"pointer",background:isLast?"linear-gradient(135deg,#4338CA,#5B4FE8)":"linear-gradient(135deg,#0A8A70,#0EA889)",color:"#fff",fontWeight:800,fontSize:12.5,fontFamily:"'Inter',sans-serif",flexShrink:0}}>
                   {isLast?"Report →":"Next →"}
                 </button>
               </div>
@@ -1245,36 +1239,36 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
         </div>
 
         {/* PiP camera */}
-        <div style={{position:"absolute",top:80,right:20,width:152,height:108,borderRadius:12,overflow:"hidden",border:"1px solid rgba(255,255,255,.12)",background:"#111",zIndex:15,boxShadow:"0 8px 32px rgba(0,0,0,.6)"}}>
+        <div style={{position:"absolute",top:80,right:20,width:152,height:108,borderRadius:12,overflow:"hidden",border:"1px solid rgba(255,255,255,.16)",background:"#14161F",zIndex:15,boxShadow:"0 12px 36px rgba(0,0,0,.5)"}}>
           <video ref={videoRef} muted playsInline autoPlay style={{width:"100%",height:"100%",objectFit:"cover",transform:"scaleX(-1)",display:camReady?"block":"none"}}/>
           {!camReady&&(
-            <div style={{width:"100%",height:"100%",background:"#0d1220",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:5}}>
+            <div style={{width:"100%",height:"100%",background:"#14161F",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:5}}>
               <span style={{fontSize:24}}>🧑</span>
-              <span style={{color:"rgba(255,255,255,.3)",fontSize:9,textAlign:"center",padding:"0 8px"}}>{camErr?"Camera blocked":"Loading…"}</span>
+              <span style={{color:"rgba(255,255,255,.5)",fontSize:9.5,textAlign:"center",padding:"0 8px",fontWeight:600}}>{camErr?"Camera blocked":"Loading…"}</span>
             </div>
           )}
-          {micMuted&&<div style={{position:"absolute",top:6,right:6,background:C.red,borderRadius:"50%",width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9}}>🔇</div>}
-          <div style={{position:"absolute",bottom:5,left:7,background:"rgba(0,0,0,.55)",borderRadius:5,padding:"2px 6px",fontSize:9,color:"rgba(255,255,255,.65)",fontWeight:700}}>You</div>
+          {micMuted&&<div style={{position:"absolute",top:6,right:6,background:"#DC2626",borderRadius:"50%",width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9}}>🔇</div>}
+          <div style={{position:"absolute",bottom:5,left:7,background:"rgba(0,0,0,.65)",borderRadius:5,padding:"2px 6px",fontSize:9.5,color:"rgba(255,255,255,.85)",fontWeight:800}}>You</div>
         </div>
       </div>
 
       {/* Bottom controls */}
-      <div style={{background:"rgba(4,6,14,.97)",padding:"12px 20px",display:"flex",alignItems:"center",justifyContent:"center",gap:14,flexShrink:0,borderTop:"1px solid rgba(255,255,255,.05)"}}>
+      <div style={{background:"rgba(7,9,18,.98)",padding:"12px 20px",display:"flex",alignItems:"center",justifyContent:"center",gap:14,flexShrink:0,borderTop:"1px solid rgba(255,255,255,.08)"}}>
         {phase==="answering"&&(
           <>
-            <button onClick={onToggleMic} style={{width:46,height:46,borderRadius:"50%",border:`1px solid ${micMuted?C.red+"60":"rgba(255,255,255,.1)"}`,cursor:"pointer",background:micMuted?`${C.red}20`:"rgba(255,255,255,.06)",color:"#fff",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s",fontFamily:"'Inter',sans-serif"}}>
+            <button onClick={onToggleMic} style={{width:46,height:46,borderRadius:"50%",border:`1px solid ${micMuted?"rgba(220,38,38,.6)":"rgba(255,255,255,.16)"}`,cursor:"pointer",background:micMuted?"rgba(220,38,38,.18)":"rgba(255,255,255,.08)",color:"#fff",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s",fontFamily:"'Inter',sans-serif"}}>
               {micMuted?"🔇":"🎙️"}
             </button>
-            <button onClick={()=>onFinish(qIndex)} style={{padding:"12px 36px",borderRadius:24,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,color:"#fff",fontWeight:800,fontSize:14,fontFamily:"'Inter',sans-serif",boxShadow:`0 4px 24px ${C.violet}50`,letterSpacing:.3}}>
+            <button onClick={()=>onFinish(qIndex)} style={{padding:"12px 36px",borderRadius:24,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#4338CA,#5B4FE8,#7C72F0)",color:"#fff",fontWeight:800,fontSize:14.5,fontFamily:"'Inter',sans-serif",boxShadow:"0 6px 24px rgba(91,79,232,.5)",letterSpacing:.3}}>
               Done ✓
             </button>
-            <button onClick={onEnd} style={{width:46,height:46,borderRadius:"50%",border:`1px solid rgba(239,68,68,.3)`,cursor:"pointer",background:"rgba(239,68,68,.1)",color:C.red,fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Inter',sans-serif"}}>
+            <button onClick={onEnd} style={{width:46,height:46,borderRadius:"50%",border:"1px solid rgba(239,68,68,.35)",cursor:"pointer",background:"rgba(239,68,68,.14)",color:"#F87171",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Inter',sans-serif"}}>
               📵
             </button>
           </>
         )}
-        {phase==="speaking"&&<div style={{color:"rgba(255,255,255,.4)",fontSize:13,display:"flex",alignItems:"center",gap:8}}><Spin size={14} color={C.violet}/>Priya is speaking — your mic opens when she's done…</div>}
-        {phase==="done-q"&&!feedback&&!loadingFeedback&&<div style={{color:"rgba(255,255,255,.25)",fontSize:13}}>Analyzing…</div>}
+        {phase==="speaking"&&<div style={{color:"rgba(255,255,255,.7)",fontSize:13.5,fontWeight:600,display:"flex",alignItems:"center",gap:8}}><Spin size={14} color="#7C72F0"/>Priya is speaking — your mic opens when she's done…</div>}
+        {phase==="done-q"&&!feedback&&!loadingFeedback&&<div style={{color:"rgba(255,255,255,.5)",fontSize:13.5,fontWeight:500}}>Analyzing…</div>}
       </div>
     </div>
   );
@@ -1315,40 +1309,40 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
 
   return(
     <div className="fade" style={{paddingBottom:20}}>
-      <div style={{background:`linear-gradient(135deg,${C.bgCard},${C.bgSurf})`,border:`1px solid ${C.border}`,borderRadius:20,padding:"24px",marginBottom:16,position:"relative",overflow:"hidden"}}>
-        <div style={{position:"absolute",top:-40,right:-40,width:200,height:200,borderRadius:"50%",background:`radial-gradient(circle,${C.violet}08,transparent 70%)`,pointerEvents:"none"}}/>
+      <div style={{background:`linear-gradient(135deg,${C.bgCard},${C.bgSubtle})`,border:`1px solid ${C.border}`,borderRadius:20,padding:"24px",marginBottom:16,position:"relative",overflow:"hidden",boxShadow:C.shCard}}>
+        <div style={{position:"absolute",top:-40,right:-40,width:200,height:200,borderRadius:"50%",background:`radial-gradient(circle,${C.violet}10,transparent 70%)`,pointerEvents:"none"}}/>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:16}}>
           <div>
-            <div style={{color:C.soft,fontSize:13,marginBottom:6}}>{greeting}, {name} 👋</div>
+            <div style={{color:C.soft,fontSize:13.5,marginBottom:6,fontWeight:600}}>{greeting}, {name} 👋</div>
             {streak.streak>0?(
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
                 <span style={{fontSize:24,animation:streak.streak>0?"streakPop 2s ease infinite":"none"}}>🔥</span>
                 <div>
-                  <div style={{fontWeight:900,fontSize:22,fontFamily:"'Plus Jakarta Sans',sans-serif",color:C.ink}}>{streak.streak}-day streak</div>
-                  <div style={{color:C.soft,fontSize:12}}>Longest: {streak.longest} days</div>
+                  <div style={{fontWeight:900,fontSize:23,fontFamily:"'Plus Jakarta Sans',sans-serif",color:C.ink}}>{streak.streak}-day streak</div>
+                  <div style={{color:C.soft,fontSize:12.5,fontWeight:500}}>Longest: {streak.longest} days</div>
                 </div>
               </div>
             ):(
-              <div style={{fontWeight:800,fontSize:20,color:C.ink,marginBottom:6,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Start your first interview today</div>
+              <div style={{fontWeight:800,fontSize:21,color:C.ink,marginBottom:6,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Start your first interview today</div>
             )}
             {weakest&&weakest[1]>0&&(
-              <div style={{background:`${C.gold}10`,border:`1px solid ${C.gold}25`,borderRadius:10,padding:"8px 14px",display:"inline-block"}}>
-                <span style={{color:C.gold,fontSize:12,fontWeight:700}}>💡 Focus area: {skillNames[weakest[0]]} ({weakest[1]}%)</span>
+              <div style={{background:C.goldPale,border:`1px solid ${C.gold}30`,borderRadius:10,padding:"8px 14px",display:"inline-block"}}>
+                <span style={{color:C.gold,fontSize:12.5,fontWeight:700}}>💡 Focus area: {skillNames[weakest[0]]} ({weakest[1]}%)</span>
               </div>
             )}
           </div>
           <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-            <Btn v="violet" onClick={onStartInterview} style={{padding:"11px 22px",fontSize:13}}>🎙️ Practice now</Btn>
-            <Btn v="ghost" onClick={onGoToJobs} style={{padding:"11px 18px",fontSize:13}}>Browse jobs →</Btn>
+            <Btn v="violet" onClick={onStartInterview} style={{padding:"12px 22px",fontSize:13.5}}>🎙️ Practice now</Btn>
+            <Btn v="ghost" onClick={onGoToJobs} style={{padding:"12px 18px",fontSize:13.5}}>Browse jobs →</Btn>
           </div>
         </div>
       </div>
 
       {!isPro&&(
-        <div onClick={()=>setShowUpgrade(true)} className="lift" style={{background:`linear-gradient(135deg,${C.gold}15,${C.violet}10)`,border:`1px solid ${C.gold}30`,borderRadius:16,padding:"16px 20px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",cursor:"pointer"}}>
+        <div onClick={()=>setShowUpgrade(true)} className="lift" style={{background:`linear-gradient(135deg,${C.gold}14,${C.violet}0C)`,border:`1px solid ${C.gold}35`,borderRadius:16,padding:"16px 20px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",cursor:"pointer",boxShadow:C.shCard}}>
           <div>
-            <div style={{fontWeight:700,fontSize:14,color:C.ink}}>🔓 Unlock all 15 mock interviews per role</div>
-            <div style={{color:C.soft,fontSize:12,marginTop:2}}>Free plan includes 2 mocks · ₹49/week or ₹199/month for all 15</div>
+            <div style={{fontWeight:800,fontSize:14.5,color:C.ink}}>🔓 Unlock all 15 mock interviews per role</div>
+            <div style={{color:C.soft,fontSize:12.5,marginTop:2,fontWeight:500}}>Free plan includes 2 mocks · ₹49/week or ₹199/month for all 15</div>
           </div>
           <Tag color={C.gold}>Upgrade →</Tag>
         </div>
@@ -1362,10 +1356,10 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
           {label:"Last score",value:`${latestScore}%`,icon:"⚡",color:scores.length?C.green:C.muted,mono:true,delta:scores.length>1?delta:null},
           {label:"Best streak",value:`${streak.longest}d`,icon:"🔥",color:C.gold,mono:true},
         ].map(({label,value,icon,color,mono,delta})=>(
-          <div key={label} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px",position:"relative",overflow:"hidden"}}>
-            <div style={{position:"absolute",top:12,right:12,fontSize:20,opacity:.5}}>{icon}</div>
-            <div style={{color:C.soft,fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:.7,marginBottom:8}}>{label}</div>
-            <div className={mono?"mono":""} style={{fontWeight:900,fontSize:26,color,lineHeight:1}}>{value}</div>
+          <div key={label} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px",position:"relative",overflow:"hidden",boxShadow:C.shCard}}>
+            <div style={{position:"absolute",top:12,right:12,fontSize:20,opacity:.6}}>{icon}</div>
+            <div style={{color:C.soft,fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:.7,marginBottom:8}}>{label}</div>
+            <div className={mono?"mono":""} style={{fontWeight:900,fontSize:27,color,lineHeight:1}}>{value}</div>
             {delta!==null&&delta!==undefined&&(
               <div style={{fontSize:11,color:delta>=0?C.green:C.red,marginTop:4,fontWeight:700}}>{delta>=0?`↑ +${delta}`:` ↓ ${delta}`} pts</div>
             )}
@@ -1374,30 +1368,30 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
       </div>
 
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
-        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px"}}>
-          <div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:4}}>Skill profile</div>
-          <div style={{color:C.soft,fontSize:12,marginBottom:16}}>{results.length?`Based on ${results.length} interview${results.length>1?"s":""}`:''}</div>
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",boxShadow:C.shCard}}>
+          <div style={{fontWeight:800,color:C.ink,fontSize:14.5,marginBottom:4}}>Skill profile</div>
+          <div style={{color:C.soft,fontSize:12.5,marginBottom:16,fontWeight:500}}>{results.length?`Based on ${results.length} interview${results.length>1?"s":""}`:''}</div>
           {results.length>0?(
             <div style={{display:"flex",justifyContent:"center"}}><SkillRadar scores={skillAvg} size={190}/></div>
           ):(
-            <div style={{textAlign:"center",padding:"30px 0",color:C.muted,fontSize:13}}>
+            <div style={{textAlign:"center",padding:"30px 0",color:C.muted,fontSize:13.5,fontWeight:500}}>
               <div style={{fontSize:32,marginBottom:8}}>📊</div>Complete your first interview to see your skill radar
             </div>
           )}
         </div>
-        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px"}}>
-          <div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:4}}>Score trajectory</div>
-          <div style={{color:C.soft,fontSize:12,marginBottom:16}}>{scores.length>1?"Improving over time":scores.length===1?"1 done — keep going":"No data yet"}</div>
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",boxShadow:C.shCard}}>
+          <div style={{fontWeight:800,color:C.ink,fontSize:14.5,marginBottom:4}}>Score trajectory</div>
+          <div style={{color:C.soft,fontSize:12.5,marginBottom:16,fontWeight:500}}>{scores.length>1?"Improving over time":scores.length===1?"1 done — keep going":"No data yet"}</div>
           {scores.length>1?(
             <>
               <Sparkline data={[...scores].reverse()} width={230} height={60} color={C.violet}/>
               <div style={{display:"flex",justifyContent:"space-between",marginTop:12}}>
-                <div style={{textAlign:"center"}}><div className="mono" style={{fontSize:20,fontWeight:700,color:C.soft}}>{scores[scores.length-1]}%</div><div style={{fontSize:10,color:C.muted,marginTop:2}}>First</div></div>
-                <div style={{textAlign:"center"}}><div className="mono" style={{fontSize:20,fontWeight:700,color:C.violet}}>{scores[0]}%</div><div style={{fontSize:10,color:C.muted,marginTop:2}}>Latest</div></div>
+                <div style={{textAlign:"center"}}><div className="mono" style={{fontSize:20,fontWeight:800,color:C.soft}}>{scores[scores.length-1]}%</div><div style={{fontSize:10,color:C.muted,marginTop:2,fontWeight:600}}>First</div></div>
+                <div style={{textAlign:"center"}}><div className="mono" style={{fontSize:20,fontWeight:800,color:C.violet}}>{scores[0]}%</div><div style={{fontSize:10,color:C.muted,marginTop:2,fontWeight:600}}>Latest</div></div>
               </div>
             </>
           ):(
-            <div style={{textAlign:"center",padding:"30px 0",color:C.muted,fontSize:13}}>
+            <div style={{textAlign:"center",padding:"30px 0",color:C.muted,fontSize:13.5,fontWeight:500}}>
               <div style={{fontSize:32,marginBottom:8}}>📈</div>Practice 2+ interviews to unlock
             </div>
           )}
@@ -1405,17 +1399,17 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
       </div>
 
       {results.length>0&&(
-        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:16}}>
-          <div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:14}}>Recent interviews</div>
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:16,boxShadow:C.shCard}}>
+          <div style={{fontWeight:800,color:C.ink,fontSize:14.5,marginBottom:14}}>Recent interviews</div>
           {results.slice(0,5).map((r,i)=>{
             const sc=r.overall_score>=75?C.green:r.overall_score>=55?C.gold:C.red;
             const verdict=r.overall_score>=85?"Strong Hire":r.overall_score>=70?"Hire":r.overall_score>=55?"Borderline":"No Hire";
             return(
               <div key={i} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 0",borderBottom:i<Math.min(results.length,5)-1?`1px solid ${C.border}`:"none"}}>
-                <div style={{width:42,height:42,borderRadius:10,background:`${sc}15`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"JetBrains Mono,monospace",fontWeight:700,fontSize:14,color:sc,flexShrink:0}}>{r.overall_score}</div>
+                <div style={{width:42,height:42,borderRadius:10,background:`${sc}15`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"JetBrains Mono,monospace",fontWeight:800,fontSize:14,color:sc,flexShrink:0}}>{r.overall_score}</div>
                 <div style={{flex:1}}>
-                  <div style={{fontWeight:600,fontSize:13,color:C.ink}}>{r.role||"Interview"}{r.company?` · ${r.company}`:""}</div>
-                  <div style={{color:C.soft,fontSize:12,marginTop:1}}>{new Date(r.created_at).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</div>
+                  <div style={{fontWeight:700,fontSize:13.5,color:C.ink}}>{r.role||"Interview"}{r.company?` · ${r.company}`:""}</div>
+                  <div style={{color:C.soft,fontSize:12,marginTop:1,fontWeight:500}}>{new Date(r.created_at).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</div>
                 </div>
                 <Tag color={sc} size={11}>{verdict}</Tag>
               </div>
@@ -1426,25 +1420,25 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
 
       {/* 4-card quick action grid */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-        <div className="lift" onClick={onStartInterview} style={{background:`linear-gradient(135deg,${C.violetD}20,${C.violet}15)`,border:`1px solid ${C.violet}25`,borderRadius:16,padding:"20px",cursor:"pointer"}}>
+        <div className="lift" onClick={onStartInterview} style={{background:`linear-gradient(135deg,${C.violetD}14,${C.violet}0E)`,border:`1px solid ${C.violet}30`,borderRadius:16,padding:"20px",cursor:"pointer",boxShadow:C.shCard}}>
           <div style={{fontSize:28,marginBottom:10}}>🎯</div>
-          <div style={{fontWeight:700,fontSize:14,color:C.ink,marginBottom:4}}>AI Mock Interview</div>
-          <div style={{color:C.soft,fontSize:12,lineHeight:1.6}}>Upload resume, pick company — get a fully personalized interview on camera</div>
+          <div style={{fontWeight:800,fontSize:14.5,color:C.ink,marginBottom:4}}>AI Mock Interview</div>
+          <div style={{color:C.soft,fontSize:12.5,lineHeight:1.6,fontWeight:500}}>Upload resume, pick company — get a fully personalized interview on camera</div>
         </div>
-        <div className="lift" onClick={onGoToJobs} style={{background:`linear-gradient(135deg,${C.tealD}15,${C.teal}10)`,border:`1px solid ${C.teal}20`,borderRadius:16,padding:"20px",cursor:"pointer"}}>
+        <div className="lift" onClick={onGoToJobs} style={{background:`linear-gradient(135deg,${C.tealD}12,${C.teal}0C)`,border:`1px solid ${C.teal}28`,borderRadius:16,padding:"20px",cursor:"pointer",boxShadow:C.shCard}}>
           <div style={{fontSize:28,marginBottom:10}}>🔥</div>
-          <div style={{fontWeight:700,fontSize:14,color:C.ink,marginBottom:4}}>Live Job Feed</div>
-          <div style={{color:C.soft,fontSize:12,lineHeight:1.6}}>Real fresher openings across India · updated daily</div>
+          <div style={{fontWeight:800,fontSize:14.5,color:C.ink,marginBottom:4}}>Live Job Feed</div>
+          <div style={{color:C.soft,fontSize:12.5,lineHeight:1.6,fontWeight:500}}>Real fresher openings across India · updated daily</div>
         </div>
-        <div className="lift" onClick={()=>onGoToTab(3)} style={{background:`linear-gradient(135deg,${C.gold}15,${C.gold}08)`,border:`1px solid ${C.gold}20`,borderRadius:16,padding:"20px",cursor:"pointer"}}>
+        <div className="lift" onClick={()=>onGoToTab(3)} style={{background:`linear-gradient(135deg,${C.gold}12,${C.gold}08)`,border:`1px solid ${C.gold}28`,borderRadius:16,padding:"20px",cursor:"pointer",boxShadow:C.shCard}}>
           <div style={{fontSize:28,marginBottom:10}}>🏢</div>
-          <div style={{fontWeight:700,fontSize:14,color:C.ink,marginBottom:4}}>Interview Prep</div>
-          <div style={{color:C.soft,fontSize:12,lineHeight:1.6}}>Real questions Google, TCS, Wipro ask — with model answers</div>
+          <div style={{fontWeight:800,fontSize:14.5,color:C.ink,marginBottom:4}}>Interview Prep</div>
+          <div style={{color:C.soft,fontSize:12.5,lineHeight:1.6,fontWeight:500}}>Real questions Google, TCS, Wipro ask — with model answers</div>
         </div>
-        <div className="lift" onClick={()=>onGoToTab(4)} style={{background:`linear-gradient(135deg,${C.teal}10,${C.violet}10)`,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",cursor:"pointer"}}>
+        <div className="lift" onClick={()=>onGoToTab(4)} style={{background:`linear-gradient(135deg,${C.teal}0C,${C.violet}0C)`,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",cursor:"pointer",boxShadow:C.shCard}}>
           <div style={{fontSize:28,marginBottom:10}}>🎤</div>
-          <div style={{fontWeight:700,fontSize:14,color:C.ink,marginBottom:4}}>Quick Mock</div>
-          <div style={{color:C.soft,fontSize:12,lineHeight:1.6}}>No resume needed — pick a role and start practicing in 30 seconds</div>
+          <div style={{fontWeight:800,fontSize:14.5,color:C.ink,marginBottom:4}}>Quick Mock</div>
+          <div style={{color:C.soft,fontSize:12.5,lineHeight:1.6,fontWeight:500}}>No resume needed — pick a role and start practicing in 30 seconds</div>
         </div>
       </div>
 
@@ -1459,11 +1453,11 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
         ];
         const tip=tips[new Date().getDay()%tips.length];
         return(
-          <div style={{background:`${tip.color}10`,border:`1px solid ${tip.color}25`,borderRadius:14,padding:"14px 18px",marginBottom:16,display:"flex",alignItems:"flex-start",gap:12}}>
+          <div style={{background:`${tip.color}0C`,border:`1px solid ${tip.color}28`,borderRadius:14,padding:"14px 18px",marginBottom:16,display:"flex",alignItems:"flex-start",gap:12}}>
             <span style={{fontSize:22,flexShrink:0}}>{tip.icon}</span>
             <div>
               <div style={{fontSize:10,fontWeight:800,color:tip.color,letterSpacing:1.2,textTransform:"uppercase",marginBottom:4}}>Daily Interview Tip</div>
-              <div style={{fontSize:13,color:C.ink2,lineHeight:1.7}}>{tip.tip}</div>
+              <div style={{fontSize:13.5,color:C.ink2,lineHeight:1.7,fontWeight:500}}>{tip.tip}</div>
             </div>
           </div>
         );
@@ -1481,20 +1475,20 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
         ];
         const doneCount=checks.filter(c=>c.done).length;
         return(
-          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:16}}>
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:16,boxShadow:C.shCard}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-              <div style={{fontWeight:700,color:C.ink,fontSize:14}}>🚀 Your Progress</div>
-              <div style={{fontSize:11,color:C.soft,fontWeight:600}}>{doneCount}/{checks.length} complete</div>
+              <div style={{fontWeight:800,color:C.ink,fontSize:14.5}}>🚀 Your Progress</div>
+              <div style={{fontSize:11,color:C.soft,fontWeight:700}}>{doneCount}/{checks.length} complete</div>
             </div>
-            <div style={{background:"rgba(255,255,255,.04)",borderRadius:6,height:6,marginBottom:14,overflow:"hidden"}}>
+            <div style={{background:C.bgSurf,borderRadius:6,height:6,marginBottom:14,overflow:"hidden"}}>
               <div style={{height:"100%",width:`${(doneCount/checks.length)*100}%`,background:`linear-gradient(90deg,${C.violet},${C.teal})`,borderRadius:6,transition:"width 1s ease"}}/>
             </div>
             {checks.map((c,i)=>(
               <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:i<checks.length-1?`1px solid ${C.border}`:"none"}}>
-                <div style={{width:22,height:22,borderRadius:"50%",background:c.done?C.greenPale:"rgba(255,255,255,.04)",border:`1px solid ${c.done?C.green+"50":C.border}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:11}}>
+                <div style={{width:22,height:22,borderRadius:"50%",background:c.done?C.greenPale:C.bgSurf,border:`1px solid ${c.done?C.green+"50":C.border}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:11}}>
                   {c.done?"✓":"○"}
                 </div>
-                <span style={{fontSize:12.5,color:c.done?C.ink2:C.muted,fontWeight:c.done?500:400,textDecoration:c.done?"line-through":"none"}}>{c.icon} {c.label}</span>
+                <span style={{fontSize:13,color:c.done?C.ink2:C.muted,fontWeight:c.done?600:500,textDecoration:c.done?"line-through":"none"}}>{c.icon} {c.label}</span>
               </div>
             ))}
           </div>
@@ -2283,9 +2277,9 @@ function JobsTab({onPracticeForJob}){
   const[expanded,setExpanded]=useState(null);
   const[saved,setSaved]=useState([]);
   const quickRoles=["Fresher","React","Node.js","Python","Java","Data Analyst","Full Stack","DevOps","AI ML","UI UX"];
-
+ 
   useEffect(()=>{fetchJobs();},[]);// eslint-disable-line
-
+ 
   const fetchJobs=async(q=search,loc=location)=>{
     setLoading(true);sessionStorage.setItem("tp_s",q);sessionStorage.setItem("tp_l",loc);
     try{
@@ -2304,19 +2298,19 @@ function JobsTab({onPracticeForJob}){
     }catch(e){console.error(e);}
     setLoading(false);
   };
-
+ 
   const getFreshness=(date)=>{
     const hours=Math.floor((new Date()-date)/3600000);
     if(hours<24)return{label:"New",color:C.green};
     if(hours<72)return{label:"Recent",color:C.teal};
     return null;
   };
-
+ 
   const buildShareUrl=(job)=>{
     const params=new URLSearchParams({cmp:job.company||"",role:job.title||"",jurl:job.url||"",jid:String(job.id||"")});
     return`${window.location.origin}${window.location.pathname}?${params.toString()}`;
   };
-
+ 
   const shareJob=async(job)=>{
     const url=buildShareUrl(job);
     const text=`${job.title} at ${job.company} — practice the interview + apply on TakePlace`;
@@ -2325,32 +2319,32 @@ function JobsTab({onPracticeForJob}){
       else{await navigator.clipboard.writeText(url);alert("🔗 Link copied!");}
     }catch{}
   };
-
+ 
   return(
     <div>
-      <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:4,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🔥 Live Job Feed</div>
-      <div style={{color:C.soft,fontSize:13.5,marginBottom:16,lineHeight:1.7}}>Real fresher openings across India · Updated daily · 1-tap interview practice</div>
-      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:16}}>
+      <div style={{fontWeight:900,fontSize:23,color:C.ink,marginBottom:5,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🔥 Live Job Feed</div>
+      <div style={{color:C.soft,fontSize:14,marginBottom:18,lineHeight:1.7,fontWeight:500}}>Real fresher openings across India · Updated daily · 1-tap interview practice</div>
+      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:16,boxShadow:C.shCard}}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
           <div>
-            <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:5,textTransform:"uppercase",letterSpacing:.6}}>Role / Keyword</div>
-            <input style={inp} placeholder="e.g. fresher, React…" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()} onFocus={ev=>ev.target.style.borderColor=C.violet} onBlur={ev=>ev.target.style.borderColor=C.border}/>
+            <div style={{fontSize:11.5,fontWeight:800,color:C.soft,marginBottom:6,textTransform:"uppercase",letterSpacing:.6}}>Role / Keyword</div>
+            <input style={inp} placeholder="e.g. fresher, React…" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}/>
           </div>
           <div>
-            <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:5,textTransform:"uppercase",letterSpacing:.6}}>Location</div>
-            <input style={inp} placeholder="e.g. india, hyderabad…" value={location} onChange={e=>setLocation(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()} onFocus={ev=>ev.target.style.borderColor=C.violet} onBlur={ev=>ev.target.style.borderColor=C.border}/>
+            <div style={{fontSize:11.5,fontWeight:800,color:C.soft,marginBottom:6,textTransform:"uppercase",letterSpacing:.6}}>Location</div>
+            <input style={inp} placeholder="e.g. india, hyderabad…" value={location} onChange={e=>setLocation(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}/>
           </div>
         </div>
-        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
-          {quickRoles.map(r=>(<button key={r} onClick={()=>{setSearch(r.toLowerCase());fetchJobs(r.toLowerCase(),location);}} style={{padding:"4px 12px",borderRadius:20,border:`1px solid ${search===r.toLowerCase()?C.violet:C.border}`,background:search===r.toLowerCase()?C.violetPale:"transparent",color:search===r.toLowerCase()?C.violetL:C.soft,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{r}</button>))}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
+          {quickRoles.map(r=>(<button key={r} onClick={()=>{setSearch(r.toLowerCase());fetchJobs(r.toLowerCase(),location);}} style={{padding:"5px 13px",borderRadius:20,border:`1.5px solid ${search===r.toLowerCase()?C.violet:C.border}`,background:search===r.toLowerCase()?C.violetPale:C.white,color:search===r.toLowerCase()?C.violetD:C.ink2,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{r}</button>))}
         </div>
         <Btn v="violet" onClick={()=>fetchJobs()} style={{width:"100%"}}>🔍 Search Jobs</Btn>
       </div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <div style={{fontWeight:700,fontSize:15,color:C.ink}}>Results</div>
-        {!loading&&jobs.length>0&&<div style={{display:"flex",alignItems:"center",gap:6,background:C.greenPale,borderRadius:20,padding:"4px 12px",border:`1px solid ${C.green}25`}}>
+        <div style={{fontWeight:800,fontSize:16,color:C.ink}}>Results</div>
+        {!loading&&jobs.length>0&&<div style={{display:"flex",alignItems:"center",gap:6,background:C.greenPale,borderRadius:20,padding:"4px 12px",border:`1px solid ${C.green}28`}}>
           <div style={{width:5,height:5,borderRadius:"50%",background:C.green,animation:"pulse 1.5s infinite"}}/>
-          <span style={{color:C.green,fontSize:11,fontWeight:700}}>{jobs.length} live openings</span>
+          <span style={{color:C.green,fontSize:11.5,fontWeight:800}}>{jobs.length} live openings</span>
         </div>}
       </div>
       {loading&&<div style={{textAlign:"center",padding:"60px 0"}}><Spin size={34}/></div>}
@@ -2358,42 +2352,43 @@ function JobsTab({onPracticeForJob}){
         const isExp=expanded===job.id,isSaved=saved.includes(job.id);
         const freshness=getFreshness(job.postedRaw);
         return(
-          <div key={job.id} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:16,marginBottom:8,borderLeft:`3px solid ${C.violet}40`,transition:"border-color .2s,box-shadow .2s"}}
-            onMouseEnter={e=>{e.currentTarget.style.borderColor=C.violet+"60";e.currentTarget.style.boxShadow=`0 4px 20px rgba(0,0,0,.3)`;}}
-            onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.boxShadow="none";}}>
+          <div key={job.id} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:16,marginBottom:9,borderLeft:`3px solid ${C.violet}50`,boxShadow:C.shCard,transition:"border-color .2s,box-shadow .2s"}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor=C.violet+"80";e.currentTarget.style.boxShadow=C.shHover;}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.boxShadow=C.shCard;}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,gap:8}}>
               <div style={{flex:1}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3,flexWrap:"wrap"}}>
-                  <div style={{fontWeight:700,fontSize:14,color:C.ink}}>{job.title}</div>
+                  <div style={{fontWeight:800,fontSize:15,color:C.ink}}>{job.title}</div>
                   {freshness&&<Tag color={freshness.color} size={10}>{freshness.label}</Tag>}
                 </div>
-                <div style={{color:C.soft,fontSize:12}}>{job.company} · {job.location}</div>
+                <div style={{color:C.soft,fontSize:12.5,fontWeight:600}}>{job.company} · {job.location}</div>
               </div>
               <div style={{textAlign:"right",flexShrink:0}}>
-                <div style={{color:C.green,fontWeight:700,fontSize:13,fontFamily:"JetBrains Mono,monospace"}}>{job.salary}</div>
-                <div style={{color:C.muted,fontSize:11,marginTop:1}}>{job.posted}</div>
+                <div style={{color:C.green,fontWeight:800,fontSize:13.5,fontFamily:"JetBrains Mono,monospace"}}>{job.salary}</div>
+                <div style={{color:C.muted,fontSize:11,marginTop:1,fontWeight:600}}>{job.posted}</div>
               </div>
             </div>
-            <div style={{color:C.soft,fontSize:12.5,lineHeight:1.7,marginBottom:12,background:"rgba(255,255,255,.02)",borderRadius:8,padding:"8px 10px"}}>
+            <div style={{color:C.ink2,fontSize:13,lineHeight:1.7,marginBottom:12,background:C.bgSubtle,borderRadius:8,padding:"9px 11px",fontWeight:500}}>
               {isExp?job.description.replace(/<[^>]+>/g,""):job.desc200.replace(/<[^>]+>/g,"")+(job.description.length>200?"…":"")}
-              {job.description.length>200&&<button onClick={()=>setExpanded(isExp?null:job.id)} style={{background:"none",border:"none",color:C.violet,fontSize:11,cursor:"pointer",marginLeft:5,fontFamily:"'Inter',sans-serif",fontWeight:700}}>{isExp?"Less ▲":"More ▼"}</button>}
+              {job.description.length>200&&<button onClick={()=>setExpanded(isExp?null:job.id)} style={{background:"none",border:"none",color:C.violet,fontSize:11.5,cursor:"pointer",marginLeft:5,fontFamily:"'Inter',sans-serif",fontWeight:800}}>{isExp?"Less ▲":"More ▼"}</button>}
             </div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap"}}>
               <Tag color={C.teal} size={11}>{job.category}</Tag>
               <div style={{display:"flex",gap:7}}>
-                <button onClick={()=>onPracticeForJob&&onPracticeForJob(job.company,job.title)} style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${C.violet}35`,background:C.violetPale,color:C.violetL,fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:700,display:"flex",alignItems:"center",gap:4}}>🎙 Practice</button>
-                <button onClick={()=>shareJob(job)} title="Share" style={{padding:"6px 11px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",cursor:"pointer",fontSize:13,color:C.soft,fontFamily:"'Inter',sans-serif"}}>📤</button>
-                <button onClick={()=>setSaved(s=>s.includes(job.id)?s.filter(x=>x!==job.id):[...s,job.id])} style={{padding:"6px 11px",borderRadius:8,border:`1px solid ${isSaved?C.gold+"50":C.border}`,background:isSaved?C.goldPale:"transparent",cursor:"pointer",fontSize:13,color:isSaved?C.gold:C.soft,fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{isSaved?"★":"☆"}</button>
+                <button onClick={()=>onPracticeForJob&&onPracticeForJob(job.company,job.title)} style={{padding:"7px 13px",borderRadius:8,border:`1.5px solid ${C.violet}40`,background:C.violetPale,color:C.violetD,fontSize:11.5,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:800,display:"flex",alignItems:"center",gap:4}}>🎙 Practice</button>
+                <button onClick={()=>shareJob(job)} title="Share" style={{padding:"7px 12px",borderRadius:8,border:`1.5px solid ${C.border}`,background:C.white,cursor:"pointer",fontSize:13,color:C.ink2,fontFamily:"'Inter',sans-serif"}}>📤</button>
+                <button onClick={()=>setSaved(s=>s.includes(job.id)?s.filter(x=>x!==job.id):[...s,job.id])} style={{padding:"7px 12px",borderRadius:8,border:`1.5px solid ${isSaved?C.gold+"60":C.border}`,background:isSaved?C.goldPale:C.white,cursor:"pointer",fontSize:13,color:isSaved?C.gold:C.ink2,fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{isSaved?"★":"☆"}</button>
                 <Btn v="primary" onClick={()=>window.open(job.url,"_blank")} small>Apply →</Btn>
               </div>
             </div>
           </div>
         );
       })}
-      {!loading&&jobs.length===0&&<div style={{textAlign:"center",padding:"60px 0",color:C.muted}}><div style={{fontSize:40,marginBottom:12}}>🔍</div><div style={{fontWeight:700,color:C.ink2}}>No jobs found.</div><div style={{fontSize:13,marginTop:4}}>Try a different role or city.</div></div>}
+      {!loading&&jobs.length===0&&<div style={{textAlign:"center",padding:"60px 0",color:C.muted}}><div style={{fontSize:40,marginBottom:12}}>🔍</div><div style={{fontWeight:800,color:C.ink2,fontSize:15}}>No jobs found.</div><div style={{fontSize:13,marginTop:4,fontWeight:500}}>Try a different role or city.</div></div>}
     </div>
   );
 }
+ 
 
 // ── LANDING PAGE ──────────────────────────────────────────────────────────────
 // ════════════════════════════════════════════════════════════════════════════
