@@ -29,23 +29,23 @@ const FOCUS_BY_SLOT = [
   "ambiguous requirements","conflict resolution","closing & negotiation",
 ];
 
-// ── DESIGN SYSTEM — PROFESSIONAL WHITE THEME ──────────────────────────────────
+// ── DESIGN SYSTEM — PREMIUM PROFESSIONAL THEME ────────────────────────────────
 const C = {
-  bg:"#FFFFFF",bgSubtle:"#FAFAFB",bgCard:"#FFFFFF",bgSurf:"#F4F5F7",bgLight:"#FAFAFB",
-  white:"#FFFFFF",ink:"#0F1117",ink2:"#4B5363",ink3:"#8B92A3",inkDark:"#0F1117",
-  violet:"#6D5BF6",violetL:"#8B7DFA",violetD:"#5240D6",violetPale:"rgba(109,91,246,0.08)",
-  teal:"#00B894",tealL:"#1FD1A8",tealD:"#00997A",tealPale:"rgba(0,184,148,0.08)",
-  gold:"#D97706",goldL:"#F59E0B",goldPale:"rgba(217,119,6,0.08)",
-  green:"#16A34A",greenL:"#22C55E",greenPale:"rgba(22,163,74,0.08)",
-  red:"#DC2626",redPale:"rgba(220,38,38,0.06)",
-  blue:"#2563EB",bluePale:"rgba(37,99,235,0.06)",
-  border:"#E7E8EC",borderHover:"#D5D7DF",
-  muted:"#8B92A3",soft:"#6B7280",
-  lBg:"#FAFAFB",lCard:"#FFFFFF",lBorder:"#E7E8EC",lText:"#0F1117",lMuted:"#6B7280",
-  shCard:"0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06)",
-  shElevated:"0 4px 16px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.04)",
-  shHover:"0 12px 32px rgba(16,24,40,.10), 0 2px 6px rgba(16,24,40,.04)",
-  shVioletGlow:"0 4px 20px rgba(109,91,246,.25)",
+  bg:"#FFFFFF",bgSubtle:"#F8F9FC",bgCard:"#FFFFFF",bgSurf:"#F1F2F8",bgLight:"#FAFBFE",
+  white:"#FFFFFF",ink:"#0B0E1A",ink2:"#3F4459",ink3:"#7A8099",inkDark:"#0B0E1A",
+  violet:"#5B4FE8",violetL:"#7C72F0",violetD:"#4338CA",violetPale:"rgba(91,79,232,0.09)",
+  teal:"#0EA889",tealL:"#2DD4AE",tealD:"#0A8A70",tealPale:"rgba(14,168,137,0.09)",
+  gold:"#C2740A",goldL:"#E08E1F",goldPale:"rgba(194,116,10,0.09)",
+  green:"#15803D",greenL:"#22C55E",greenPale:"rgba(21,128,61,0.09)",
+  red:"#DC2626",redPale:"rgba(220,38,38,0.07)",
+  blue:"#2563EB",bluePale:"rgba(37,99,235,0.07)",
+  border:"#E4E6EF",borderHover:"#C9CCDC",
+  muted:"#7A8099",soft:"#5C6178",
+  lBg:"#F8F9FC",lCard:"#FFFFFF",lBorder:"#E4E6EF",lText:"#0B0E1A",lMuted:"#5C6178",
+  shCard:"0 1px 2px rgba(11,14,26,.05), 0 1px 4px rgba(11,14,26,.06)",
+  shElevated:"0 6px 20px rgba(11,14,26,.07), 0 1px 4px rgba(11,14,26,.05)",
+  shHover:"0 16px 40px rgba(11,14,26,.12), 0 2px 8px rgba(11,14,26,.05)",
+  shVioletGlow:"0 6px 24px rgba(91,79,232,.32)",
 };
 
 const CSS = `
@@ -64,21 +64,21 @@ const CSS = `
   @keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
   @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
   @keyframes voiceBar{0%,100%{transform:scaleY(.15)}50%{transform:scaleY(1)}}
-  @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(109,91,246,.35)}70%{box-shadow:0 0 0 18px rgba(109,91,246,0)}100%{box-shadow:0 0 0 0 rgba(109,91,246,0)}}
+  @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(91,79,232,.35)}70%{box-shadow:0 0 0 18px rgba(91,79,232,0)}100%{box-shadow:0 0 0 0 rgba(91,79,232,0)}}
   @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
   @keyframes countUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
   @keyframes streakPop{0%{transform:scale(1)}50%{transform:scale(1.3)}100%{transform:scale(1)}}
   @keyframes gradientShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
-  @keyframes borderGlow{0%,100%{box-shadow:0 0 0 0 rgba(109,91,246,0)}50%{box-shadow:0 0 16px rgba(109,91,246,.18)}}
+  @keyframes borderGlow{0%,100%{box-shadow:0 0 0 0 rgba(91,79,232,0)}50%{box-shadow:0 0 16px rgba(91,79,232,.2)}}
   .fade{animation:fadeUp .45s cubic-bezier(.22,1,.36,1) forwards;}
   .fadein{animation:fadeIn .3s ease forwards;}
   .lift{transition:transform .18s cubic-bezier(.22,1,.36,1),box-shadow .18s,border-color .18s;cursor:pointer;}
-  .lift:hover{transform:translateY(-2px);box-shadow:${C.shHover};border-color:${C.borderHover};}
-  input:focus,textarea:focus,select:focus{outline:none;}
+  .lift:hover{transform:translateY(-3px);box-shadow:${C.shHover};border-color:${C.borderHover};}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:${C.violet}!important;box-shadow:0 0 0 4px ${C.violetPale}!important;}
   button:active{transform:scale(.97);}
-  .room-fixed{position:fixed;inset:0;z-index:9999;background:#0A0C12;display:flex;flex-direction:column;overflow:hidden;}
+  .room-fixed{position:fixed;inset:0;z-index:9999;background:#070912;display:flex;flex-direction:column;overflow:hidden;}
   .glass{background:rgba(255,255,255,.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid ${C.border};}
-  .glass-strong{background:rgba(255,255,255,.92);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid ${C.border};}
+  .glass-strong{background:rgba(255,255,255,.94);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid ${C.border};}
   .vbar{width:3px;border-radius:2px;background:currentColor;display:inline-block;transform-origin:center bottom;}
   .mono{font-family:'JetBrains Mono',monospace;}
   .gradient-text{background:linear-gradient(135deg,${C.violetD},${C.teal});-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
@@ -86,10 +86,10 @@ const CSS = `
 `;
 
 const inp = {
-  width:"100%",background:C.white,border:`1px solid ${C.border}`,
-  borderRadius:10,padding:"11px 14px",color:C.ink,fontSize:14,
+  width:"100%",background:C.white,border:`1.5px solid ${C.border}`,
+  borderRadius:12,padding:"13px 16px",color:C.ink,fontSize:14.5,
   fontFamily:"'Inter',sans-serif",outline:"none",transition:"border-color .2s,box-shadow .2s",
-  boxShadow:C.shCard,
+  boxShadow:C.shCard,fontWeight:500,
 };
 
 // ── ATOMS ─────────────────────────────────────────────────────────────────────
@@ -98,16 +98,16 @@ const Spin = ({size=18,color=C.violet}) => (
 );
 
 function Btn({children,onClick,v="primary",style={},disabled=false,loading=false,small=false}){
-  const base={padding:small?"8px 16px":"13px 26px",fontSize:small?12:14,borderRadius:10,border:"none",cursor:disabled||loading?"not-allowed":"pointer",fontFamily:"'Inter',sans-serif",transition:"all .18s cubic-bezier(.22,1,.36,1)",opacity:disabled?.45:1,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:7,fontWeight:700,whiteSpace:"nowrap"};
+  const base={padding:small?"9px 18px":"14px 28px",fontSize:small?12.5:14.5,borderRadius:12,border:"none",cursor:disabled||loading?"not-allowed":"pointer",fontFamily:"'Inter',sans-serif",transition:"all .18s cubic-bezier(.22,1,.36,1)",opacity:disabled?.45:1,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:7,fontWeight:700,whiteSpace:"nowrap",letterSpacing:.1};
   const vs={
     primary:{background:`linear-gradient(135deg,${C.violetD},${C.violet})`,color:"#fff",boxShadow:C.shVioletGlow},
-    teal:{background:`linear-gradient(135deg,${C.tealD},${C.teal})`,color:"#fff",boxShadow:"0 4px 18px rgba(0,184,148,.25)"},
-    gold:{background:`linear-gradient(135deg,#B45309,${C.gold},${C.goldL})`,color:"#fff",boxShadow:"0 4px 18px rgba(217,119,6,.22)"},
-    green:{background:`linear-gradient(135deg,#15803D,${C.green})`,color:"#fff",boxShadow:"0 4px 18px rgba(22,163,74,.2)"},
-    ghost:{background:C.bgSubtle,color:C.ink2,border:`1px solid ${C.border}`},
-    outline:{background:"transparent",color:C.ink,border:`1px solid ${C.border}`},
+    teal:{background:`linear-gradient(135deg,${C.tealD},${C.teal})`,color:"#fff",boxShadow:"0 6px 22px rgba(14,168,137,.3)"},
+    gold:{background:`linear-gradient(135deg,#9A5C08,${C.gold},${C.goldL})`,color:"#fff",boxShadow:"0 6px 22px rgba(194,116,10,.26)"},
+    green:{background:`linear-gradient(135deg,#0F5C2D,${C.green})`,color:"#fff",boxShadow:"0 6px 22px rgba(21,128,61,.24)"},
+    ghost:{background:C.bgSubtle,color:C.ink2,border:`1.5px solid ${C.border}`},
+    outline:{background:"transparent",color:C.ink,border:`1.5px solid ${C.border}`},
     danger:{background:C.red,color:"#fff"},
-    light:{background:C.white,color:C.ink,fontWeight:700,border:`1px solid ${C.border}`,boxShadow:C.shCard},
+    light:{background:C.white,color:C.ink,fontWeight:700,border:`1.5px solid ${C.border}`,boxShadow:C.shCard},
     violet:{background:`linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,color:"#fff",boxShadow:C.shVioletGlow},
   };
   return(
@@ -118,7 +118,7 @@ function Btn({children,onClick,v="primary",style={},disabled=false,loading=false
 }
 
 const Tag = ({children,color=C.violet,bg,size=11}) => (
-  <span style={{background:bg||`${color}12`,color,fontSize:size,padding:"3px 10px",borderRadius:20,fontWeight:700,border:`1px solid ${color}22`,whiteSpace:"nowrap"}}>{children}</span>
+  <span style={{background:bg||`${color}14`,color,fontSize:size,padding:"4px 11px",borderRadius:20,fontWeight:700,border:`1px solid ${color}28`,whiteSpace:"nowrap"}}>{children}</span>
 );
 
 function Bar({pct,color,h=4}){
