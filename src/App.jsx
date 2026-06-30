@@ -2831,7 +2831,7 @@ function LandingPage({onStart}){
     </div>
   );
 }
-}
+
 // ── ONBOARDING ────────────────────────────────────────────────────────────────
 function OnboardingFlow({user,onComplete}){
   const[step,setStep]=useState(0);
