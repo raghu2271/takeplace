@@ -2393,32 +2393,34 @@ function LandingPage({onStart}){
   useEffect(()=>{const h=()=>setScrolled(window.scrollY>60);window.addEventListener("scroll",h);return()=>window.removeEventListener("scroll",h);},[]);
 
   const features=[
-    {icon:"🎯",title:"Resume-personalized questions",desc:"AI reads your actual projects and tech stack — questions about your TakePlace app, your internship, your specific tech."},
-    {icon:"🎥",title:"Full-screen camera room",desc:"Full HD camera, self-view PiP, LIVE indicator. Build composure under real conditions."},
-    {icon:"🗣️",title:"AI speaks your questions",desc:"Priya Sharma reads every question aloud in natural voice. Your mic activates only after she's done speaking — exactly like a real interview."},
-    {icon:"⚡",title:"Live confidence analysis",desc:"Real-time pace, clarity, and filler word detection while you speak."},
-    {icon:"🏢",title:"Company-style matching",desc:"Google interviews differently than TCS. We mirror each company's real culture and difficulty."},
-    {icon:"🔓",title:"15 mock interviews per role",desc:"2 free per role. Unlock all 15 from ₹49."},
+    {icon:"🎯",title:"Resume-personalized questions",desc:"AI reads your actual projects and tech stack — questions about your real internship, your real codebase, your real wins."},
+    {icon:"🎥",title:"Full-screen interview room",desc:"HD camera, self-view PiP, live indicator. Build composure under the exact pressure of the real thing."},
+    {icon:"🗣️",title:"AI interviewer, real voice",desc:"Priya reads every question aloud, naturally. Your mic activates only once she stops — just like a real panel."},
+    {icon:"⚡",title:"Live confidence analysis",desc:"Real-time pace, clarity and filler-word tracking while you're still speaking — not after."},
+    {icon:"🏢",title:"Company-calibrated difficulty",desc:"Google interviews differently than TCS. We mirror each company's real bar and interview culture."},
+    {icon:"🔓",title:"15 mock rounds per role",desc:"Two free per role to start. Unlock the full set from ₹49."},
   ];
 
   const testimonials=[
-    {name:"Priya M.",role:"SDE at Wipro",text:"The AI asked specifically about my TakePlace project. That's exactly what happened in my real interview. I was so prepared I almost corrected the interviewer.",score:91,company:"Wipro"},
-    {name:"Arun K.",role:"Data Analyst at TCS",text:"The live filler word detector caught me saying 'basically' 12 times per answer. Fixed it before the real interview. Got the offer.",score:83,company:"TCS"},
-    {name:"Sneha R.",role:"Full Stack Dev at Infosys",text:"Resume interview + Amazon target = they asked about my app's architecture in depth. I'd answered that question three times in practice. Offer in round 2.",score:94,company:"Amazon"},
+    {name:"Priya M.",role:"SDE at Wipro",text:"It asked specifically about my own project — exactly what happened in the real interview. I walked in already knowing the rhythm of the room.",score:91,company:"Wipro"},
+    {name:"Arun K.",role:"Data Analyst at TCS",text:"The live filler tracker caught me saying 'basically' constantly. Fixed it before it mattered. Got the offer.",score:83,company:"TCS"},
+    {name:"Sneha R.",role:"Full Stack Dev at Infosys",text:"Targeted at Amazon, it drilled into my app's architecture three separate ways. By round two I'd already answered every version of that question.",score:94,company:"Amazon"},
   ];
 
   const landingCSS=`
     @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-    .marquee-track{display:flex;gap:20px;animation:marquee 25s linear infinite;}
+    .marquee-track{display:flex;gap:20px;animation:marquee 26s linear infinite;}
     .marquee-wrap{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);}
-    @keyframes heroFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-    .hero-card{animation:heroFloat 4s ease-in-out infinite;}
+    @keyframes heroFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+    .hero-card{animation:heroFloat 4.2s ease-in-out infinite;}
     .cta-glow{box-shadow:${C.shVioletGlow};transition:all .25s;}
-    .cta-glow:hover{box-shadow:0 8px 32px rgba(109,91,246,.38);transform:translateY(-2px);}
+    .cta-glow:hover{box-shadow:0 10px 36px rgba(91,79,232,.42);transform:translateY(-2px);}
     .feature-card{transition:transform .18s,box-shadow .18s,border-color .18s;}
     .feature-card:hover{transform:translateY(-4px);box-shadow:${C.shHover};border-color:${C.borderHover};}
-    .nav-link-btn{background:none;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;color:${C.soft};padding:8px 14px;border-radius:8px;transition:color .2s;}
-    .nav-link-btn:hover{color:${C.ink};}
+    .nav-link-btn{background:none;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;color:${C.soft};padding:8px 14px;border-radius:8px;transition:color .2s,background .2s;}
+    .nav-link-btn:hover{color:${C.ink};background:${C.bgSubtle};}
+    .search-pill{transition:border-color .2s,box-shadow .2s;}
+    .search-pill:focus-within{border-color:${C.violet};box-shadow:0 0 0 4px ${C.violetPale};}
     @media(max-width:768px){
       .hero-grid{grid-template-columns:1fr!important;}
       .hero-mockup{display:block!important;}
@@ -2439,31 +2441,28 @@ function LandingPage({onStart}){
       {/* ── NAV ── */}
       <nav style={{
         position:"fixed",top:0,left:0,right:0,zIndex:1000,
-        background:scrolled?"rgba(255,255,255,.92)":"transparent",
+        background:scrolled?"rgba(255,255,255,.94)":"transparent",
         backdropFilter:scrolled?"blur(20px)":"none",
         borderBottom:scrolled?`1px solid ${C.border}`:"none",
         transition:"all .3s",padding:"0 28px"
       }}>
-        <div style={{maxWidth:1140,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:66}}>
-          {/* Logo */}
+        <div style={{maxWidth:1140,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:68}}>
           <div style={{fontWeight:900,fontSize:22,fontFamily:"'Plus Jakarta Sans',sans-serif",display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>window.scrollTo({top:0,behavior:"smooth"})}>
             <span style={{fontSize:20}}>🎤</span>
             <span style={{background:`linear-gradient(135deg,${C.violetD},${C.teal})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</span>
           </div>
 
-          {/* Desktop nav links */}
           <div style={{display:"flex",gap:4,alignItems:"center"}}>
             <button className="nav-link-btn" onClick={()=>document.getElementById("features")?.scrollIntoView({behavior:"smooth"})}>Features</button>
             <button className="nav-link-btn" onClick={()=>document.getElementById("pricing")?.scrollIntoView({behavior:"smooth"})}>Pricing</button>
             <button className="nav-link-btn" onClick={onStart}>Jobs</button>
           </div>
 
-          {/* Right CTAs */}
           <div style={{display:"flex",gap:10,alignItems:"center"}}>
             <button onClick={onStart} className="nav-link-btn">Sign In</button>
             <button onClick={onStart} style={{
               background:`linear-gradient(135deg,${C.violetD},${C.violet})`,
-              border:"none",borderRadius:10,padding:"10px 22px",
+              border:"none",borderRadius:11,padding:"10px 22px",
               color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",
               fontFamily:"'Inter',sans-serif",
               boxShadow:C.shVioletGlow,transition:"all .2s"
@@ -2475,56 +2474,52 @@ function LandingPage({onStart}){
       {/* ── HERO ── */}
       <section style={{
         minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",
-        padding:"110px 28px 80px",position:"relative",overflow:"hidden",
-        background:`linear-gradient(160deg,${C.white} 0%,${C.bgSubtle} 45%,#F6F5FF 100%)`
+        padding:"114px 28px 84px",position:"relative",overflow:"hidden",
+        background:`linear-gradient(160deg,${C.white} 0%,${C.bgSubtle} 45%,#F4F3FE 100%)`
       }}>
-        {/* bg glow blobs */}
-        <div style={{position:"absolute",top:"8%",right:"3%",width:520,height:520,borderRadius:"50%",background:"radial-gradient(circle,rgba(109,91,246,.10),transparent 65%)",pointerEvents:"none"}}/>
-        <div style={{position:"absolute",bottom:"10%",left:"-4%",width:380,height:380,borderRadius:"50%",background:"radial-gradient(circle,rgba(0,184,148,.06),transparent 65%)",pointerEvents:"none"}}/>
-        <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(rgba(15,17,23,.025) 1px,transparent 1px)",backgroundSize:"38px 38px",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",top:"8%",right:"3%",width:540,height:540,borderRadius:"50%",background:"radial-gradient(circle,rgba(91,79,232,.12),transparent 65%)",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",bottom:"10%",left:"-4%",width:400,height:400,borderRadius:"50%",background:"radial-gradient(circle,rgba(14,168,137,.07),transparent 65%)",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(rgba(11,14,26,.03) 1px,transparent 1px)",backgroundSize:"38px 38px",pointerEvents:"none"}}/>
 
         <div className="hero-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:64,maxWidth:1140,width:"100%",alignItems:"center",position:"relative",zIndex:1}}>
 
-          {/* LEFT — headline */}
           <div className="hero-text">
-            {/* pill badge */}
-            <div style={{display:"inline-flex",alignItems:"center",gap:8,background:C.violetPale,border:`1px solid rgba(109,91,246,.22)`,borderRadius:24,padding:"7px 18px",marginBottom:28,fontSize:12,color:C.violetD,fontWeight:700}}>
+            <div style={{display:"inline-flex",alignItems:"center",gap:8,background:C.violetPale,border:`1px solid rgba(91,79,232,.25)`,borderRadius:24,padding:"7px 18px",marginBottom:28,fontSize:12,color:C.violetD,fontWeight:700}}>
               <span style={{width:6,height:6,borderRadius:"50%",background:C.violet,display:"inline-block",animation:"pulse 1.5s infinite"}}/>
               India's only AI interview with live camera + resume personalization
             </div>
 
             <h1 style={{
               fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,
-              fontSize:"clamp(36px,4.5vw,60px)",lineHeight:1.07,
-              marginBottom:22,letterSpacing:"-1.5px",color:C.ink
+              fontSize:"clamp(38px,4.8vw,64px)",lineHeight:1.04,
+              marginBottom:24,letterSpacing:"-1.8px",color:C.ink
             }}>
               Walk in ready.<br/>
               <span style={{background:`linear-gradient(135deg,${C.violetD},${C.teal})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>Not nervous.</span>
             </h1>
 
-            <p style={{fontSize:17,color:C.ink2,lineHeight:1.82,maxWidth:490,marginBottom:38,fontWeight:400}}>
-              Upload your resume, name the company — <strong style={{color:C.ink,fontWeight:600}}>Priya</strong> interviews you like she's actually hiring. Camera on, mic live, real questions about your real experience.
+            <p style={{fontSize:17.5,color:C.ink2,lineHeight:1.82,maxWidth:490,marginBottom:38,fontWeight:400}}>
+              Upload your resume, name the company — <strong style={{color:C.ink,fontWeight:700}}>Priya</strong> interviews you like she's actually hiring. Camera on, mic live, real questions about your real experience.
             </p>
 
-            <div className="hero-cta-row" style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:44}}>
+            <div className="hero-cta-row" style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:46}}>
               <button onClick={onStart} className="cta-glow" style={{
-                padding:"15px 34px",borderRadius:12,border:"none",cursor:"pointer",
+                padding:"16px 36px",borderRadius:13,border:"none",cursor:"pointer",
                 background:`linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,
-                color:"#fff",fontWeight:800,fontSize:16,fontFamily:"'Inter',sans-serif",
+                color:"#fff",fontWeight:800,fontSize:16,fontFamily:"'Inter',sans-serif",letterSpacing:.2
               }}>
                 🎙️ Start free interview →
               </button>
               <button onClick={onStart} style={{
-                padding:"15px 26px",borderRadius:12,
-                border:`1px solid ${C.border}`,cursor:"pointer",
+                padding:"16px 28px",borderRadius:13,
+                border:`1.5px solid ${C.border}`,cursor:"pointer",
                 background:C.white,
-                color:C.ink2,fontWeight:600,fontSize:16,
+                color:C.ink2,fontWeight:700,fontSize:16,
                 fontFamily:"'Inter',sans-serif",transition:"all .2s",
                 boxShadow:C.shCard
               }}>Browse live jobs</button>
             </div>
 
-            {/* Stats row */}
             <div className="hero-stats" style={{display:"flex",gap:0,alignItems:"center"}}>
               {[
                 {v:"50K+",l:"Interviews",c:C.violet},
@@ -2534,127 +2529,116 @@ function LandingPage({onStart}){
                 <div key={i} style={{display:"flex",alignItems:"center",gap:0}}>
                   {i>0&&<div style={{width:1,height:38,background:C.border,margin:"0 24px"}}/>}
                   <div style={{textAlign:"center"}}>
-                    <div style={{fontWeight:900,fontSize:24,color:s.c,fontFamily:"'JetBrains Mono',monospace",lineHeight:1}}>{s.v}</div>
-                    <div style={{fontSize:11,color:C.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:.7,marginTop:4}}>{s.l}</div>
+                    <div style={{fontWeight:900,fontSize:25,color:s.c,fontFamily:"'JetBrains Mono',monospace",lineHeight:1}}>{s.v}</div>
+                    <div style={{fontSize:11,color:C.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:.8,marginTop:4}}>{s.l}</div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* RIGHT — interview mockup card (kept dark/studio — this is a screenshot
-              of the live interview room, which is intentionally dark; see Pass 1 notes) */}
           <div className="hero-card hero-mockup" style={{position:"relative"}}>
-            {/* Floating score badge — top right like screenshot */}
             <div style={{
               position:"absolute",top:-20,right:-12,
-              background:"#0F1117",border:"1px solid rgba(34,197,94,.35)",
+              background:"#0B0E1A",border:"1px solid rgba(34,197,94,.4)",
               borderRadius:16,padding:"12px 18px",
-              boxShadow:"0 12px 32px rgba(15,17,23,.25)",
+              boxShadow:"0 16px 40px rgba(11,14,26,.3)",
               zIndex:10,display:"flex",alignItems:"center",gap:12,
               minWidth:210
             }}>
               <div style={{
                 width:42,height:42,borderRadius:12,
-                background:"rgba(34,197,94,.15)",
+                background:"rgba(34,197,94,.16)",
                 display:"flex",alignItems:"center",justifyContent:"center",
                 fontFamily:"'JetBrains Mono',monospace",fontWeight:900,fontSize:18,color:"#22C55E"
               }}>89</div>
               <div>
                 <div style={{fontSize:14,fontWeight:800,color:"#fff",lineHeight:1.2}}>Strong Hire ✓</div>
-                <div style={{fontSize:11,color:"rgba(255,255,255,.38)",marginTop:2}}>Google SDE · Just now</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>Google SDE · Just now</div>
               </div>
             </div>
 
-            {/* Main interview card */}
             <div style={{
-              background:"#0A0C12",borderRadius:22,
-              border:"1px solid rgba(255,255,255,.08)",
+              background:"#090B14",borderRadius:22,
+              border:"1px solid rgba(255,255,255,.09)",
               overflow:"hidden",
-              boxShadow:"0 32px 80px rgba(15,17,23,.28)"
+              boxShadow:"0 36px 90px rgba(11,14,26,.32)"
             }}>
-              {/* Top bar — LIVE INTERVIEW · Google */}
               <div style={{
-                background:"rgba(255,255,255,.03)",
+                background:"rgba(255,255,255,.035)",
                 padding:"12px 18px",
                 display:"flex",alignItems:"center",justifyContent:"space-between",
-                borderBottom:"1px solid rgba(255,255,255,.06)"
+                borderBottom:"1px solid rgba(255,255,255,.07)"
               }}>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   <div style={{width:7,height:7,borderRadius:"50%",background:"#EF4444",boxShadow:"0 0 8px #EF4444"}}/>
-                  <span style={{color:"rgba(255,255,255,.65)",fontSize:11,fontWeight:800,letterSpacing:2}}>LIVE INTERVIEW</span>
+                  <span style={{color:"rgba(255,255,255,.68)",fontSize:11,fontWeight:800,letterSpacing:2}}>LIVE INTERVIEW</span>
                 </div>
-                <div style={{background:"rgba(139,125,250,.22)",border:"1px solid rgba(139,125,250,.38)",borderRadius:8,padding:"4px 14px",fontSize:12,color:"#A89BFC",fontWeight:800}}>Google</div>
+                <div style={{background:"rgba(124,114,240,.24)",border:"1px solid rgba(124,114,240,.4)",borderRadius:8,padding:"4px 14px",fontSize:12,color:"#B7AEFA",fontWeight:800}}>Google</div>
                 <div style={{display:"flex",gap:5,alignItems:"center"}}>
                   {[1,2,3,4,5].map(i=>(
-                    <div key={i} style={{width:i<=2?22:18,height:3,borderRadius:2,background:i<3?"#22C55E":i===3?"#8B7DFA":"rgba(255,255,255,.12)"}}/>
+                    <div key={i} style={{width:i<=2?22:18,height:3,borderRadius:2,background:i<3?"#22C55E":i===3?"#7C72F0":"rgba(255,255,255,.14)"}}/>
                   ))}
                 </div>
               </div>
 
-              {/* Avatar area */}
               <div style={{
                 padding:"28px 24px 20px",textAlign:"center",
-                background:"linear-gradient(180deg,#0D0F18 0%,#0A0C12 100%)"
+                background:"linear-gradient(180deg,#0B0D17 0%,#090B14 100%)"
               }}>
-                {/* Priya avatar */}
                 <div style={{
                   width:96,height:96,margin:"0 auto 14px",
                   borderRadius:"50%",
-                  border:"2.5px solid #8B7DFA",
+                  border:"2.5px solid #7C72F0",
                   padding:4,
-                  boxShadow:"0 0 32px rgba(139,125,250,.35)",
+                  boxShadow:"0 0 36px rgba(124,114,240,.4)",
                   animation:"ringPulse 2s infinite"
                 }}>
                   <AIFace speaking={true} size={84}/>
                 </div>
                 <div style={{color:"#fff",fontWeight:800,fontSize:15,marginBottom:3}}>Priya Sharma</div>
-                <div style={{color:"rgba(255,255,255,.38)",fontSize:11,marginBottom:20}}>Senior Hiring Manager · Google</div>
+                <div style={{color:"rgba(255,255,255,.4)",fontSize:11,marginBottom:20}}>Senior Hiring Manager · Google</div>
 
-                {/* Question card */}
                 <div style={{
-                  background:"rgba(255,255,255,.04)",borderRadius:12,
+                  background:"rgba(255,255,255,.045)",borderRadius:12,
                   padding:"14px 16px",textAlign:"left",marginBottom:14,
-                  border:"1px solid rgba(255,255,255,.07)"
+                  border:"1px solid rgba(255,255,255,.08)"
                 }}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                    <span style={{background:"rgba(0,184,148,.16)",color:"#1FD1A8",fontSize:10,fontWeight:800,padding:"3px 10px",borderRadius:20,border:"1px solid rgba(0,184,148,.28)"}}>Technical</span>
-                    <span style={{color:"rgba(255,255,255,.28)",fontSize:10,fontFamily:"'JetBrains Mono',monospace",fontWeight:700}}>01:24 remaining</span>
+                    <span style={{background:"rgba(14,168,137,.18)",color:"#2DD4AE",fontSize:10,fontWeight:800,padding:"3px 10px",borderRadius:20,border:"1px solid rgba(14,168,137,.3)"}}>Technical</span>
+                    <span style={{color:"rgba(255,255,255,.3)",fontSize:10,fontFamily:"'JetBrains Mono',monospace",fontWeight:700}}>01:24 remaining</span>
                   </div>
-                  <div style={{color:"rgba(255,255,255,.88)",fontSize:13,lineHeight:1.7,fontWeight:500}}>
+                  <div style={{color:"rgba(255,255,255,.9)",fontSize:13,lineHeight:1.7,fontWeight:500}}>
                     How did you handle CORS with the Groq API in TakePlace?
                   </div>
-                  {/* Progress bar */}
-                  <div style={{height:2,background:"rgba(255,255,255,.06)",borderRadius:2,marginTop:12,overflow:"hidden"}}>
-                    <div style={{height:"100%",width:"58%",background:"#1FD1A8",borderRadius:2,boxShadow:"0 0 6px rgba(31,209,168,.5)"}}/>
+                  <div style={{height:2,background:"rgba(255,255,255,.07)",borderRadius:2,marginTop:12,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:"58%",background:"#2DD4AE",borderRadius:2,boxShadow:"0 0 6px rgba(45,212,174,.5)"}}/>
                   </div>
                 </div>
 
-                {/* Live metrics row */}
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:4}}>
-                  {[["Pace","78%","#1FD1A8"],["Clarity","82%","#8B7DFA"],["Fillers","0","#22C55E"]].map(([l,v,c])=>(
-                    <div key={l} style={{background:"rgba(255,255,255,.03)",borderRadius:10,padding:"10px 6px",border:"1px solid rgba(255,255,255,.06)"}}>
+                  {[["Pace","78%","#2DD4AE"],["Clarity","82%","#7C72F0"],["Fillers","0","#22C55E"]].map(([l,v,c])=>(
+                    <div key={l} style={{background:"rgba(255,255,255,.035)",borderRadius:10,padding:"10px 6px",border:"1px solid rgba(255,255,255,.07)"}}>
                       <div style={{fontSize:15,fontWeight:800,color:c,fontFamily:"'JetBrains Mono',monospace"}}>{v}</div>
-                      <div style={{fontSize:9,color:"rgba(255,255,255,.32)",marginTop:3,fontWeight:600,textTransform:"uppercase",letterSpacing:.5}}>{l}</div>
+                      <div style={{fontSize:9,color:"rgba(255,255,255,.34)",marginTop:3,fontWeight:600,textTransform:"uppercase",letterSpacing:.5}}>{l}</div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Controls bottom bar */}
               <div style={{
-                background:"rgba(4,6,12,.98)",padding:"14px 18px",
+                background:"rgba(4,5,10,.98)",padding:"14px 18px",
                 display:"flex",justifyContent:"center",gap:14,alignItems:"center",
-                borderTop:"1px solid rgba(255,255,255,.05)"
+                borderTop:"1px solid rgba(255,255,255,.06)"
               }}>
-                <div style={{width:40,height:40,borderRadius:"50%",background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🎙️</div>
+                <div style={{width:40,height:40,borderRadius:"50%",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.14)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🎙️</div>
                 <div style={{
                   padding:"11px 32px",borderRadius:22,
-                  background:"linear-gradient(135deg,#5240D6,#6D5BF6,#8B7DFA)",
+                  background:"linear-gradient(135deg,#4338CA,#5B4FE8,#7C72F0)",
                   color:"#fff",fontWeight:800,fontSize:13,
-                  boxShadow:"0 4px 20px rgba(109,91,246,.45)",cursor:"default"
+                  boxShadow:"0 6px 24px rgba(91,79,232,.5)",cursor:"default"
                 }}>Done ✓</div>
-                <div style={{width:40,height:40,borderRadius:"50%",background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>📵</div>
+                <div style={{width:40,height:40,borderRadius:"50%",background:"rgba(239,68,68,.12)",border:"1px solid rgba(239,68,68,.32)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>📵</div>
               </div>
             </div>
           </div>
@@ -2662,9 +2646,9 @@ function LandingPage({onStart}){
       </section>
 
       {/* ── COMPANY MARQUEE ── */}
-      <section style={{padding:"26px 0",background:C.bgSubtle,borderTop:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`}}>
+      <section style={{padding:"28px 0",background:C.bgSubtle,borderTop:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`}}>
         <div style={{textAlign:"center",marginBottom:14}}>
-          <div style={{fontSize:10,color:C.muted,fontWeight:700,letterSpacing:2.5,textTransform:"uppercase"}}>Practiced for interviews at</div>
+          <div style={{fontSize:10,color:C.muted,fontWeight:800,letterSpacing:2.6,textTransform:"uppercase"}}>Practiced for interviews at</div>
         </div>
         <div className="marquee-wrap">
           <div className="marquee-track">
@@ -2683,20 +2667,20 @@ function LandingPage({onStart}){
       </section>
 
       {/* ── HOW IT WORKS ── */}
-      <section style={{padding:"92px 28px",maxWidth:1100,margin:"0 auto"}}>
+      <section style={{padding:"96px 28px",maxWidth:1100,margin:"0 auto"}}>
         <div style={{textAlign:"center",marginBottom:58}}>
-          <div style={{fontSize:10,color:C.teal,fontWeight:800,letterSpacing:3.5,marginBottom:12,textTransform:"uppercase"}}>How it works</div>
-          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(26px,3.5vw,38px)",color:C.ink,letterSpacing:-.5}}>From resume to offer in 3 steps</h2>
+          <div style={{fontSize:10,color:C.teal,fontWeight:800,letterSpacing:3.6,marginBottom:12,textTransform:"uppercase"}}>How it works</div>
+          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(27px,3.6vw,40px)",color:C.ink,letterSpacing:-.6}}>From resume to offer in 3 steps</h2>
         </div>
         <div className="step-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:22}}>
           {[
-            {n:"01",col:C.violet,title:"Upload your resume",desc:"Paste or upload PDF/DOCX. Enter company and role. 60 seconds to set up."},
-            {n:"02",col:C.teal,title:"Interview on camera",desc:"Priya speaks your personalized questions aloud — you answer on mic, on camera, 90-second clock. Mic only opens after she stops speaking."},
-            {n:"03",col:C.gold,title:"Get your debrief + scorecard",desc:"Score across 5 dimensions. Per-question breakdown with ideal answers. Shareable PNG. Specific next steps."},
+            {n:"01",col:C.violet,title:"Upload your resume",desc:"Paste or upload PDF/DOCX. Enter company and role. Sixty seconds to set up."},
+            {n:"02",col:C.teal,title:"Interview on camera",desc:"Priya speaks your personalized questions aloud — you answer on mic, on camera, on a 90-second clock. Your mic opens only once she's done speaking."},
+            {n:"03",col:C.gold,title:"Get your debrief + scorecard",desc:"A score across five dimensions, a per-question breakdown with ideal answers, a shareable scorecard, and specific next steps."},
           ].map((s,i)=>(
             <div key={i} className="feature-card" style={{background:C.white,border:`1.5px solid ${C.border}`,borderRadius:20,padding:"28px 26px",boxShadow:C.shCard}}>
-              <div style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:900,fontSize:44,color:s.col,marginBottom:18,lineHeight:1,opacity:.85}}>{s.n}</div>
-              <div style={{fontWeight:800,fontSize:17,color:C.ink,marginBottom:10}}>{s.title}</div>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:900,fontSize:44,color:s.col,marginBottom:18,lineHeight:1,opacity:.88}}>{s.n}</div>
+              <div style={{fontWeight:800,fontSize:17.5,color:C.ink,marginBottom:10}}>{s.title}</div>
               <div style={{color:C.ink2,fontSize:13.5,lineHeight:1.82}}>{s.desc}</div>
             </div>
           ))}
@@ -2704,18 +2688,18 @@ function LandingPage({onStart}){
       </section>
 
       {/* ── FEATURES ── */}
-      <section id="features" style={{padding:"92px 28px",background:C.bgSubtle}}>
+      <section id="features" style={{padding:"96px 28px",background:C.bgSubtle}}>
         <div style={{maxWidth:1100,margin:"0 auto"}}>
           <div style={{textAlign:"center",marginBottom:58}}>
-            <div style={{fontSize:10,color:C.violet,fontWeight:800,letterSpacing:3.5,marginBottom:12,textTransform:"uppercase"}}>Features</div>
-            <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(26px,3.5vw,38px)",color:C.ink,letterSpacing:-.5}}>Built to replicate the real thing</h2>
+            <div style={{fontSize:10,color:C.violet,fontWeight:800,letterSpacing:3.6,marginBottom:12,textTransform:"uppercase"}}>Features</div>
+            <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(27px,3.6vw,40px)",color:C.ink,letterSpacing:-.6}}>Built to replicate the real thing</h2>
           </div>
           <div className="feature-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:18}}>
             {features.map((f,i)=>(
               <div key={i} className="feature-card" style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:18,padding:"24px 22px",display:"flex",gap:16,boxShadow:C.shCard}}>
                 <div style={{fontSize:26,flexShrink:0,marginTop:2}}>{f.icon}</div>
                 <div>
-                  <div style={{fontWeight:700,fontSize:15,color:C.ink,marginBottom:8}}>{f.title}</div>
+                  <div style={{fontWeight:700,fontSize:15.5,color:C.ink,marginBottom:8}}>{f.title}</div>
                   <div style={{color:C.ink2,fontSize:13,lineHeight:1.8}}>{f.desc}</div>
                 </div>
               </div>
@@ -2725,18 +2709,18 @@ function LandingPage({onStart}){
       </section>
 
       {/* ── TESTIMONIALS ── */}
-      <section style={{padding:"92px 28px",maxWidth:1100,margin:"0 auto"}}>
+      <section style={{padding:"96px 28px",maxWidth:1100,margin:"0 auto"}}>
         <div style={{textAlign:"center",marginBottom:52}}>
-          <div style={{fontSize:10,color:C.violet,fontWeight:800,letterSpacing:3.5,marginBottom:12,textTransform:"uppercase"}}>Success stories</div>
-          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(26px,3.5vw,38px)",color:C.ink,letterSpacing:-.5}}>They got hired. You're next.</h2>
+          <div style={{fontSize:10,color:C.violet,fontWeight:800,letterSpacing:3.6,marginBottom:12,textTransform:"uppercase"}}>Success stories</div>
+          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(27px,3.6vw,40px)",color:C.ink,letterSpacing:-.6}}>They got hired. You're next.</h2>
         </div>
         <div className="testimonial-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:18}}>
           {testimonials.map((r,i)=>(
             <div key={i} className="feature-card" style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:20,padding:"26px 24px",boxShadow:C.shCard}}>
               <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:14,flexWrap:"wrap"}}>
                 {[...Array(5)].map((_,j)=><span key={j} style={{color:C.gold,fontSize:14}}>★</span>)}
-                <span style={{background:C.greenPale,color:C.green,fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20,border:`1px solid ${C.green}28`,marginLeft:4}}>{r.score}%</span>
-                <span style={{background:C.violetPale,color:C.violetD,fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20,border:`1px solid ${C.violet}28`}}>{r.company}</span>
+                <span style={{background:C.greenPale,color:C.green,fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20,border:`1px solid ${C.green}30`,marginLeft:4}}>{r.score}%</span>
+                <span style={{background:C.violetPale,color:C.violetD,fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20,border:`1px solid ${C.violet}30`}}>{r.company}</span>
               </div>
               <div style={{color:C.ink2,fontSize:14,lineHeight:1.87,marginBottom:20}}>"{r.text}"</div>
               <div style={{display:"flex",alignItems:"center",gap:10,borderTop:`1px solid ${C.border}`,paddingTop:14}}>
@@ -2754,22 +2738,22 @@ function LandingPage({onStart}){
       </section>
 
       {/* ── PRICING ── */}
-      <section id="pricing" style={{padding:"92px 28px",background:C.bgSubtle}}>
+      <section id="pricing" style={{padding:"96px 28px",background:C.bgSubtle}}>
         <div style={{maxWidth:920,margin:"0 auto"}}>
           <div style={{textAlign:"center",marginBottom:52}}>
-            <div style={{fontSize:10,color:C.violet,fontWeight:800,letterSpacing:3.5,marginBottom:12,textTransform:"uppercase"}}>Pricing</div>
-            <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(24px,3.2vw,36px)",color:C.ink,letterSpacing:-.5}}>2 free per role. Unlock all 15 for less than a coffee.</h2>
+            <div style={{fontSize:10,color:C.violet,fontWeight:800,letterSpacing:3.6,marginBottom:12,textTransform:"uppercase"}}>Pricing</div>
+            <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(25px,3.3vw,38px)",color:C.ink,letterSpacing:-.6}}>Two free per role. Unlock everything for less than a coffee.</h2>
           </div>
           <div className="pricing-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:22,alignItems:"start"}}>
             {[
               {name:"Free",price:"₹0",period:"",color:C.muted,features:["2 mock interviews per role","Basic per-question feedback","Live job feed","Streak tracking"],cta:"Start Free",bg:C.white,border:C.border},
-              {name:"Week",price:"₹49",period:"/week",color:C.gold,popular:false,features:["All 15 mocks, every role","All company style modes","Full detailed reports","Shareable scorecards","Filler word detection"],cta:"Get 1 Week — ₹49",bg:C.goldPale,border:"rgba(217,119,6,.3)"},
-              {name:"Month",price:"₹199",period:"/month",color:C.violet,popular:true,features:["Everything in Week","Best value — 4× the days","Score history + trajectory","AI ideal answer coach","Priority support"],cta:"Get 1 Month — ₹199",bg:C.violetPale,border:"rgba(109,91,246,.35)"},
+              {name:"Week",price:"₹49",period:"/week",color:C.gold,popular:false,features:["All 15 mocks, every role","All company style modes","Full detailed reports","Shareable scorecards","Filler word detection"],cta:"Get 1 Week — ₹49",bg:C.goldPale,border:"rgba(194,116,10,.32)"},
+              {name:"Month",price:"₹199",period:"/month",color:C.violet,popular:true,features:["Everything in Week","Best value — 4× the days","Score history + trajectory","AI ideal-answer coach","Priority support"],cta:"Get 1 Month — ₹199",bg:C.violetPale,border:"rgba(91,79,232,.38)"},
             ].map((p,i)=>(
               <div key={i} style={{
                 background:p.bg,border:`1.5px solid ${p.border}`,
                 borderRadius:22,padding:"28px 24px",position:"relative",
-                boxShadow:p.popular?"0 16px 40px rgba(109,91,246,.14)":C.shCard
+                boxShadow:p.popular?"0 18px 44px rgba(91,79,232,.16)":C.shCard
               }}>
                 {p.popular&&(
                   <div style={{position:"absolute",top:-15,left:"50%",transform:"translateX(-50%)",background:`linear-gradient(135deg,${C.violetD},${C.violet})`,color:"#fff",fontSize:11,fontWeight:800,padding:"5px 18px",borderRadius:20,whiteSpace:"nowrap",boxShadow:C.shVioletGlow}}>⭐ MOST POPULAR</div>
@@ -2784,8 +2768,8 @@ function LandingPage({onStart}){
                   </div>
                 ))}
                 <button onClick={onStart} style={{
-                  width:"100%",padding:"13px",marginTop:14,borderRadius:10,
-                  border:`1px solid ${p.border}`,
+                  width:"100%",padding:"13px",marginTop:14,borderRadius:11,
+                  border:`1.5px solid ${p.border}`,
                   background:p.popular?`linear-gradient(135deg,${C.violetD},${C.violet})`:i===1?C.goldPale:C.white,
                   color:p.popular?"#fff":p.color,fontWeight:800,fontSize:14,cursor:"pointer",
                   fontFamily:"'Inter',sans-serif",transition:"all .2s",
@@ -2798,18 +2782,18 @@ function LandingPage({onStart}){
       </section>
 
       {/* ── FINAL CTA ── */}
-      <section style={{padding:"92px 28px",textAlign:"center",background:C.white}}>
-        <div style={{maxWidth:580,margin:"0 auto",background:`linear-gradient(160deg,${C.white},#F6F5FF)`,border:"1px solid rgba(109,91,246,.22)",borderRadius:28,padding:"64px 40px",boxShadow:"0 24px 64px rgba(109,91,246,.10)"}}>
+      <section style={{padding:"96px 28px",textAlign:"center",background:C.white}}>
+        <div style={{maxWidth:580,margin:"0 auto",background:`linear-gradient(160deg,${C.white},#F4F3FE)`,border:"1px solid rgba(91,79,232,.24)",borderRadius:28,padding:"66px 40px",boxShadow:"0 26px 68px rgba(91,79,232,.12)"}}>
           <div style={{fontSize:52,marginBottom:16,animation:"float 3s ease-in-out infinite"}}>🎤</div>
-          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(24px,3.5vw,36px)",color:C.ink,marginBottom:14,letterSpacing:-.5,lineHeight:1.15}}>
+          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(24px,3.6vw,37px)",color:C.ink,marginBottom:14,letterSpacing:-.6,lineHeight:1.15}}>
             Your next interview is real.<br/>
             <span style={{background:`linear-gradient(135deg,${C.violetD},${C.teal})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>This one can be too.</span>
           </h2>
           <p style={{color:C.ink2,fontSize:15,marginBottom:38,lineHeight:1.75}}>Camera on. Mic live. Resume read. Free to start.</p>
           <button onClick={onStart} className="cta-glow" style={{
-            padding:"16px 52px",borderRadius:12,border:"none",cursor:"pointer",
+            padding:"17px 54px",borderRadius:13,border:"none",cursor:"pointer",
             background:`linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,
-            color:"#fff",fontWeight:800,fontSize:17,fontFamily:"'Inter',sans-serif",
+            color:"#fff",fontWeight:800,fontSize:17,fontFamily:"'Inter',sans-serif",letterSpacing:.2
           }}>Start free now →</button>
         </div>
       </section>
