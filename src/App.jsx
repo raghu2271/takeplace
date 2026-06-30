@@ -1,4 +1,12 @@
 
+// ════════════════════════════════════════════════════════════════════════════
+// PASS 1 — FOUNDATION (CORRECTED, COMPLETE)
+// This replaces EVERYTHING from "import React..." down through the end of
+// the AIFace function in your file. Nothing is missing — all your original
+// helper functions (callGroq, extractPDF, useSubscription, etc.) are included
+// unchanged. Only the design system (C, CSS, Btn, Tag, Bar, ScoreRing,
+// SkillRadar, Sparkline, AIFace) was updated to the white theme.
+// ════════════════════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
@@ -21,19 +29,23 @@ const FOCUS_BY_SLOT = [
   "ambiguous requirements","conflict resolution","closing & negotiation",
 ];
 
-// ── DESIGN SYSTEM ─────────────────────────────────────────────────────────────
+// ── DESIGN SYSTEM — PROFESSIONAL WHITE THEME ──────────────────────────────────
 const C = {
-  bg:"#080C14",bgCard:"#0D1220",bgSurf:"#111827",bgLight:"#F8FAFC",
-  white:"#FFFFFF",ink:"#F1F5F9",ink2:"#CBD5E1",ink3:"#94A3B8",inkDark:"#0D1117",
-  violet:"#7C6EFA",violetL:"#A89BFC",violetD:"#5B4EE8",violetPale:"rgba(124,110,250,0.12)",
-  teal:"#00D4AA",tealL:"#2EE8BF",tealD:"#00A888",tealPale:"rgba(0,212,170,0.10)",
-  gold:"#F59E0B",goldL:"#FBD072",goldPale:"rgba(245,158,11,0.12)",
-  green:"#22C55E",greenL:"#4ADE80",greenPale:"rgba(34,197,94,0.10)",
-  red:"#EF4444",redPale:"rgba(239,68,68,0.10)",
-  blue:"#3B82F6",bluePale:"rgba(59,130,246,0.10)",
-  border:"rgba(255,255,255,0.08)",borderHover:"rgba(255,255,255,0.16)",
-  muted:"#64748B",soft:"#94A3B8",
-  lBg:"#F8FAFC",lCard:"#FFFFFF",lBorder:"#E2E8F0",lText:"#0F172A",lMuted:"#64748B",
+  bg:"#FFFFFF",bgSubtle:"#FAFAFB",bgCard:"#FFFFFF",bgSurf:"#F4F5F7",bgLight:"#FAFAFB",
+  white:"#FFFFFF",ink:"#0F1117",ink2:"#4B5363",ink3:"#8B92A3",inkDark:"#0F1117",
+  violet:"#6D5BF6",violetL:"#8B7DFA",violetD:"#5240D6",violetPale:"rgba(109,91,246,0.08)",
+  teal:"#00B894",tealL:"#1FD1A8",tealD:"#00997A",tealPale:"rgba(0,184,148,0.08)",
+  gold:"#D97706",goldL:"#F59E0B",goldPale:"rgba(217,119,6,0.08)",
+  green:"#16A34A",greenL:"#22C55E",greenPale:"rgba(22,163,74,0.08)",
+  red:"#DC2626",redPale:"rgba(220,38,38,0.06)",
+  blue:"#2563EB",bluePale:"rgba(37,99,235,0.06)",
+  border:"#E7E8EC",borderHover:"#D5D7DF",
+  muted:"#8B92A3",soft:"#6B7280",
+  lBg:"#FAFAFB",lCard:"#FFFFFF",lBorder:"#E7E8EC",lText:"#0F1117",lMuted:"#6B7280",
+  shCard:"0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06)",
+  shElevated:"0 4px 16px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.04)",
+  shHover:"0 12px 32px rgba(16,24,40,.10), 0 2px 6px rgba(16,24,40,.04)",
+  shVioletGlow:"0 4px 20px rgba(109,91,246,.25)",
 };
 
 const CSS = `
@@ -41,8 +53,8 @@ const CSS = `
   *{box-sizing:border-box;margin:0;padding:0;}
   html{scroll-behavior:smooth;}
   body{font-family:'Inter',sans-serif;background:${C.bg};color:${C.ink};-webkit-font-smoothing:antialiased;}
-  ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px;}
-  ::selection{background:${C.violet}40;}
+  ::-webkit-scrollbar{width:6px;} ::-webkit-scrollbar-thumb{background:${C.border};border-radius:4px;} ::-webkit-scrollbar-thumb:hover{background:${C.borderHover};}
+  ::selection{background:${C.violet}25;}
   @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   @keyframes spin{to{transform:rotate(360deg)}}
@@ -52,31 +64,32 @@ const CSS = `
   @keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
   @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
   @keyframes voiceBar{0%,100%{transform:scaleY(.15)}50%{transform:scaleY(1)}}
-  @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(124,110,250,.5)}70%{box-shadow:0 0 0 24px rgba(124,110,250,0)}100%{box-shadow:0 0 0 0 rgba(124,110,250,0)}}
+  @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(109,91,246,.35)}70%{box-shadow:0 0 0 18px rgba(109,91,246,0)}100%{box-shadow:0 0 0 0 rgba(109,91,246,0)}}
   @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
   @keyframes countUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
   @keyframes streakPop{0%{transform:scale(1)}50%{transform:scale(1.3)}100%{transform:scale(1)}}
   @keyframes gradientShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
-  @keyframes borderGlow{0%,100%{box-shadow:0 0 0 0 rgba(124,110,250,0)}50%{box-shadow:0 0 20px rgba(124,110,250,.3)}}
+  @keyframes borderGlow{0%,100%{box-shadow:0 0 0 0 rgba(109,91,246,0)}50%{box-shadow:0 0 16px rgba(109,91,246,.18)}}
   .fade{animation:fadeUp .45s cubic-bezier(.22,1,.36,1) forwards;}
   .fadein{animation:fadeIn .3s ease forwards;}
-  .lift{transition:transform .18s cubic-bezier(.22,1,.36,1),box-shadow .18s;cursor:pointer;}
-  .lift:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(0,0,0,.4);}
+  .lift{transition:transform .18s cubic-bezier(.22,1,.36,1),box-shadow .18s,border-color .18s;cursor:pointer;}
+  .lift:hover{transform:translateY(-2px);box-shadow:${C.shHover};border-color:${C.borderHover};}
   input:focus,textarea:focus,select:focus{outline:none;}
   button:active{transform:scale(.97);}
-  .room-fixed{position:fixed;inset:0;z-index:9999;background:#04060E;display:flex;flex-direction:column;overflow:hidden;}
-  .glass{background:rgba(255,255,255,.04);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);}
-  .glass-strong{background:rgba(13,18,32,.85);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.1);}
+  .room-fixed{position:fixed;inset:0;z-index:9999;background:#0A0C12;display:flex;flex-direction:column;overflow:hidden;}
+  .glass{background:rgba(255,255,255,.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid ${C.border};}
+  .glass-strong{background:rgba(255,255,255,.92);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid ${C.border};}
   .vbar{width:3px;border-radius:2px;background:currentColor;display:inline-block;transform-origin:center bottom;}
   .mono{font-family:'JetBrains Mono',monospace;}
-  .gradient-text{background:linear-gradient(135deg,${C.violetL},${C.teal});-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-  .skeleton{background:linear-gradient(90deg,rgba(255,255,255,.04) 25%,rgba(255,255,255,.08) 50%,rgba(255,255,255,.04) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;}
+  .gradient-text{background:linear-gradient(135deg,${C.violetD},${C.teal});-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  .skeleton{background:linear-gradient(90deg,${C.bgSubtle} 25%,${C.bgSurf} 50%,${C.bgSubtle} 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;}
 `;
 
 const inp = {
-  width:"100%",background:"rgba(255,255,255,.04)",border:`1px solid ${C.border}`,
+  width:"100%",background:C.white,border:`1px solid ${C.border}`,
   borderRadius:10,padding:"11px 14px",color:C.ink,fontSize:14,
   fontFamily:"'Inter',sans-serif",outline:"none",transition:"border-color .2s,box-shadow .2s",
+  boxShadow:C.shCard,
 };
 
 // ── ATOMS ─────────────────────────────────────────────────────────────────────
@@ -85,32 +98,32 @@ const Spin = ({size=18,color=C.violet}) => (
 );
 
 function Btn({children,onClick,v="primary",style={},disabled=false,loading=false,small=false}){
-  const base={padding:small?"7px 14px":"12px 24px",fontSize:small?12:14,borderRadius:10,border:"none",cursor:disabled||loading?"not-allowed":"pointer",fontFamily:"'Inter',sans-serif",transition:"all .18s cubic-bezier(.22,1,.36,1)",opacity:disabled?.45:1,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:7,fontWeight:700,whiteSpace:"nowrap"};
+  const base={padding:small?"8px 16px":"13px 26px",fontSize:small?12:14,borderRadius:10,border:"none",cursor:disabled||loading?"not-allowed":"pointer",fontFamily:"'Inter',sans-serif",transition:"all .18s cubic-bezier(.22,1,.36,1)",opacity:disabled?.45:1,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:7,fontWeight:700,whiteSpace:"nowrap"};
   const vs={
-    primary:{background:`linear-gradient(135deg,${C.violetD},${C.violet})`,color:"#fff",boxShadow:`0 4px 20px ${C.violet}35`},
-    teal:{background:`linear-gradient(135deg,${C.tealD},${C.teal})`,color:C.bg,boxShadow:`0 4px 20px ${C.teal}30`},
-    gold:{background:`linear-gradient(135deg,#D97706,${C.gold},${C.goldL})`,color:C.bg,boxShadow:`0 4px 20px ${C.gold}30`},
-    green:{background:`linear-gradient(135deg,#16A34A,${C.green})`,color:"#fff"},
-    ghost:{background:"rgba(255,255,255,.06)",color:C.ink2,border:`1px solid ${C.border}`},
-    outline:{background:"transparent",color:"#fff",border:"1px solid rgba(255,255,255,.25)"},
+    primary:{background:`linear-gradient(135deg,${C.violetD},${C.violet})`,color:"#fff",boxShadow:C.shVioletGlow},
+    teal:{background:`linear-gradient(135deg,${C.tealD},${C.teal})`,color:"#fff",boxShadow:"0 4px 18px rgba(0,184,148,.25)"},
+    gold:{background:`linear-gradient(135deg,#B45309,${C.gold},${C.goldL})`,color:"#fff",boxShadow:"0 4px 18px rgba(217,119,6,.22)"},
+    green:{background:`linear-gradient(135deg,#15803D,${C.green})`,color:"#fff",boxShadow:"0 4px 18px rgba(22,163,74,.2)"},
+    ghost:{background:C.bgSubtle,color:C.ink2,border:`1px solid ${C.border}`},
+    outline:{background:"transparent",color:C.ink,border:`1px solid ${C.border}`},
     danger:{background:C.red,color:"#fff"},
-    light:{background:C.lCard,color:C.lText,fontWeight:700,boxShadow:"0 2px 12px rgba(0,0,0,.12)"},
-    violet:{background:`linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,color:"#fff",boxShadow:`0 4px 20px ${C.violet}40`},
+    light:{background:C.white,color:C.ink,fontWeight:700,border:`1px solid ${C.border}`,boxShadow:C.shCard},
+    violet:{background:`linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,color:"#fff",boxShadow:C.shVioletGlow},
   };
   return(
     <button onClick={disabled||loading?undefined:onClick} disabled={disabled||loading} style={{...base,...vs[v],...style}}>
-      {loading?<><Spin size={13} color={v==="ghost"?C.violet:"#fff"}/> Please wait…</>:children}
+      {loading?<><Spin size={13} color={v==="ghost"||v==="outline"||v==="light"?C.violet:"#fff"}/> Please wait…</>:children}
     </button>
   );
 }
 
 const Tag = ({children,color=C.violet,bg,size=11}) => (
-  <span style={{background:bg||`${color}15`,color,fontSize:size,padding:"3px 10px",borderRadius:20,fontWeight:700,border:`1px solid ${color}20`,whiteSpace:"nowrap"}}>{children}</span>
+  <span style={{background:bg||`${color}12`,color,fontSize:size,padding:"3px 10px",borderRadius:20,fontWeight:700,border:`1px solid ${color}22`,whiteSpace:"nowrap"}}>{children}</span>
 );
 
 function Bar({pct,color,h=4}){
   return(
-    <div style={{background:"rgba(255,255,255,.06)",borderRadius:4,height:h,overflow:"hidden"}}>
+    <div style={{background:C.bgSurf,borderRadius:4,height:h,overflow:"hidden"}}>
       <div style={{height:"100%",width:`${Math.min(100,pct||0)}%`,background:color||C.violet,borderRadius:4,transition:"width 1.2s cubic-bezier(.22,1,.36,1)"}}/>
     </div>
   );
@@ -123,13 +136,13 @@ function ScoreRing({score,size=80,color,label,delta}){
   return(
     <div style={{textAlign:"center"}}>
       <svg width={size} height={size} viewBox="0 0 68 68" style={{overflow:"visible"}}>
-        <circle cx="34" cy="34" r={r} fill="none" stroke="rgba(255,255,255,.06)" strokeWidth="4"/>
+        <circle cx="34" cy="34" r={r} fill="none" stroke={C.bgSurf} strokeWidth="4"/>
         <circle cx="34" cy="34" r={r} fill="none" stroke={col} strokeWidth="4"
           strokeDasharray={circ} strokeDashoffset={circ*(1-pct/100)}
           strokeLinecap="round" transform="rotate(-90 34 34)"
-          style={{transition:"stroke-dashoffset 1.4s cubic-bezier(.22,1,.36,1)",filter:`drop-shadow(0 0 6px ${col}60)`}}/>
+          style={{transition:"stroke-dashoffset 1.4s cubic-bezier(.22,1,.36,1)"}}/>
         <text x="34" y="37" textAnchor="middle" fill={col} fontSize="13" fontWeight="700" fontFamily="JetBrains Mono,monospace">{pct}</text>
-        <text x="34" y="47" textAnchor="middle" fill="rgba(255,255,255,.3)" fontSize="7" fontFamily="Inter,sans-serif">score</text>
+        <text x="34" y="47" textAnchor="middle" fill={C.muted} fontSize="7" fontFamily="Inter,sans-serif">score</text>
       </svg>
       {label&&<div style={{color:C.soft,fontSize:10,fontWeight:600,marginTop:3,textTransform:"uppercase",letterSpacing:.6}}>{label}</div>}
       {delta!==undefined&&<div style={{fontSize:11,color:delta>=0?C.green:C.red,fontWeight:700,marginTop:2}}>{delta>=0?`↑ +${delta}`:` ↓ ${delta}`} pts</div>}
@@ -150,14 +163,14 @@ function SkillRadar({scores={},size=200}){
   return(
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       {gridLevels.map(l=>(
-        <polygon key={l} fill="none" stroke="rgba(255,255,255,.06)" strokeWidth="1"
+        <polygon key={l} fill="none" stroke={C.border} strokeWidth="1"
           points={skills.map((_,i)=>{const[x,y]=pt(i,l);return`${x},${y}`;}).join(" ")}/>
       ))}
-      {skills.map((_,i)=>{const[x,y]=pt(i,100);return<line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="rgba(255,255,255,.06)" strokeWidth="1"/>;  })}
-      <polygon fill={`${C.violet}25`} stroke={C.violet} strokeWidth="1.5"
+      {skills.map((_,i)=>{const[x,y]=pt(i,100);return<line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke={C.border} strokeWidth="1"/>;  })}
+      <polygon fill={`${C.violet}18`} stroke={C.violet} strokeWidth="1.5"
         style={{transition:"all .8s cubic-bezier(.22,1,.36,1)"}}
         points={skills.map((s,i)=>{const[x,y]=pt(i,scores[s.key]||0);return`${x},${y}`;}).join(" ")}/>
-      {skills.map((s,i)=>{const[x,y]=pt(i,scores[s.key]||0);return<circle key={i} cx={x} cy={y} r="3" fill={C.violet} style={{filter:`drop-shadow(0 0 4px ${C.violet})`}}/>;  })}
+      {skills.map((s,i)=>{const[x,y]=pt(i,scores[s.key]||0);return<circle key={i} cx={x} cy={y} r="3" fill={C.violet}/>;  })}
       {skills.map((s,i)=>{
         const a=angle(i),lx=cx+(r+20)*Math.cos(a),ly=cy+(r+20)*Math.sin(a);
         return<text key={i} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fill={C.soft} fontSize="9" fontFamily="Inter,sans-serif" fontWeight="600" style={{textTransform:"uppercase",letterSpacing:.5}}>{s.label}</text>;
@@ -173,7 +186,7 @@ function Sparkline({data=[],width=120,height=32,color=C.violet}){
   return(
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
       <polyline fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" points={pts}/>
-      {data.map((v,i)=>{const x=(i/(data.length-1))*(width-4)+2,y=height-2-((v-min)/range)*(height-4);return i===data.length-1?<circle key={i} cx={x} cy={y} r="3" fill={color} style={{filter:`drop-shadow(0 0 3px ${color})`}}/>:null;})}
+      {data.map((v,i)=>{const x=(i/(data.length-1))*(width-4)+2,y=height-2-((v-min)/range)*(height-4);return i===data.length-1?<circle key={i} cx={x} cy={y} r="3" fill={color}/>:null;})}
     </svg>
   );
 }
@@ -317,27 +330,30 @@ async function startCheckout(plan,user,onSuccess){
           else{alert("Payment verification failed. If money was deducted, contact takeplace.in@gmail.com");}
         }catch(e){alert("Payment verification error: "+e.message);}
       },
-      theme:{color:"#7C6EFA"},
+      theme:{color:"#6D5BF6"},
     });
     rzp.open();
   }catch(e){alert("Could not start checkout: "+e.message);}
 }
 
 // ── SHAREABLE SCORECARD ───────────────────────────────────────────────────────
+// Kept dark/premium-card style on purpose — this gets downloaded and posted to
+// LinkedIn/WhatsApp, where a dark "achievement card" reads better and stands
+// out more in a feed than a plain white card would.
 async function generateScorecard(data){
   if(!window.html2canvas){
     await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});
   }
   const div=document.createElement("div");
-  div.style.cssText=`position:fixed;left:-9999px;top:0;width:1200px;height:630px;background:linear-gradient(135deg,#080C14,#0D1220 40%,#11163A);font-family:'Inter',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;`;
+  div.style.cssText=`position:fixed;left:-9999px;top:0;width:1200px;height:630px;background:linear-gradient(135deg,#0F1117,#1A1D2E 40%,#241B4D);font-family:'Inter',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;`;
   div.innerHTML=`
     <div style="width:100%;text-align:center;">
       <div style="font-size:18px;color:rgba(255,255,255,.4);margin-bottom:8px;letter-spacing:3px;font-weight:600;text-transform:uppercase">Mock Interview Result</div>
-      <div style="font-size:72px;font-weight:900;font-family:'Plus Jakarta Sans',sans-serif;background:linear-gradient(135deg,#A89BFC,#00D4AA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1">${data.overallScore}%</div>
+      <div style="font-size:72px;font-weight:900;font-family:'Plus Jakarta Sans',sans-serif;background:linear-gradient(135deg,#8B7DFA,#1FD1A8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1">${data.overallScore}%</div>
       <div style="margin:16px auto;background:${data.overallScore>=75?"rgba(34,197,94,.2)":data.overallScore>=55?"rgba(245,158,11,.2)":"rgba(239,68,68,.2)"};color:${data.overallScore>=75?"#4ADE80":data.overallScore>=55?"#FBD072":"#F87171"};font-size:20px;font-weight:800;padding:10px 28px;border-radius:30px;border:1px solid ${data.overallScore>=75?"rgba(34,197,94,.4)":data.overallScore>=55?"rgba(245,158,11,.4)":"rgba(239,68,68,.4)"};display:inline-block">${data.verdict}</div>
       <div style="font-size:24px;color:rgba(255,255,255,.7);margin:20px 0;">${data.company||""} ${data.role?`· ${data.role}`:""}</div>
       <div style="display:flex;gap:24px;justify-content:center;margin:24px 0;">
-        ${[["Technical",data.technicalScore],["Communication",data.communicationScore],["Confidence",data.confidenceScore]].map(([l,v])=>`<div style="text-align:center;background:rgba(255,255,255,.05);border-radius:12px;padding:16px 24px;min-width:130px"><div style="font-size:28px;font-weight:700;color:#7C6EFA;font-family:'JetBrains Mono',monospace">${v}%</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:1px">${l}</div></div>`).join("")}
+        ${[["Technical",data.technicalScore],["Communication",data.communicationScore],["Confidence",data.confidenceScore]].map(([l,v])=>`<div style="text-align:center;background:rgba(255,255,255,.05);border-radius:12px;padding:16px 24px;min-width:130px"><div style="font-size:28px;font-weight:700;color:#8B7DFA;font-family:'JetBrains Mono',monospace">${v}%</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:1px">${l}</div></div>`).join("")}
       </div>
       <div style="font-size:14px;color:rgba(255,255,255,.3);margin-top:24px;font-weight:600">🎤 TakePlace · takeplace.vercel.app</div>
     </div>`;
@@ -405,11 +421,11 @@ function AIFace({speaking,size=200}){
         <path d={speaking?"M84 138 Q100 152 116 138":"M84 140 Q100 144 116 140"}
           stroke="#A85A4A" strokeWidth="3" fill={speaking?"#7A2F28":"none"} strokeLinecap="round"
           style={{transition:"d .15s"}}/>
-        <path d="M40 200 Q100 168 160 200 L160 200 L40 200Z" fill="#5B4EE8"/>
+        <path d="M40 200 Q100 168 160 200 L160 200 L40 200Z" fill={C.violetD}/>
         <path d="M85 168 L100 184 L115 168" stroke="#fff" strokeWidth="2" fill="none"/>
       </svg>
       {speaking&&(
-        <div style={{position:"absolute",inset:0,borderRadius:"50%",background:"radial-gradient(circle at center,transparent 60%,rgba(124,110,250,.18) 100%)",animation:"breathe 1.4s ease-in-out infinite"}}/>
+        <div style={{position:"absolute",inset:0,borderRadius:"50%",background:"radial-gradient(circle at center,transparent 60%,rgba(109,91,246,.18) 100%)",animation:"breathe 1.4s ease-in-out infinite"}}/>
       )}
     </div>
   );
@@ -2364,10 +2380,18 @@ function JobsTab({onPracticeForJob}){
 }
 
 // ── LANDING PAGE ──────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// PASS 2 — LANDING PAGE (white theme, full 1:1 section match to your original)
+// Replace your entire "function LandingPage({onStart}){ ... }" block with this.
+// Sections present, same order as your original: NAV, HERO, COMPANY MARQUEE,
+// HOW IT WORKS, FEATURES, TESTIMONIALS, PRICING, FINAL CTA, FOOTER.
+// Uses the C tokens from Pass 1 (already in scope in your file).
+// ════════════════════════════════════════════════════════════════════════════
+
 function LandingPage({onStart}){
   const[scrolled,setScrolled]=useState(false);
   useEffect(()=>{const h=()=>setScrolled(window.scrollY>60);window.addEventListener("scroll",h);return()=>window.removeEventListener("scroll",h);},[]);
- 
+
   const features=[
     {icon:"🎯",title:"Resume-personalized questions",desc:"AI reads your actual projects and tech stack — questions about your TakePlace app, your internship, your specific tech."},
     {icon:"🎥",title:"Full-screen camera room",desc:"Full HD camera, self-view PiP, LIVE indicator. Build composure under real conditions."},
@@ -2376,25 +2400,25 @@ function LandingPage({onStart}){
     {icon:"🏢",title:"Company-style matching",desc:"Google interviews differently than TCS. We mirror each company's real culture and difficulty."},
     {icon:"🔓",title:"15 mock interviews per role",desc:"2 free per role. Unlock all 15 from ₹49."},
   ];
- 
+
   const testimonials=[
     {name:"Priya M.",role:"SDE at Wipro",text:"The AI asked specifically about my TakePlace project. That's exactly what happened in my real interview. I was so prepared I almost corrected the interviewer.",score:91,company:"Wipro"},
     {name:"Arun K.",role:"Data Analyst at TCS",text:"The live filler word detector caught me saying 'basically' 12 times per answer. Fixed it before the real interview. Got the offer.",score:83,company:"TCS"},
     {name:"Sneha R.",role:"Full Stack Dev at Infosys",text:"Resume interview + Amazon target = they asked about my app's architecture in depth. I'd answered that question three times in practice. Offer in round 2.",score:94,company:"Amazon"},
   ];
- 
+
   const landingCSS=`
     @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
     .marquee-track{display:flex;gap:20px;animation:marquee 25s linear infinite;}
-    .marquee-wrap{overflow:hidden;}
+    .marquee-wrap{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);}
     @keyframes heroFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
     .hero-card{animation:heroFloat 4s ease-in-out infinite;}
-    .cta-glow{box-shadow:0 0 40px rgba(124,110,250,.35),0 4px 20px rgba(124,110,250,.25);transition:all .25s;}
-    .cta-glow:hover{box-shadow:0 0 60px rgba(124,110,250,.5),0 8px 30px rgba(124,110,250,.4);transform:translateY(-2px);}
-    .feature-card{transition:transform .18s,box-shadow .18s;}
-    .feature-card:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(0,0,0,.25);}
-    .nav-link-btn{background:none;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;color:rgba(255,255,255,.6);padding:8px 14px;border-radius:8px;transition:color .2s;}
-    .nav-link-btn:hover{color:rgba(255,255,255,.9);}
+    .cta-glow{box-shadow:${C.shVioletGlow};transition:all .25s;}
+    .cta-glow:hover{box-shadow:0 8px 32px rgba(109,91,246,.38);transform:translateY(-2px);}
+    .feature-card{transition:transform .18s,box-shadow .18s,border-color .18s;}
+    .feature-card:hover{transform:translateY(-4px);box-shadow:${C.shHover};border-color:${C.borderHover};}
+    .nav-link-btn{background:none;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;color:${C.soft};padding:8px 14px;border-radius:8px;transition:color .2s;}
+    .nav-link-btn:hover{color:${C.ink};}
     @media(max-width:768px){
       .hero-grid{grid-template-columns:1fr!important;}
       .hero-mockup{display:block!important;}
@@ -2407,124 +2431,126 @@ function LandingPage({onStart}){
       .pricing-grid{grid-template-columns:1fr!important;}
     }
   `;
- 
+
   return(
-    <div style={{background:"#080C14",color:"#F1F5F9",fontFamily:"'Inter',sans-serif",overflowX:"hidden"}}>
+    <div style={{background:C.white,color:C.ink,fontFamily:"'Inter',sans-serif",overflowX:"hidden"}}>
       <style>{landingCSS}</style>
- 
+
       {/* ── NAV ── */}
       <nav style={{
         position:"fixed",top:0,left:0,right:0,zIndex:1000,
-        background:scrolled?"rgba(8,12,20,.97)":"transparent",
+        background:scrolled?"rgba(255,255,255,.92)":"transparent",
         backdropFilter:scrolled?"blur(20px)":"none",
-        borderBottom:scrolled?"1px solid rgba(255,255,255,.08)":"none",
+        borderBottom:scrolled?`1px solid ${C.border}`:"none",
         transition:"all .3s",padding:"0 28px"
       }}>
         <div style={{maxWidth:1140,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:66}}>
           {/* Logo */}
           <div style={{fontWeight:900,fontSize:22,fontFamily:"'Plus Jakarta Sans',sans-serif",display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>window.scrollTo({top:0,behavior:"smooth"})}>
             <span style={{fontSize:20}}>🎤</span>
-            <span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</span>
+            <span style={{background:`linear-gradient(135deg,${C.violetD},${C.teal})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</span>
           </div>
- 
+
           {/* Desktop nav links */}
           <div style={{display:"flex",gap:4,alignItems:"center"}}>
             <button className="nav-link-btn" onClick={()=>document.getElementById("features")?.scrollIntoView({behavior:"smooth"})}>Features</button>
             <button className="nav-link-btn" onClick={()=>document.getElementById("pricing")?.scrollIntoView({behavior:"smooth"})}>Pricing</button>
             <button className="nav-link-btn" onClick={onStart}>Jobs</button>
           </div>
- 
+
           {/* Right CTAs */}
           <div style={{display:"flex",gap:10,alignItems:"center"}}>
             <button onClick={onStart} className="nav-link-btn">Sign In</button>
             <button onClick={onStart} style={{
-              background:"linear-gradient(135deg,#5B4EE8,#7C6EFA)",
+              background:`linear-gradient(135deg,${C.violetD},${C.violet})`,
               border:"none",borderRadius:10,padding:"10px 22px",
               color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",
               fontFamily:"'Inter',sans-serif",
-              boxShadow:"0 4px 16px rgba(124,110,250,.4)",transition:"all .2s"
+              boxShadow:C.shVioletGlow,transition:"all .2s"
             }}>Get started free →</button>
           </div>
         </div>
       </nav>
- 
+
       {/* ── HERO ── */}
       <section style={{
         minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",
         padding:"110px 28px 80px",position:"relative",overflow:"hidden",
-        background:"linear-gradient(160deg,#04060E 0%,#080C14 45%,#0D1230 100%)"
+        background:`linear-gradient(160deg,${C.white} 0%,${C.bgSubtle} 45%,#F6F5FF 100%)`
       }}>
         {/* bg glow blobs */}
-        <div style={{position:"absolute",top:"8%",right:"3%",width:520,height:520,borderRadius:"50%",background:"radial-gradient(circle,rgba(124,110,250,.12),transparent 65%)",pointerEvents:"none"}}/>
-        <div style={{position:"absolute",bottom:"10%",left:"-4%",width:380,height:380,borderRadius:"50%",background:"radial-gradient(circle,rgba(0,212,170,.07),transparent 65%)",pointerEvents:"none"}}/>
-        <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(rgba(255,255,255,.022) 1px,transparent 1px)",backgroundSize:"38px 38px",pointerEvents:"none"}}/>
- 
+        <div style={{position:"absolute",top:"8%",right:"3%",width:520,height:520,borderRadius:"50%",background:"radial-gradient(circle,rgba(109,91,246,.10),transparent 65%)",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",bottom:"10%",left:"-4%",width:380,height:380,borderRadius:"50%",background:"radial-gradient(circle,rgba(0,184,148,.06),transparent 65%)",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(rgba(15,17,23,.025) 1px,transparent 1px)",backgroundSize:"38px 38px",pointerEvents:"none"}}/>
+
         <div className="hero-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:64,maxWidth:1140,width:"100%",alignItems:"center",position:"relative",zIndex:1}}>
- 
+
           {/* LEFT — headline */}
           <div className="hero-text">
             {/* pill badge */}
-            <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(124,110,250,.12)",border:"1px solid rgba(124,110,250,.28)",borderRadius:24,padding:"7px 18px",marginBottom:28,fontSize:12,color:"#A89BFC",fontWeight:700}}>
-              <span style={{width:6,height:6,borderRadius:"50%",background:"#A89BFC",display:"inline-block",animation:"pulse 1.5s infinite"}}/>
+            <div style={{display:"inline-flex",alignItems:"center",gap:8,background:C.violetPale,border:`1px solid rgba(109,91,246,.22)`,borderRadius:24,padding:"7px 18px",marginBottom:28,fontSize:12,color:C.violetD,fontWeight:700}}>
+              <span style={{width:6,height:6,borderRadius:"50%",background:C.violet,display:"inline-block",animation:"pulse 1.5s infinite"}}/>
               India's only AI interview with live camera + resume personalization
             </div>
- 
+
             <h1 style={{
               fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,
               fontSize:"clamp(36px,4.5vw,60px)",lineHeight:1.07,
-              marginBottom:22,letterSpacing:"-1.5px",color:"#fff"
+              marginBottom:22,letterSpacing:"-1.5px",color:C.ink
             }}>
               Walk in ready.<br/>
-              <span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>Not nervous.</span>
+              <span style={{background:`linear-gradient(135deg,${C.violetD},${C.teal})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>Not nervous.</span>
             </h1>
- 
-            <p style={{fontSize:17,color:"rgba(255,255,255,.58)",lineHeight:1.82,maxWidth:490,marginBottom:38,fontWeight:400}}>
-              Upload your resume, name the company — <strong style={{color:"rgba(255,255,255,.85)",fontWeight:600}}>Priya</strong> interviews you like she's actually hiring. Camera on, mic live, real questions about your real experience.
+
+            <p style={{fontSize:17,color:C.ink2,lineHeight:1.82,maxWidth:490,marginBottom:38,fontWeight:400}}>
+              Upload your resume, name the company — <strong style={{color:C.ink,fontWeight:600}}>Priya</strong> interviews you like she's actually hiring. Camera on, mic live, real questions about your real experience.
             </p>
- 
+
             <div className="hero-cta-row" style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:44}}>
               <button onClick={onStart} className="cta-glow" style={{
                 padding:"15px 34px",borderRadius:12,border:"none",cursor:"pointer",
-                background:"linear-gradient(135deg,#5B4EE8,#7C6EFA,#A89BFC)",
+                background:`linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,
                 color:"#fff",fontWeight:800,fontSize:16,fontFamily:"'Inter',sans-serif",
               }}>
                 🎙️ Start free interview →
               </button>
               <button onClick={onStart} style={{
                 padding:"15px 26px",borderRadius:12,
-                border:"1px solid rgba(255,255,255,.18)",cursor:"pointer",
-                background:"rgba(255,255,255,.05)",
-                color:"rgba(255,255,255,.78)",fontWeight:600,fontSize:16,
-                fontFamily:"'Inter',sans-serif",transition:"all .2s"
+                border:`1px solid ${C.border}`,cursor:"pointer",
+                background:C.white,
+                color:C.ink2,fontWeight:600,fontSize:16,
+                fontFamily:"'Inter',sans-serif",transition:"all .2s",
+                boxShadow:C.shCard
               }}>Browse live jobs</button>
             </div>
- 
+
             {/* Stats row */}
             <div className="hero-stats" style={{display:"flex",gap:0,alignItems:"center"}}>
               {[
-                {v:"50K+",l:"Interviews",c:"#A89BFC"},
-                {v:"87%",l:"Better scores",c:"#00D4AA"},
-                {v:"3.4×",l:"More offers",c:"#F59E0B"},
+                {v:"50K+",l:"Interviews",c:C.violet},
+                {v:"87%",l:"Better scores",c:C.teal},
+                {v:"3.4×",l:"More offers",c:C.gold},
               ].map((s,i)=>(
                 <div key={i} style={{display:"flex",alignItems:"center",gap:0}}>
-                  {i>0&&<div style={{width:1,height:38,background:"rgba(255,255,255,.1)",margin:"0 24px"}}/>}
+                  {i>0&&<div style={{width:1,height:38,background:C.border,margin:"0 24px"}}/>}
                   <div style={{textAlign:"center"}}>
                     <div style={{fontWeight:900,fontSize:24,color:s.c,fontFamily:"'JetBrains Mono',monospace",lineHeight:1}}>{s.v}</div>
-                    <div style={{fontSize:11,color:"rgba(255,255,255,.38)",fontWeight:700,textTransform:"uppercase",letterSpacing:.7,marginTop:4}}>{s.l}</div>
+                    <div style={{fontSize:11,color:C.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:.7,marginTop:4}}>{s.l}</div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
- 
-          {/* RIGHT — interview mockup card (matches screenshot) */}
+
+          {/* RIGHT — interview mockup card (kept dark/studio — this is a screenshot
+              of the live interview room, which is intentionally dark; see Pass 1 notes) */}
           <div className="hero-card hero-mockup" style={{position:"relative"}}>
             {/* Floating score badge — top right like screenshot */}
             <div style={{
               position:"absolute",top:-20,right:-12,
-              background:"#0D1220",border:"1px solid rgba(34,197,94,.35)",
+              background:"#0F1117",border:"1px solid rgba(34,197,94,.35)",
               borderRadius:16,padding:"12px 18px",
-              boxShadow:"0 8px 32px rgba(0,0,0,.6)",
+              boxShadow:"0 12px 32px rgba(15,17,23,.25)",
               zIndex:10,display:"flex",alignItems:"center",gap:12,
               minWidth:210
             }}>
@@ -2539,13 +2565,13 @@ function LandingPage({onStart}){
                 <div style={{fontSize:11,color:"rgba(255,255,255,.38)",marginTop:2}}>Google SDE · Just now</div>
               </div>
             </div>
- 
+
             {/* Main interview card */}
             <div style={{
-              background:"#04060E",borderRadius:22,
-              border:"1px solid rgba(255,255,255,.1)",
+              background:"#0A0C12",borderRadius:22,
+              border:"1px solid rgba(255,255,255,.08)",
               overflow:"hidden",
-              boxShadow:"0 32px 80px rgba(0,0,0,.75)"
+              boxShadow:"0 32px 80px rgba(15,17,23,.28)"
             }}>
               {/* Top bar — LIVE INTERVIEW · Google */}
               <div style={{
@@ -2558,33 +2584,33 @@ function LandingPage({onStart}){
                   <div style={{width:7,height:7,borderRadius:"50%",background:"#EF4444",boxShadow:"0 0 8px #EF4444"}}/>
                   <span style={{color:"rgba(255,255,255,.65)",fontSize:11,fontWeight:800,letterSpacing:2}}>LIVE INTERVIEW</span>
                 </div>
-                <div style={{background:"rgba(124,110,250,.25)",border:"1px solid rgba(124,110,250,.4)",borderRadius:8,padding:"4px 14px",fontSize:12,color:"#A89BFC",fontWeight:800}}>Google</div>
+                <div style={{background:"rgba(139,125,250,.22)",border:"1px solid rgba(139,125,250,.38)",borderRadius:8,padding:"4px 14px",fontSize:12,color:"#A89BFC",fontWeight:800}}>Google</div>
                 <div style={{display:"flex",gap:5,alignItems:"center"}}>
                   {[1,2,3,4,5].map(i=>(
-                    <div key={i} style={{width:i<=2?22:18,height:3,borderRadius:2,background:i<3?"#22C55E":i===3?"#7C6EFA":"rgba(255,255,255,.12)"}}/>
+                    <div key={i} style={{width:i<=2?22:18,height:3,borderRadius:2,background:i<3?"#22C55E":i===3?"#8B7DFA":"rgba(255,255,255,.12)"}}/>
                   ))}
                 </div>
               </div>
- 
+
               {/* Avatar area */}
               <div style={{
                 padding:"28px 24px 20px",textAlign:"center",
-                background:"linear-gradient(180deg,#07091A 0%,#04060E 100%)"
+                background:"linear-gradient(180deg,#0D0F18 0%,#0A0C12 100%)"
               }}>
                 {/* Priya avatar */}
                 <div style={{
                   width:96,height:96,margin:"0 auto 14px",
                   borderRadius:"50%",
-                  border:"2.5px solid #7C6EFA",
+                  border:"2.5px solid #8B7DFA",
                   padding:4,
-                  boxShadow:"0 0 32px rgba(124,110,250,.4)",
+                  boxShadow:"0 0 32px rgba(139,125,250,.35)",
                   animation:"ringPulse 2s infinite"
                 }}>
                   <AIFace speaking={true} size={84}/>
                 </div>
                 <div style={{color:"#fff",fontWeight:800,fontSize:15,marginBottom:3}}>Priya Sharma</div>
                 <div style={{color:"rgba(255,255,255,.38)",fontSize:11,marginBottom:20}}>Senior Hiring Manager · Google</div>
- 
+
                 {/* Question card */}
                 <div style={{
                   background:"rgba(255,255,255,.04)",borderRadius:12,
@@ -2592,7 +2618,7 @@ function LandingPage({onStart}){
                   border:"1px solid rgba(255,255,255,.07)"
                 }}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                    <span style={{background:"rgba(0,212,170,.15)",color:"#00D4AA",fontSize:10,fontWeight:800,padding:"3px 10px",borderRadius:20,border:"1px solid rgba(0,212,170,.25)"}}>Technical</span>
+                    <span style={{background:"rgba(0,184,148,.16)",color:"#1FD1A8",fontSize:10,fontWeight:800,padding:"3px 10px",borderRadius:20,border:"1px solid rgba(0,184,148,.28)"}}>Technical</span>
                     <span style={{color:"rgba(255,255,255,.28)",fontSize:10,fontFamily:"'JetBrains Mono',monospace",fontWeight:700}}>01:24 remaining</span>
                   </div>
                   <div style={{color:"rgba(255,255,255,.88)",fontSize:13,lineHeight:1.7,fontWeight:500}}>
@@ -2600,13 +2626,13 @@ function LandingPage({onStart}){
                   </div>
                   {/* Progress bar */}
                   <div style={{height:2,background:"rgba(255,255,255,.06)",borderRadius:2,marginTop:12,overflow:"hidden"}}>
-                    <div style={{height:"100%",width:"58%",background:"#00D4AA",borderRadius:2,boxShadow:"0 0 6px rgba(0,212,170,.6)"}}/>
+                    <div style={{height:"100%",width:"58%",background:"#1FD1A8",borderRadius:2,boxShadow:"0 0 6px rgba(31,209,168,.5)"}}/>
                   </div>
                 </div>
- 
+
                 {/* Live metrics row */}
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:4}}>
-                  {[["Pace","78%","#00D4AA"],["Clarity","82%","#7C6EFA"],["Fillers","0","#22C55E"]].map(([l,v,c])=>(
+                  {[["Pace","78%","#1FD1A8"],["Clarity","82%","#8B7DFA"],["Fillers","0","#22C55E"]].map(([l,v,c])=>(
                     <div key={l} style={{background:"rgba(255,255,255,.03)",borderRadius:10,padding:"10px 6px",border:"1px solid rgba(255,255,255,.06)"}}>
                       <div style={{fontSize:15,fontWeight:800,color:c,fontFamily:"'JetBrains Mono',monospace"}}>{v}</div>
                       <div style={{fontSize:9,color:"rgba(255,255,255,.32)",marginTop:3,fontWeight:600,textTransform:"uppercase",letterSpacing:.5}}>{l}</div>
@@ -2614,19 +2640,19 @@ function LandingPage({onStart}){
                   ))}
                 </div>
               </div>
- 
+
               {/* Controls bottom bar */}
               <div style={{
-                background:"rgba(4,6,14,.98)",padding:"14px 18px",
+                background:"rgba(4,6,12,.98)",padding:"14px 18px",
                 display:"flex",justifyContent:"center",gap:14,alignItems:"center",
                 borderTop:"1px solid rgba(255,255,255,.05)"
               }}>
                 <div style={{width:40,height:40,borderRadius:"50%",background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🎙️</div>
                 <div style={{
                   padding:"11px 32px",borderRadius:22,
-                  background:"linear-gradient(135deg,#5B4EE8,#7C6EFA,#A89BFC)",
+                  background:"linear-gradient(135deg,#5240D6,#6D5BF6,#8B7DFA)",
                   color:"#fff",fontWeight:800,fontSize:13,
-                  boxShadow:"0 4px 20px rgba(124,110,250,.5)",cursor:"default"
+                  boxShadow:"0 4px 20px rgba(109,91,246,.45)",cursor:"default"
                 }}>Done ✓</div>
                 <div style={{width:40,height:40,borderRadius:"50%",background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>📵</div>
               </div>
@@ -2634,19 +2660,20 @@ function LandingPage({onStart}){
           </div>
         </div>
       </section>
- 
+
       {/* ── COMPANY MARQUEE ── */}
-      <section style={{padding:"26px 0",background:"#0A0E1A",borderTop:"1px solid rgba(255,255,255,.06)",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
+      <section style={{padding:"26px 0",background:C.bgSubtle,borderTop:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`}}>
         <div style={{textAlign:"center",marginBottom:14}}>
-          <div style={{fontSize:10,color:"rgba(255,255,255,.28)",fontWeight:700,letterSpacing:2.5,textTransform:"uppercase"}}>Practiced for interviews at</div>
+          <div style={{fontSize:10,color:C.muted,fontWeight:700,letterSpacing:2.5,textTransform:"uppercase"}}>Practiced for interviews at</div>
         </div>
         <div className="marquee-wrap">
           <div className="marquee-track">
             {[...TARGET_COMPANIES,...TARGET_COMPANIES].map((c,i)=>(
               <div key={i} style={{
-                background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)",
+                background:C.white,border:`1px solid ${C.border}`,
                 borderRadius:10,padding:"9px 20px",
-                display:"flex",alignItems:"center",gap:8,flexShrink:0,minWidth:118
+                display:"flex",alignItems:"center",gap:8,flexShrink:0,minWidth:118,
+                boxShadow:C.shCard
               }}>
                 <span style={{fontWeight:800,fontSize:13,color:c.color}}>{c.name}</span>
               </div>
@@ -2654,155 +2681,156 @@ function LandingPage({onStart}){
           </div>
         </div>
       </section>
- 
+
       {/* ── HOW IT WORKS ── */}
       <section style={{padding:"92px 28px",maxWidth:1100,margin:"0 auto"}}>
         <div style={{textAlign:"center",marginBottom:58}}>
-          <div style={{fontSize:10,color:"#00D4AA",fontWeight:800,letterSpacing:3.5,marginBottom:12,textTransform:"uppercase"}}>How it works</div>
-          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(26px,3.5vw,38px)",color:"#fff",letterSpacing:-.5}}>From resume to offer in 3 steps</h2>
+          <div style={{fontSize:10,color:C.teal,fontWeight:800,letterSpacing:3.5,marginBottom:12,textTransform:"uppercase"}}>How it works</div>
+          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(26px,3.5vw,38px)",color:C.ink,letterSpacing:-.5}}>From resume to offer in 3 steps</h2>
         </div>
         <div className="step-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:22}}>
           {[
-            {n:"01",col:"#7C6EFA",title:"Upload your resume",desc:"Paste or upload PDF/DOCX. Enter company and role. 60 seconds to set up."},
-            {n:"02",col:"#00D4AA",title:"Interview on camera",desc:"Priya speaks your personalized questions aloud — you answer on mic, on camera, 90-second clock. Mic only opens after she stops speaking."},
-            {n:"03",col:"#F59E0B",title:"Get your debrief + scorecard",desc:"Score across 5 dimensions. Per-question breakdown with ideal answers. Shareable PNG. Specific next steps."},
+            {n:"01",col:C.violet,title:"Upload your resume",desc:"Paste or upload PDF/DOCX. Enter company and role. 60 seconds to set up."},
+            {n:"02",col:C.teal,title:"Interview on camera",desc:"Priya speaks your personalized questions aloud — you answer on mic, on camera, 90-second clock. Mic only opens after she stops speaking."},
+            {n:"03",col:C.gold,title:"Get your debrief + scorecard",desc:"Score across 5 dimensions. Per-question breakdown with ideal answers. Shareable PNG. Specific next steps."},
           ].map((s,i)=>(
-            <div key={i} className="feature-card" style={{background:"#0D1220",border:`1.5px solid rgba(255,255,255,.07)`,borderRadius:20,padding:"28px 26px"}}>
-              <div style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:900,fontSize:44,color:s.col,marginBottom:18,lineHeight:1,opacity:.7}}>{s.n}</div>
-              <div style={{fontWeight:800,fontSize:17,color:"#F1F5F9",marginBottom:10}}>{s.title}</div>
-              <div style={{color:"rgba(255,255,255,.45)",fontSize:13.5,lineHeight:1.82}}>{s.desc}</div>
+            <div key={i} className="feature-card" style={{background:C.white,border:`1.5px solid ${C.border}`,borderRadius:20,padding:"28px 26px",boxShadow:C.shCard}}>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:900,fontSize:44,color:s.col,marginBottom:18,lineHeight:1,opacity:.85}}>{s.n}</div>
+              <div style={{fontWeight:800,fontSize:17,color:C.ink,marginBottom:10}}>{s.title}</div>
+              <div style={{color:C.ink2,fontSize:13.5,lineHeight:1.82}}>{s.desc}</div>
             </div>
           ))}
         </div>
       </section>
- 
+
       {/* ── FEATURES ── */}
-      <section id="features" style={{padding:"92px 28px",background:"#0A0E1A"}}>
+      <section id="features" style={{padding:"92px 28px",background:C.bgSubtle}}>
         <div style={{maxWidth:1100,margin:"0 auto"}}>
           <div style={{textAlign:"center",marginBottom:58}}>
-            <div style={{fontSize:10,color:"#7C6EFA",fontWeight:800,letterSpacing:3.5,marginBottom:12,textTransform:"uppercase"}}>Features</div>
-            <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(26px,3.5vw,38px)",color:"#fff",letterSpacing:-.5}}>Built to replicate the real thing</h2>
+            <div style={{fontSize:10,color:C.violet,fontWeight:800,letterSpacing:3.5,marginBottom:12,textTransform:"uppercase"}}>Features</div>
+            <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(26px,3.5vw,38px)",color:C.ink,letterSpacing:-.5}}>Built to replicate the real thing</h2>
           </div>
           <div className="feature-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:18}}>
             {features.map((f,i)=>(
-              <div key={i} className="feature-card" style={{background:"#0D1220",border:"1px solid rgba(255,255,255,.07)",borderRadius:18,padding:"24px 22px",display:"flex",gap:16}}>
+              <div key={i} className="feature-card" style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:18,padding:"24px 22px",display:"flex",gap:16,boxShadow:C.shCard}}>
                 <div style={{fontSize:26,flexShrink:0,marginTop:2}}>{f.icon}</div>
                 <div>
-                  <div style={{fontWeight:700,fontSize:15,color:"#F1F5F9",marginBottom:8}}>{f.title}</div>
-                  <div style={{color:"rgba(255,255,255,.42)",fontSize:13,lineHeight:1.8}}>{f.desc}</div>
+                  <div style={{fontWeight:700,fontSize:15,color:C.ink,marginBottom:8}}>{f.title}</div>
+                  <div style={{color:C.ink2,fontSize:13,lineHeight:1.8}}>{f.desc}</div>
                 </div>
               </div>
             ))}
           </div>
         </div>
       </section>
- 
+
       {/* ── TESTIMONIALS ── */}
       <section style={{padding:"92px 28px",maxWidth:1100,margin:"0 auto"}}>
         <div style={{textAlign:"center",marginBottom:52}}>
-          <div style={{fontSize:10,color:"#7C6EFA",fontWeight:800,letterSpacing:3.5,marginBottom:12,textTransform:"uppercase"}}>Success stories</div>
-          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(26px,3.5vw,38px)",color:"#fff",letterSpacing:-.5}}>They got hired. You're next.</h2>
+          <div style={{fontSize:10,color:C.violet,fontWeight:800,letterSpacing:3.5,marginBottom:12,textTransform:"uppercase"}}>Success stories</div>
+          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(26px,3.5vw,38px)",color:C.ink,letterSpacing:-.5}}>They got hired. You're next.</h2>
         </div>
         <div className="testimonial-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:18}}>
           {testimonials.map((r,i)=>(
-            <div key={i} className="feature-card" style={{background:"#0D1220",border:"1px solid rgba(255,255,255,.07)",borderRadius:20,padding:"26px 24px"}}>
+            <div key={i} className="feature-card" style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:20,padding:"26px 24px",boxShadow:C.shCard}}>
               <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:14,flexWrap:"wrap"}}>
-                {[...Array(5)].map((_,j)=><span key={j} style={{color:"#F59E0B",fontSize:14}}>★</span>)}
-                <span style={{background:"rgba(34,197,94,.12)",color:"#22C55E",fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20,border:"1px solid rgba(34,197,94,.25)",marginLeft:4}}>{r.score}%</span>
-                <span style={{background:"rgba(124,110,250,.12)",color:"#A89BFC",fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20,border:"1px solid rgba(124,110,250,.25)"}}>{r.company}</span>
+                {[...Array(5)].map((_,j)=><span key={j} style={{color:C.gold,fontSize:14}}>★</span>)}
+                <span style={{background:C.greenPale,color:C.green,fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20,border:`1px solid ${C.green}28`,marginLeft:4}}>{r.score}%</span>
+                <span style={{background:C.violetPale,color:C.violetD,fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20,border:`1px solid ${C.violet}28`}}>{r.company}</span>
               </div>
-              <div style={{color:"rgba(255,255,255,.7)",fontSize:14,lineHeight:1.87,marginBottom:20}}>"{r.text}"</div>
-              <div style={{display:"flex",alignItems:"center",gap:10,borderTop:"1px solid rgba(255,255,255,.06)",paddingTop:14}}>
-                <div style={{width:38,height:38,borderRadius:"50%",background:"linear-gradient(135deg,#7C6EFA,#00D4AA)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:"#fff"}}>
+              <div style={{color:C.ink2,fontSize:14,lineHeight:1.87,marginBottom:20}}>"{r.text}"</div>
+              <div style={{display:"flex",alignItems:"center",gap:10,borderTop:`1px solid ${C.border}`,paddingTop:14}}>
+                <div style={{width:38,height:38,borderRadius:"50%",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:"#fff"}}>
                   {r.name.split(" ").map(n=>n[0]).join("")}
                 </div>
                 <div>
-                  <div style={{fontWeight:700,color:"#F1F5F9",fontSize:13.5}}>{r.name}</div>
-                  <div style={{color:"rgba(255,255,255,.38)",fontSize:12}}>{r.role}</div>
+                  <div style={{fontWeight:700,color:C.ink,fontSize:13.5}}>{r.name}</div>
+                  <div style={{color:C.muted,fontSize:12}}>{r.role}</div>
                 </div>
               </div>
             </div>
           ))}
         </div>
       </section>
- 
+
       {/* ── PRICING ── */}
-      <section id="pricing" style={{padding:"92px 28px",background:"#0A0E1A"}}>
+      <section id="pricing" style={{padding:"92px 28px",background:C.bgSubtle}}>
         <div style={{maxWidth:920,margin:"0 auto"}}>
           <div style={{textAlign:"center",marginBottom:52}}>
-            <div style={{fontSize:10,color:"#7C6EFA",fontWeight:800,letterSpacing:3.5,marginBottom:12,textTransform:"uppercase"}}>Pricing</div>
-            <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(24px,3.2vw,36px)",color:"#fff",letterSpacing:-.5}}>2 free per role. Unlock all 15 for less than a coffee.</h2>
+            <div style={{fontSize:10,color:C.violet,fontWeight:800,letterSpacing:3.5,marginBottom:12,textTransform:"uppercase"}}>Pricing</div>
+            <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(24px,3.2vw,36px)",color:C.ink,letterSpacing:-.5}}>2 free per role. Unlock all 15 for less than a coffee.</h2>
           </div>
           <div className="pricing-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:22,alignItems:"start"}}>
             {[
-              {name:"Free",price:"₹0",period:"",color:"rgba(255,255,255,.5)",features:["2 mock interviews per role","Basic per-question feedback","Live job feed","Streak tracking"],cta:"Start Free",bg:"transparent",border:"rgba(255,255,255,.1)"},
-              {name:"Week",price:"₹49",period:"/week",color:"#F59E0B",popular:false,features:["All 15 mocks, every role","All company style modes","Full detailed reports","Shareable scorecards","Filler word detection"],cta:"Get 1 Week — ₹49",bg:"rgba(245,158,11,.07)",border:"rgba(245,158,11,.3)"},
-              {name:"Month",price:"₹199",period:"/month",color:"#A89BFC",popular:true,features:["Everything in Week","Best value — 4× the days","Score history + trajectory","AI ideal answer coach","Priority support"],cta:"Get 1 Month — ₹199",bg:"rgba(124,110,250,.1)",border:"rgba(124,110,250,.45)"},
+              {name:"Free",price:"₹0",period:"",color:C.muted,features:["2 mock interviews per role","Basic per-question feedback","Live job feed","Streak tracking"],cta:"Start Free",bg:C.white,border:C.border},
+              {name:"Week",price:"₹49",period:"/week",color:C.gold,popular:false,features:["All 15 mocks, every role","All company style modes","Full detailed reports","Shareable scorecards","Filler word detection"],cta:"Get 1 Week — ₹49",bg:C.goldPale,border:"rgba(217,119,6,.3)"},
+              {name:"Month",price:"₹199",period:"/month",color:C.violet,popular:true,features:["Everything in Week","Best value — 4× the days","Score history + trajectory","AI ideal answer coach","Priority support"],cta:"Get 1 Month — ₹199",bg:C.violetPale,border:"rgba(109,91,246,.35)"},
             ].map((p,i)=>(
               <div key={i} style={{
                 background:p.bg,border:`1.5px solid ${p.border}`,
                 borderRadius:22,padding:"28px 24px",position:"relative",
-                boxShadow:p.popular?"0 12px 48px rgba(124,110,250,.2)":"none"
+                boxShadow:p.popular?"0 16px 40px rgba(109,91,246,.14)":C.shCard
               }}>
                 {p.popular&&(
-                  <div style={{position:"absolute",top:-15,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,#5B4EE8,#7C6EFA)",color:"#fff",fontSize:11,fontWeight:800,padding:"5px 18px",borderRadius:20,whiteSpace:"nowrap",boxShadow:"0 4px 12px rgba(124,110,250,.4)"}}>⭐ MOST POPULAR</div>
+                  <div style={{position:"absolute",top:-15,left:"50%",transform:"translateX(-50%)",background:`linear-gradient(135deg,${C.violetD},${C.violet})`,color:"#fff",fontSize:11,fontWeight:800,padding:"5px 18px",borderRadius:20,whiteSpace:"nowrap",boxShadow:C.shVioletGlow}}>⭐ MOST POPULAR</div>
                 )}
                 <div style={{fontSize:11,fontWeight:800,color:p.color,marginBottom:7,letterSpacing:1}}>{p.name.toUpperCase()}</div>
-                <div style={{fontWeight:900,fontSize:38,color:"#F1F5F9",fontFamily:"'JetBrains Mono',monospace",lineHeight:1,marginBottom:4}}>{p.price}<span style={{fontSize:13,fontWeight:400,color:"rgba(255,255,255,.35)"}}>{p.period}</span></div>
-                <div style={{height:1,background:"rgba(255,255,255,.07)",margin:"18px 0"}}/>
+                <div style={{fontWeight:900,fontSize:38,color:C.ink,fontFamily:"'JetBrains Mono',monospace",lineHeight:1,marginBottom:4}}>{p.price}<span style={{fontSize:13,fontWeight:400,color:C.muted}}>{p.period}</span></div>
+                <div style={{height:1,background:C.border,margin:"18px 0"}}/>
                 {p.features.map((f,j)=>(
                   <div key={j} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:11}}>
                     <span style={{color:p.color,fontWeight:800,fontSize:13,flexShrink:0,marginTop:1}}>✓</span>
-                    <span style={{color:"rgba(255,255,255,.55)",fontSize:13}}>{f}</span>
+                    <span style={{color:C.ink2,fontSize:13}}>{f}</span>
                   </div>
                 ))}
                 <button onClick={onStart} style={{
                   width:"100%",padding:"13px",marginTop:14,borderRadius:10,
                   border:`1px solid ${p.border}`,
-                  background:p.popular?"linear-gradient(135deg,#5B4EE8,#7C6EFA)":i===1?"rgba(245,158,11,.15)":"rgba(255,255,255,.06)",
+                  background:p.popular?`linear-gradient(135deg,${C.violetD},${C.violet})`:i===1?C.goldPale:C.white,
                   color:p.popular?"#fff":p.color,fontWeight:800,fontSize:14,cursor:"pointer",
                   fontFamily:"'Inter',sans-serif",transition:"all .2s",
-                  boxShadow:p.popular?"0 4px 20px rgba(124,110,250,.4)":"none"
+                  boxShadow:p.popular?C.shVioletGlow:"none"
                 }}>{p.cta}</button>
               </div>
             ))}
           </div>
         </div>
       </section>
- 
+
       {/* ── FINAL CTA ── */}
-      <section style={{padding:"92px 28px",textAlign:"center",background:"#080C14"}}>
-        <div style={{maxWidth:580,margin:"0 auto",background:"linear-gradient(160deg,#0D1220,#11163A)",border:"1px solid rgba(124,110,250,.22)",borderRadius:28,padding:"64px 40px",boxShadow:"0 24px 64px rgba(124,110,250,.15)"}}>
+      <section style={{padding:"92px 28px",textAlign:"center",background:C.white}}>
+        <div style={{maxWidth:580,margin:"0 auto",background:`linear-gradient(160deg,${C.white},#F6F5FF)`,border:"1px solid rgba(109,91,246,.22)",borderRadius:28,padding:"64px 40px",boxShadow:"0 24px 64px rgba(109,91,246,.10)"}}>
           <div style={{fontSize:52,marginBottom:16,animation:"float 3s ease-in-out infinite"}}>🎤</div>
-          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(24px,3.5vw,36px)",color:"#fff",marginBottom:14,letterSpacing:-.5,lineHeight:1.15}}>
+          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(24px,3.5vw,36px)",color:C.ink,marginBottom:14,letterSpacing:-.5,lineHeight:1.15}}>
             Your next interview is real.<br/>
-            <span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>This one can be too.</span>
+            <span style={{background:`linear-gradient(135deg,${C.violetD},${C.teal})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>This one can be too.</span>
           </h2>
-          <p style={{color:"rgba(255,255,255,.48)",fontSize:15,marginBottom:38,lineHeight:1.75}}>Camera on. Mic live. Resume read. Free to start.</p>
+          <p style={{color:C.ink2,fontSize:15,marginBottom:38,lineHeight:1.75}}>Camera on. Mic live. Resume read. Free to start.</p>
           <button onClick={onStart} className="cta-glow" style={{
             padding:"16px 52px",borderRadius:12,border:"none",cursor:"pointer",
-            background:"linear-gradient(135deg,#5B4EE8,#7C6EFA,#A89BFC)",
+            background:`linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,
             color:"#fff",fontWeight:800,fontSize:17,fontFamily:"'Inter',sans-serif",
           }}>Start free now →</button>
         </div>
       </section>
- 
+
       {/* ── FOOTER ── */}
-      <footer style={{borderTop:"1px solid rgba(255,255,255,.06)",padding:"28px 28px",background:"#04060E"}}>
+      <footer style={{borderTop:`1px solid ${C.border}`,padding:"28px 28px",background:C.bgSubtle}}>
         <div style={{maxWidth:1100,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14}}>
           <div style={{fontWeight:900,fontSize:17,fontFamily:"'Plus Jakarta Sans',sans-serif",display:"flex",alignItems:"center",gap:6}}>
             <span>🎤</span>
-            <span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</span>
+            <span style={{background:`linear-gradient(135deg,${C.violetD},${C.teal})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</span>
           </div>
-          <div style={{color:"rgba(255,255,255,.25)",fontSize:12}}>© 2026 TakePlace · Built by Raghu Dadigela</div>
+          <div style={{color:C.muted,fontSize:12}}>© 2026 TakePlace · Built by Raghu Dadigela</div>
           <div style={{display:"flex",gap:18,alignItems:"center"}}>
-            <a href="mailto:takeplace.in@gmail.com" style={{color:"rgba(255,255,255,.5)",fontWeight:600,fontSize:13,textDecoration:"none"}}>✉ takeplace.in@gmail.com</a>
-            <a href="https://takeplace.vercel.app" target="_blank" rel="noreferrer" style={{color:"rgba(255,255,255,.25)",fontSize:12,textDecoration:"none"}}>takeplace.vercel.app</a>
+            <a href="mailto:takeplace.in@gmail.com" style={{color:C.ink2,fontWeight:600,fontSize:13,textDecoration:"none"}}>✉ takeplace.in@gmail.com</a>
+            <a href="https://takeplace.vercel.app" target="_blank" rel="noreferrer" style={{color:C.muted,fontSize:12,textDecoration:"none"}}>takeplace.vercel.app</a>
           </div>
         </div>
       </footer>
     </div>
   );
+}
 }
 // ── ONBOARDING ────────────────────────────────────────────────────────────────
 function OnboardingFlow({user,onComplete}){
