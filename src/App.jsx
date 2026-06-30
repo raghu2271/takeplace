@@ -17,6 +17,22 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const ADZUNA_ID  = "845f6cff";
 const ADZUNA_KEY = "1255514b43792f219448b455d585c3ea";
 const supabase   = createClient(SUPABASE_URL, SUPABASE_KEY);
+const LOGO_URL = "/logo.png";
+
+function Logo({ size = 32, withText = true, textSize = 20 }) {
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:8}}>
+      <img src={LOGO_URL} alt="TakePlace" style={{width:size,height:size,objectFit:"contain",flexShrink:0}}/>
+      {withText && (
+        <span style={{
+          fontWeight:900,fontSize:textSize,fontFamily:"'Plus Jakarta Sans',sans-serif",
+          background:`linear-gradient(135deg,${C.violetD},${C.teal})`,
+          WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"
+        }}>TakePlace</span>
+      )}
+    </div>
+  );
+}
 
 // ── PAYWALL / SLOT CONFIG ──────────────────────────────────────────────────────
 const TOTAL_SLOTS = 15;
@@ -2447,10 +2463,12 @@ function LandingPage({onStart}){
         transition:"all .3s",padding:"0 28px"
       }}>
         <div style={{maxWidth:1140,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:68}}>
-          <div style={{fontWeight:900,fontSize:22,fontFamily:"'Plus Jakarta Sans',sans-serif",display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>window.scrollTo({top:0,behavior:"smooth"})}>
-            <span style={{fontSize:20}}>🎤</span>
-            <span style={{background:`linear-gradient(135deg,${C.violetD},${C.teal})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</span>
+          <div style={{cursor:"pointer"}} onClick={()=>window.scrollTo({top:0,behavior:"smooth"})}>
+             <Logo size={34} textSize={22}/>
           </div>
+ 
+
+        
 
           <div style={{display:"flex",gap:4,alignItems:"center"}}>
             <button className="nav-link-btn" onClick={()=>document.getElementById("features")?.scrollIntoView({behavior:"smooth"})}>Features</button>
@@ -2801,10 +2819,8 @@ function LandingPage({onStart}){
       {/* ── FOOTER ── */}
       <footer style={{borderTop:`1px solid ${C.border}`,padding:"28px 28px",background:C.bgSubtle}}>
         <div style={{maxWidth:1100,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14}}>
-          <div style={{fontWeight:900,fontSize:17,fontFamily:"'Plus Jakarta Sans',sans-serif",display:"flex",alignItems:"center",gap:6}}>
-            <span>🎤</span>
-            <span style={{background:`linear-gradient(135deg,${C.violetD},${C.teal})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</span>
-          </div>
+          <Logo size={26} textSize={17}/>
+          
           <div style={{color:C.muted,fontSize:12}}>© 2026 TakePlace · Built by Raghu Dadigela</div>
           <div style={{display:"flex",gap:18,alignItems:"center"}}>
             <a href="mailto:takeplace.in@gmail.com" style={{color:C.ink2,fontWeight:600,fontSize:13,textDecoration:"none"}}>✉ takeplace.in@gmail.com</a>
@@ -2909,9 +2925,11 @@ function AuthPage({onLogin,onBack,pendingJob}){
       <div className="fade" style={{width:"100%",maxWidth:420,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:24,padding:36,boxShadow:"0 24px 60px rgba(0,0,0,.5)",position:"relative",zIndex:1}}>
         <button onClick={onBack} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginBottom:24,fontFamily:"'Inter',sans-serif"}}>← Back</button>
         <div style={{textAlign:"center",marginBottom:28}}>
-          <div style={{fontSize:36,marginBottom:8}}>🎤</div>
+          <div style={{display:"flex",justifyContent:"center",marginBottom:8}}>
+             <img src={LOGO_URL} alt="TakePlace" style={{width:56,height:56,objectFit:"contain"}}/>
+          </div>
           <div style={{fontWeight:900,fontSize:24,fontFamily:"'Plus Jakarta Sans',sans-serif",background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</div>
-          <div style={{color:C.soft,fontSize:13,marginTop:4}}>{mode==="login"?"Welcome back 👋":"Create your free account ✨"}</div>
+        
         </div>
         {pendingJob&&(pendingJob.role||pendingJob.company)&&(
           <div style={{background:C.violetPale,border:`1px solid ${C.violet}25`,borderRadius:10,padding:"10px 14px",marginBottom:18,fontSize:12.5,color:C.violetL,textAlign:"center"}}>
@@ -2992,9 +3010,8 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
 
       <div style={{background:"rgba(8,12,20,.95)",backdropFilter:"blur(20px)",borderBottom:`1px solid ${C.border}`,padding:"0 20px",position:"sticky",top:0,zIndex:100}}>
         <div style={{maxWidth:900,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:58}}>
-          <div style={{fontWeight:900,fontSize:20,fontFamily:"'Plus Jakarta Sans',sans-serif",display:"flex",alignItems:"center",gap:7}}>
-            <span>🎤</span><span style={{background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</span>
-          </div>
+          <Logo size={30} textSize={20}/>
+        
           {streak>0&&(
             <div style={{display:"flex",alignItems:"center",gap:6,background:C.goldPale,borderRadius:20,padding:"4px 12px",border:`1px solid ${C.gold}25`}}>
               <span style={{animation:"streakPop 3s ease infinite"}}>🔥</span>
