@@ -1498,6 +1498,26 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
   );
 }
 
+function QuestionFeedbackCard({p,i,sc}){
+  return(
+    <div style={{background:"rgba(255,255,255,.02)",borderRadius:10,padding:"12px 14px",marginBottom:9,border:`1px solid ${C.border}`}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,gap:8}}>
+        <div style={{fontWeight:600,color:C.ink,fontSize:12.5}}>Q{i+1}. {p.question}</div>
+        <div className="mono" style={{fontWeight:700,fontSize:13,color:sc(p.score),flexShrink:0}}>{p.score}%</div>
+      </div>
+      <div style={{color:C.soft,fontSize:12.5,lineHeight:1.7,marginBottom:p.idealAnswer?8:0}}>{p.feedback}</div>
+      {p.idealAnswer&&(
+        <div style={{background:C.violetPale,borderRadius:8,padding:"9px 12px",marginTop:6,marginBottom:8,border:`1px solid ${C.violet}20`}}>
+          <div style={{fontSize:9,fontWeight:800,color:C.violetD,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Ideal Answer</div>
+          <div style={{fontSize:12.5,color:C.ink2,lineHeight:1.7}}>{p.idealAnswer}</div>
+        </div>
+      )}
+      <Bar pct={p.score} color={sc(p.score)}/>
+    </div>
+  );
+}
+
+
 // ── RESUME INTERVIEW TAB ──────────────────────────────────────────────────────
 function ResumeInterviewTab({user,onInterviewComplete,prefillCompany,prefillRole}){
   const[step,setStep]=useState("setup");
@@ -1537,6 +1557,9 @@ function ResumeInterviewTab({user,onInterviewComplete,prefillCompany,prefillRole
 
   const questionsRef=useRef([]);
   useEffect(()=>{questionsRef.current=questions;},[questions]);
+
+  const answersRef=useRef([]);
+  useEffect(()=>{answersRef.current=answers;},[answers]);
 
   const metricsTimerRef=useRef(null);
   const fileRef=useRef();
@@ -1735,7 +1758,7 @@ Return ONLY: {"score":<0-100>,"tip":"<2-3 sentence specific actionable feedback>
     setPhase("idle");phaseRef.current="idle";
     window.speechSynthesis?.cancel();setStep("genreport");
     try{
-      const answersSnap=[...answers];
+      const answersSnap=[...answersRef.current];
       const transcript=answersSnap.map((a,i)=>`Q${i+1} (${a.type}): ${a.question}\nAnswer: ${a.answer}\nFiller words: ${a.fillerCount||0}`).join("\n\n");
       const raw=await callGroq(
         `You are a strict senior hiring panel${company?` at ${company}`:""} evaluating ${profile?.name||"the candidate"} for ${jobTitle||"a role"} (${difficulty}).
