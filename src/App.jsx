@@ -1497,7 +1497,6 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
     </div>
   );
 }
-
 function QuestionFeedbackCard({p,i,sc}){
   return(
     <div style={{background:"rgba(255,255,255,.02)",borderRadius:10,padding:"12px 14px",marginBottom:9,border:`1px solid ${C.border}`}}>
@@ -1516,7 +1515,6 @@ function QuestionFeedbackCard({p,i,sc}){
     </div>
   );
 }
-
 
 // ── RESUME INTERVIEW TAB ──────────────────────────────────────────────────────
 function ResumeInterviewTab({user,onInterviewComplete,prefillCompany,prefillRole}){
@@ -1557,7 +1555,6 @@ function ResumeInterviewTab({user,onInterviewComplete,prefillCompany,prefillRole
 
   const questionsRef=useRef([]);
   useEffect(()=>{questionsRef.current=questions;},[questions]);
-
   const answersRef=useRef([]);
   useEffect(()=>{answersRef.current=answers;},[answers]);
 
@@ -1577,7 +1574,7 @@ function ResumeInterviewTab({user,onInterviewComplete,prefillCompany,prefillRole
 
   useEffect(()=>{
     if(phase==="answering"){
-      metricsTimerRef.current=setInterval(async()=>{
+      metricsTimerRef.current=setInterval(()=>{
         const ans=getAnswer();
         const words=ans.trim().split(/\s+/).filter(Boolean).length;
         const elapsed=QTIME-timeLeft;
@@ -1587,50 +1584,10 @@ function ResumeInterviewTab({user,onInterviewComplete,prefillCompany,prefillRole
         const fd=detectFillers(ans);
         setFillerCount(fd.total);
         setLiveMetrics({pace,clarity});
-
-        if(!interjectedRef.current && words>=25 && timeLeft<QTIME-15){
-          interjectedRef.current=true;
-          const qText=questionsRef.current[qIndex]?.q||"";
-          const snippet=ans.slice(0,300);
-          try{
-            const raw=await callGroq(
-              `You are a real interviewer listening live. Question asked: "${qText}"
-Candidate is saying so far: "${snippet}"
-If a real recruiter would naturally cut in right now with a quick clarifying question, return it. Otherwise return null.
-Return ONLY: {"interject":"<short spoken interjection, max 12 words>"} or {"interject":null}`,150);
-            const data=safeJSON(raw,{interject:null});
-            if(data.interject){
-              stopRec();
-              setPhase("speaking");phaseRef.current="speaking";
-              await speak(data.interject,true);
-              setPhase("answering");phaseRef.current="answering";
-              startRec(false);
-            }
-          }catch{}
-        }
       },3000);
     }else{clearInterval(metricsTimerRef.current);}
     return()=>clearInterval(metricsTimerRef.current);
-  },[phase,timeLeft,getAnswer,qIndex]);
-
-  const repeatWords=/repeat|didn'?t (catch|understand|hear)|come again|say that again|what do you mean|pardon/;
-  useEffect(()=>{
-    if(phase!=="answering"||repeatHandledRef.current)return;
-    const combined=(liveText+" "+interimText).toLowerCase();
-    if(repeatWords.test(combined)){
-      repeatHandledRef.current=true;
-      (async()=>{
-        stopRec();stopTimer();
-        setPhase("speaking");phaseRef.current="speaking";
-        const qText=questionsRef.current[qIndex]?.q||"";
-        await speak(`No problem, let me repeat that. ${qText}`, true);
-        setPhase("answering");phaseRef.current="answering";
-        startRec(true);
-        startTimer();
-        repeatHandledRef.current=false;
-      })();
-    }
-  },[liveText,interimText,phase]);
+  },[phase,timeLeft,getAnswer]);
 
   const handleFile=async(e)=>{
     const f=e.target.files[0];if(!f)return;
@@ -1708,8 +1665,6 @@ Return ONLY:
     setPhase("speaking");setFeedback(null);setFillerCount(0);
     phaseRef.current="speaking";
     resetSpeech();
-    repeatHandledRef.current=false;
-    interjectedRef.current=false;
 
     const intro=idx===0?`Hello! I'm Priya Sharma, Senior Hiring Manager${company?` at ${company}`:""}. Thanks for joining. `:"";
 
@@ -2057,9 +2012,6 @@ function QuickMockTab({user,onInterviewComplete}){
 
   const questionsRef=useRef([]);
   useEffect(()=>{questionsRef.current=questions;},[questions]);
-  const repeatHandledRef=useRef(false);
-  const interjectedRef=useRef(false);
-  
 
   const metricsRef=useRef(null);
   const QTIME=90;
