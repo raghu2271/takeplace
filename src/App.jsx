@@ -939,14 +939,13 @@ function useSpeechEngine({phaseRef, onTimerEnd, QTIME=90}){
 
     // voices may not be loaded yet — wait for them
     const voices=window.speechSynthesis.getVoices();
-    if(voices.length>0){
-      setTimeout(doSpeak,60);
-    }else{
-      const onVoicesReady=()=>{
-        window.speechSynthesis.removeEventListener("voiceschanged",onVoicesReady);
-        setTimeout(doSpeak,60);
+    if(voices.length>0){doSpeak();}
+    else{
+      window.speechSynthesis.onvoiceschanged=()=>{
+        window.speechSynthesis.onvoiceschanged=null;
+        doSpeak();
       };
-      window.speechSynthesis.addEventListener("voiceschanged",onVoicesReady);
+      // Safety fallback: if event never fires, speak anyway after 400ms
       setTimeout(()=>{
         if(!window.speechSynthesis.speaking){doSpeak();}
       },400);
@@ -2072,61 +2071,21 @@ function QuickMockTab({user,onInterviewComplete}){
   useEffect(()=>()=>{clearInterval(metricsRef.current);resetSpeech();},[resetSpeech]);
 
   useEffect(()=>{
-  if(phase==="answering"){
-    metricsRef.current=setInterval(async()=>{
-      const ans=getAnswer();
-      const words=ans.trim().split(/\s+/).filter(Boolean).length;
-      const elapsed=QTIME-timeLeft;
-      const wpm=elapsed>0?Math.round((words/(elapsed/60))):0;
-      const pace=Math.min(100,Math.max(10,Math.round((wpm/160)*100)));
-      const clarity=Math.min(100,Math.max(20,60+Math.random()*20));
-      const fd=detectFillers(ans);
-      setFillerCount(fd.total);
-      setLiveMetrics({pace,clarity});
-
-      if(!interjectedRef.current && words>=25 && timeLeft<QTIME-15){
-        interjectedRef.current=true;
-        const qText=questionsRef.current[qIndex]?.q||"";
-        const snippet=ans.slice(0,300);
-        try{
-          const raw=await callGroq(
-            `You are a real interviewer listening live. Question asked: "${qText}"
-Candidate is saying so far: "${snippet}"
-If a real recruiter would naturally cut in right now with a quick clarifying question, return it. Otherwise return null.
-Return ONLY: {"interject":"<short spoken interjection, max 12 words>"} or {"interject":null}`,150);
-          const data=safeJSON(raw,{interject:null});
-          if(data.interject){
-            stopRec();
-            setPhase("speaking");phaseRef.current="speaking";
-            await speak(data.interject,false);
-            setPhase("answering");phaseRef.current="answering";
-            startRec(false);
-          }
-        }catch{}
-      }
-    },3000);
-  }else clearInterval(metricsRef.current);
-  return()=>clearInterval(metricsRef.current);
-},[phase,timeLeft,getAnswer,qIndex]);
-
-const repeatWords=/repeat|didn'?t (catch|understand|hear)|come again|say that again|what do you mean|pardon/;
-useEffect(()=>{
-  if(phase!=="answering"||repeatHandledRef.current)return;
-  const combined=(liveText+" "+interimText).toLowerCase();
-  if(repeatWords.test(combined)){
-    repeatHandledRef.current=true;
-    (async()=>{
-      stopRec();stopTimer();
-      setPhase("speaking");phaseRef.current="speaking";
-      const qText=questionsRef.current[qIndex]?.q||"";
-      await speak(`No problem, let me repeat that. ${qText}`, false);
-      setPhase("answering");phaseRef.current="answering";
-      startRec(true);
-      startTimer();
-      repeatHandledRef.current=false;
-    })();
-  }
-},[liveText,interimText,phase]);
+    if(phase==="answering"){
+      metricsRef.current=setInterval(()=>{
+        const ans=getAnswer();
+        const words=ans.trim().split(/\s+/).filter(Boolean).length;
+        const elapsed=QTIME-timeLeft;
+        const wpm=elapsed>0?Math.round((words/(elapsed/60))):0;
+        const pace=Math.min(100,Math.max(10,Math.round((wpm/160)*100)));
+        const clarity=Math.min(100,Math.max(20,60+Math.random()*20));
+        const fd=detectFillers(ans);
+        setFillerCount(fd.total);
+        setLiveMetrics({pace,clarity});
+      },3000);
+    }else clearInterval(metricsRef.current);
+    return()=>clearInterval(metricsRef.current);
+  },[phase,timeLeft,getAnswer]);
 
   const filteredRoles=catFilter==="All"?ROLES:ROLES.filter(r=>r.cat===catFilter);
 
@@ -2155,11 +2114,11 @@ Return ONLY: {"questions":[{"q":"<short spoken question, max 18 words>","type":"
     const qText=qList[idx]?.q;
     if(!qText)return;
     const rObj=roleObj||role;
+
     setPhase("speaking");setFeedback(null);setFillerCount(0);
     phaseRef.current="speaking";
     resetSpeech();
-    repeatHandledRef.current=false;
-    interjectedRef.current=false;
+
     const intro=idx===0?`Hi, I'm your interviewer today, looking for a ${rObj?.title||"candidate"}. `:"";
     await speak(intro+qText, false); // male voice for quick mock
 
@@ -3211,7 +3170,7 @@ function AppInner(){
     // Pre-warm voices list
     if(window.speechSynthesis){
       window.speechSynthesis.getVoices();
-      window.speechSynthesis.addEventListener("voiceschanged",()=>{window.speechSynthesis.getVoices();});
+      window.speechSynthesis.onvoiceschanged=()=>{window.speechSynthesis.getVoices();};
     }
     supabase.auth.getSession().then(({data:{session}})=>{
       if(session?.user){routeAfterAuth(session.user);}
