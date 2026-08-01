@@ -939,13 +939,14 @@ function useSpeechEngine({phaseRef, onTimerEnd, QTIME=90}){
 
     // voices may not be loaded yet — wait for them
     const voices=window.speechSynthesis.getVoices();
-    if(voices.length>0){doSpeak();}
-    else{
-      window.speechSynthesis.onvoiceschanged=()=>{
-        window.speechSynthesis.onvoiceschanged=null;
-        doSpeak();
+    if(voices.length>0){
+      setTimeout(doSpeak,60);
+    }else{
+      const onVoicesReady=()=>{
+        window.speechSynthesis.removeEventListener("voiceschanged",onVoicesReady);
+        setTimeout(doSpeak,60);
       };
-      // Safety fallback: if event never fires, speak anyway after 400ms
+      window.speechSynthesis.addEventListener("voiceschanged",onVoicesReady);
       setTimeout(()=>{
         if(!window.speechSynthesis.speaking){doSpeak();}
       },400);
@@ -3210,7 +3211,7 @@ function AppInner(){
     // Pre-warm voices list
     if(window.speechSynthesis){
       window.speechSynthesis.getVoices();
-      window.speechSynthesis.onvoiceschanged=()=>{window.speechSynthesis.getVoices();};
+      window.speechSynthesis.addEventListener("voiceschanged",()=>{window.speechSynthesis.getVoices();});
     }
     supabase.auth.getSession().then(({data:{session}})=>{
       if(session?.user){routeAfterAuth(session.user);}
