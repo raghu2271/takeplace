@@ -1577,7 +1577,7 @@ function ResumeInterviewTab({user,onInterviewComplete,prefillCompany,prefillRole
 
   useEffect(()=>{
     if(phase==="answering"){
-      metricsTimerRef.current=setInterval(()=>{
+      metricsTimerRef.current=setInterval(async()=>{
         const ans=getAnswer();
         const words=ans.trim().split(/\s+/).filter(Boolean).length;
         const elapsed=QTIME-timeLeft;
@@ -1587,10 +1587,50 @@ function ResumeInterviewTab({user,onInterviewComplete,prefillCompany,prefillRole
         const fd=detectFillers(ans);
         setFillerCount(fd.total);
         setLiveMetrics({pace,clarity});
+
+        if(!interjectedRef.current && words>=25 && timeLeft<QTIME-15){
+          interjectedRef.current=true;
+          const qText=questionsRef.current[qIndex]?.q||"";
+          const snippet=ans.slice(0,300);
+          try{
+            const raw=await callGroq(
+              `You are a real interviewer listening live. Question asked: "${qText}"
+Candidate is saying so far: "${snippet}"
+If a real recruiter would naturally cut in right now with a quick clarifying question, return it. Otherwise return null.
+Return ONLY: {"interject":"<short spoken interjection, max 12 words>"} or {"interject":null}`,150);
+            const data=safeJSON(raw,{interject:null});
+            if(data.interject){
+              stopRec();
+              setPhase("speaking");phaseRef.current="speaking";
+              await speak(data.interject,true);
+              setPhase("answering");phaseRef.current="answering";
+              startRec(false);
+            }
+          }catch{}
+        }
       },3000);
     }else{clearInterval(metricsTimerRef.current);}
     return()=>clearInterval(metricsTimerRef.current);
-  },[phase,timeLeft,getAnswer]);
+  },[phase,timeLeft,getAnswer,qIndex]);
+
+  const repeatWords=/repeat|didn'?t (catch|understand|hear)|come again|say that again|what do you mean|pardon/;
+  useEffect(()=>{
+    if(phase!=="answering"||repeatHandledRef.current)return;
+    const combined=(liveText+" "+interimText).toLowerCase();
+    if(repeatWords.test(combined)){
+      repeatHandledRef.current=true;
+      (async()=>{
+        stopRec();stopTimer();
+        setPhase("speaking");phaseRef.current="speaking";
+        const qText=questionsRef.current[qIndex]?.q||"";
+        await speak(`No problem, let me repeat that. ${qText}`, true);
+        setPhase("answering");phaseRef.current="answering";
+        startRec(true);
+        startTimer();
+        repeatHandledRef.current=false;
+      })();
+    }
+  },[liveText,interimText,phase]);
 
   const handleFile=async(e)=>{
     const f=e.target.files[0];if(!f)return;
@@ -1668,6 +1708,8 @@ Return ONLY:
     setPhase("speaking");setFeedback(null);setFillerCount(0);
     phaseRef.current="speaking";
     resetSpeech();
+    repeatHandledRef.current=false;
+    interjectedRef.current=false;
 
     const intro=idx===0?`Hello! I'm Priya Sharma, Senior Hiring Manager${company?` at ${company}`:""}. Thanks for joining. `:"";
 
@@ -2015,6 +2057,9 @@ function QuickMockTab({user,onInterviewComplete}){
 
   const questionsRef=useRef([]);
   useEffect(()=>{questionsRef.current=questions;},[questions]);
+  const repeatHandledRef=useRef(false);
+  const interjectedRef=useRef(false);
+  
 
   const metricsRef=useRef(null);
   const QTIME=90;
@@ -2026,21 +2071,61 @@ function QuickMockTab({user,onInterviewComplete}){
   useEffect(()=>()=>{clearInterval(metricsRef.current);resetSpeech();},[resetSpeech]);
 
   useEffect(()=>{
-    if(phase==="answering"){
-      metricsRef.current=setInterval(()=>{
-        const ans=getAnswer();
-        const words=ans.trim().split(/\s+/).filter(Boolean).length;
-        const elapsed=QTIME-timeLeft;
-        const wpm=elapsed>0?Math.round((words/(elapsed/60))):0;
-        const pace=Math.min(100,Math.max(10,Math.round((wpm/160)*100)));
-        const clarity=Math.min(100,Math.max(20,60+Math.random()*20));
-        const fd=detectFillers(ans);
-        setFillerCount(fd.total);
-        setLiveMetrics({pace,clarity});
-      },3000);
-    }else clearInterval(metricsRef.current);
-    return()=>clearInterval(metricsRef.current);
-  },[phase,timeLeft,getAnswer]);
+  if(phase==="answering"){
+    metricsRef.current=setInterval(async()=>{
+      const ans=getAnswer();
+      const words=ans.trim().split(/\s+/).filter(Boolean).length;
+      const elapsed=QTIME-timeLeft;
+      const wpm=elapsed>0?Math.round((words/(elapsed/60))):0;
+      const pace=Math.min(100,Math.max(10,Math.round((wpm/160)*100)));
+      const clarity=Math.min(100,Math.max(20,60+Math.random()*20));
+      const fd=detectFillers(ans);
+      setFillerCount(fd.total);
+      setLiveMetrics({pace,clarity});
+
+      if(!interjectedRef.current && words>=25 && timeLeft<QTIME-15){
+        interjectedRef.current=true;
+        const qText=questionsRef.current[qIndex]?.q||"";
+        const snippet=ans.slice(0,300);
+        try{
+          const raw=await callGroq(
+            `You are a real interviewer listening live. Question asked: "${qText}"
+Candidate is saying so far: "${snippet}"
+If a real recruiter would naturally cut in right now with a quick clarifying question, return it. Otherwise return null.
+Return ONLY: {"interject":"<short spoken interjection, max 12 words>"} or {"interject":null}`,150);
+          const data=safeJSON(raw,{interject:null});
+          if(data.interject){
+            stopRec();
+            setPhase("speaking");phaseRef.current="speaking";
+            await speak(data.interject,false);
+            setPhase("answering");phaseRef.current="answering";
+            startRec(false);
+          }
+        }catch{}
+      }
+    },3000);
+  }else clearInterval(metricsRef.current);
+  return()=>clearInterval(metricsRef.current);
+},[phase,timeLeft,getAnswer,qIndex]);
+
+const repeatWords=/repeat|didn'?t (catch|understand|hear)|come again|say that again|what do you mean|pardon/;
+useEffect(()=>{
+  if(phase!=="answering"||repeatHandledRef.current)return;
+  const combined=(liveText+" "+interimText).toLowerCase();
+  if(repeatWords.test(combined)){
+    repeatHandledRef.current=true;
+    (async()=>{
+      stopRec();stopTimer();
+      setPhase("speaking");phaseRef.current="speaking";
+      const qText=questionsRef.current[qIndex]?.q||"";
+      await speak(`No problem, let me repeat that. ${qText}`, false);
+      setPhase("answering");phaseRef.current="answering";
+      startRec(true);
+      startTimer();
+      repeatHandledRef.current=false;
+    })();
+  }
+},[liveText,interimText,phase]);
 
   const filteredRoles=catFilter==="All"?ROLES:ROLES.filter(r=>r.cat===catFilter);
 
@@ -2069,11 +2154,11 @@ Return ONLY: {"questions":[{"q":"<short spoken question, max 18 words>","type":"
     const qText=qList[idx]?.q;
     if(!qText)return;
     const rObj=roleObj||role;
-
     setPhase("speaking");setFeedback(null);setFillerCount(0);
     phaseRef.current="speaking";
     resetSpeech();
-
+    repeatHandledRef.current=false;
+    interjectedRef.current=false;
     const intro=idx===0?`Hi, I'm your interviewer today, looking for a ${rObj?.title||"candidate"}. `:"";
     await speak(intro+qText, false); // male voice for quick mock
 
