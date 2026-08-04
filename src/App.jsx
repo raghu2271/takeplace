@@ -1564,9 +1564,9 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
           <div style={{color:C.soft,fontSize:12.5,lineHeight:1.6,fontWeight:500}}>Real questions Google, TCS, Wipro ask — with model answers</div>
         </div>
         <div className="lift" onClick={()=>onGoToTab(4)} style={{background:`linear-gradient(135deg,${C.teal}0C,${C.violet}0C)`,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",cursor:"pointer",boxShadow:C.shCard}}>
-          <div style={{fontSize:28,marginBottom:10}}>🎤</div>
-          <div style={{fontWeight:800,fontSize:14.5,color:C.ink,marginBottom:4}}>Quick Mock</div>
-          <div style={{color:C.soft,fontSize:12.5,lineHeight:1.6,fontWeight:500}}>No resume needed — pick a role and start practicing in 30 seconds</div>
+          <div style={{fontSize:28,marginBottom:10}}>📋</div>
+          <div style={{fontWeight:800,fontSize:14.5,color:C.ink,marginBottom:4}}>ATS Resume Check</div>
+          <div style={{color:C.soft,fontSize:12.5,lineHeight:1.6,fontWeight:500}}>Paste a JD, upload your resume — get a shortlist-ready ATS score</div>
         </div>
       </div>
 
@@ -2105,316 +2105,8 @@ Return ONLY:
   return null;
 }
 
-// ── QUICK MOCK TAB ────────────────────────────────────────────────────────────
-function QuickMockTab({user,onInterviewComplete}){
-  const[screen,setScreen]=useState("roles");
-  const[catFilter,setCatFilter]=useState("All");
-  const[role,setRole]=useState(null);
-  const[difficulty,setDifficulty]=useState("Entry-level");
-  const[questions,setQuestions]=useState([]);
-  const[questionsBySlot,setQuestionsBySlot]=useState({});
-  const[activeSlot,setActiveSlot]=useState(null);
-  const[completedSlots,setCompletedSlots]=useState([]);
-  const[slotLoading,setSlotLoading]=useState(null);
-  const[qIndex,setQIndex]=useState(0);
-  const[answers,setAnswers]=useState([]);
-  const[genErr,setGenErr]=useState("");
-  const[phase,setPhase]=useState("idle");
-  const[feedback,setFeedback]=useState(null);
-  const[loadingFeedback,setLoadingFeedback]=useState(false);
-  const[genReport,setGenReport]=useState(false);
-  const[report,setReport]=useState(null);
-  const[micMuted,setMicMuted]=useState(false);
-  const[fillerCount,setFillerCount]=useState(0);
-  const[liveMetrics,setLiveMetrics]=useState({pace:50,clarity:60});
-  const[showUpgrade,setShowUpgrade]=useState(false);
-  const[checkingOut,setCheckingOut]=useState(false);
 
-  const{isPro,refresh:refreshSub}=useSubscription(user?.id);
 
-  const phaseRef=useRef("idle");
-  useEffect(()=>{phaseRef.current=phase;},[phase]);
-
-  const currentQIndexRef=useRef(0);
-  useEffect(()=>{currentQIndexRef.current=qIndex;},[qIndex]);
-
-  const questionsRef=useRef([]);
-  useEffect(()=>{questionsRef.current=questions;},[questions]);
-
-  const metricsRef=useRef(null);
-  const QTIME=90;
-
-  const onTimerEnd=useCallback(()=>{finishQ(currentQIndexRef.current);},[]);// eslint-disable-line
-
-  const{speak,startRec,stopRec,startTimer,stopTimer,reset:resetSpeech,getAnswer,listening,liveText,interimText,timeLeft,aiSpeaking}=useSpeechEngine({phaseRef,onTimerEnd,QTIME});
-
-  useEffect(()=>()=>{clearInterval(metricsRef.current);resetSpeech();},[resetSpeech]);
-
-  useEffect(()=>{
-    if(phase==="answering"){
-      metricsRef.current=setInterval(()=>{
-        const ans=getAnswer();
-        const words=ans.trim().split(/\s+/).filter(Boolean).length;
-        const elapsed=QTIME-timeLeft;
-        const wpm=elapsed>0?Math.round((words/(elapsed/60))):0;
-        const pace=Math.min(100,Math.max(10,Math.round((wpm/160)*100)));
-        const clarity=Math.min(100,Math.max(20,60+Math.random()*20));
-        const fd=detectFillers(ans);
-        setFillerCount(fd.total);
-        setLiveMetrics({pace,clarity});
-      },3000);
-    }else clearInterval(metricsRef.current);
-    return()=>clearInterval(metricsRef.current);
-  },[phase,timeLeft,getAnswer]);
-
-  const filteredRoles=catFilter==="All"?ROLES:ROLES.filter(r=>r.cat===catFilter);
-
-  const generateSlotQuestionsQM=async(slot,roleObj)=>{
-    const focus=FOCUS_BY_SLOT[(slot-1)%FOCUS_BY_SLOT.length];
-    const raw=await callGroq(
-      `You are a senior ${roleObj.title} interviewer. Difficulty: ${difficulty}. Focus: ${roleObj.focus}. This mock's theme: ${focus}.
-Generate exactly 6 spoken interview questions themed around "${focus}": 1 intro, 3 technical, 1 behavioral, 1 closing.
-CRITICAL: each question must be ONE short natural spoken sentence (max 18 words).
-Return ONLY: {"questions":[{"q":"<short spoken question, max 18 words>","type":"Intro|Technical|Behavioral|Closing","keywords":["k1","k2"]}]}`,900);
-    const data=safeJSON(raw,null);
-    return data?.questions?.length>=5?data.questions:FALLBACK_QUESTIONS.map(q=>({...q,keywords:[]}));
-  };
-
-  const reactionLine=(score)=>{
-    const s=["Nice, strong answer.","Great, that's what I was looking for.","Good example."];
-    const m=["Okay, noted.","Alright, got it.","Thanks, moving on."];
-    const w=["Hmm, let's move on.","Okay, that needs work.","Noted."];
-    const pool=score>=75?s:score>=50?m:w;
-    return pool[Math.floor(Math.random()*pool.length)];
-  };
-
-  // FIX: same pattern — await speak before opening mic
-  const beginQ=useCallback(async(idx,qs,roleObj)=>{
-    const qList=qs||questionsRef.current;
-    const qText=qList[idx]?.q;
-    if(!qText)return;
-    const rObj=roleObj||role;
-
-    setPhase("speaking");setFeedback(null);setFillerCount(0);
-    phaseRef.current="speaking";
-    resetSpeech();
-
-    const intro=idx===0?`Hi, I'm your interviewer today, looking for a ${rObj?.title||"candidate"}. `:"";
-    await speak(intro+qText, false); // male voice for quick mock
-
-    setPhase("answering");phaseRef.current="answering";
-    startRec(true);startTimer();
-  },[speak,startRec,startTimer,resetSpeech,role]);
-
-  const finishQ=useCallback(async(idx)=>{
-    stopTimer();stopRec();
-    setPhase("done-q");phaseRef.current="done-q";
-
-    const ans=getAnswer().trim()||"(no answer captured)";
-    const qList=questionsRef.current;
-    const qText=qList[idx]?.q||"";
-    const qType=qList[idx]?.type||"";
-    const fd=detectFillers(ans);
-
-    setAnswers(prev=>{const n=[...prev];n[idx]={question:qText,type:qType,answer:ans,fillerCount:fd.total};return n;});
-    setLoadingFeedback(true);
-
-    let fb;
-    try{
-      const raw=await callGroq(
-        `You are a strict ${role?.title||"interviewer"} interviewer (${difficulty}).
-Question (${qType}): ${qText}
-Answer: ${ans.slice(0,800)}
-Filler words: ${fd.total}
-Score strictly. Return ONLY: {"score":<0-100>,"tip":"<2-3 sentence specific feedback>","what_was_good":"<1 sentence or null>","missing":"<what was missing>"}`,450);
-      fb=safeJSON(raw,{score:55,tip:"Practice with more specific examples.",what_was_good:null});
-    }catch{fb={score:55,tip:"AI unavailable.",what_was_good:null};}
-
-    setFeedback(fb);setLoadingFeedback(false);
-    speak(reactionLine(fb.score), false);
-  },[stopTimer,stopRec,getAnswer,speak,role,difficulty]);
-
-  const nextQ=useCallback((idx)=>{
-    setFeedback(null);
-    const qList=questionsRef.current;
-    if(idx+1<qList.length){setQIndex(idx+1);currentQIndexRef.current=idx+1;beginQ(idx+1,qList);}
-    else wrapUp();
-  },[beginQ]);
-
-  const selectSlot=async(slot)=>{
-    if(!isPro&&slot>FREE_SLOTS){setShowUpgrade(true);return;}
-    setActiveSlot(slot);
-    if(questionsBySlot[slot]){
-      const qs=questionsBySlot[slot];
-      setQuestions(qs);questionsRef.current=qs;
-      setScreen("live");setAnswers([]);setQIndex(0);currentQIndexRef.current=0;setFeedback(null);
-      setTimeout(()=>beginQ(0,qs,role),400);
-      return;
-    }
-    setSlotLoading(slot);setGenErr("");
-    try{
-      const qs=await generateSlotQuestionsQM(slot,role);
-      setQuestionsBySlot(prev=>({...prev,[slot]:qs}));
-      setQuestions(qs);questionsRef.current=qs;
-      setSlotLoading(null);
-      setScreen("live");setAnswers([]);setQIndex(0);currentQIndexRef.current=0;setFeedback(null);
-      setTimeout(()=>beginQ(0,qs,role),400);
-    }catch{
-      setSlotLoading(null);setGenErr("⚠ Could not generate questions. Try again.");
-    }
-  };
-
-  const handleChoosePlan=async(plan)=>{
-    setCheckingOut(true);
-    await startCheckout(plan,user,()=>{setShowUpgrade(false);setCheckingOut(false);refreshSub();});
-    setCheckingOut(false);
-  };
-
-  const wrapUp=async()=>{
-    setPhase("idle");phaseRef.current="idle";setGenReport(true);
-    try{
-      const answersSnap=[...answers];
-      const transcript=answersSnap.map((a,i)=>`Q${i+1} (${a.type}): ${a.question}\nAnswer: ${a.answer}`).join("\n\n");
-      const raw=await callGroq(
-        `Strict hiring panel for ${role?.title||"role"} (${difficulty}).
-${transcript.slice(0,4000)}
-Return ONLY: {"overallScore":<0-100>,"verdict":"<Strong Hire|Hire|Borderline|No Hire>","communicationScore":<0-100>,"technicalScore":<0-100>,"confidenceScore":<0-100>,"structureScore":<0-100>,"summary":"<3-4 sentence honest assessment>","perQuestion":[{"question":"<short>","score":<0-100>,"feedback":"<2 sentence>"}],"strengths":["<s1>","<s2>"],"improvements":["<i1>","<i2>","<i3>"]}`,2200);
-      const data=safeJSON(raw,null);
-      if(!data?.overallScore)throw new Error("bad");
-      setReport(data);
-      if(activeSlot)setCompletedSlots(prev=>[...new Set([...prev,activeSlot])]);
-      await saveInterviewResult(user?.id,{...data,company:"",role:role?.title||""});
-      onInterviewComplete&&onInterviewComplete();
-    }catch{
-      setReport({overallScore:0,verdict:"—",communicationScore:0,technicalScore:0,confidenceScore:0,structureScore:0,summary:"⚠ Report generation failed.",perQuestion:[],strengths:[],improvements:[]});
-    }
-    setGenReport(false);setScreen("report");
-  };
-
-  const restart=()=>{window.speechSynthesis?.cancel();stopRec();stopTimer();setScreen("roles");setRole(null);setQuestions([]);questionsRef.current=[];setQuestionsBySlot({});setCompletedSlots([]);setAnswers([]);setQIndex(0);setReport(null);setFeedback(null);};
-  const sc=s=>s>=75?C.green:s>=50?C.gold:C.red;
-
-  if(screen==="roles")return(
-    <div>
-      <div style={{marginBottom:20}}>
-        <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:5,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🎤 Quick Mock Interview</div>
-        <div style={{color:C.soft,fontSize:13.5,lineHeight:1.7}}>Pick a role. No resume needed. For a personalized interview, use <strong style={{color:C.ink}}>Resume Interview</strong>.</div>
-      </div>
-      <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:18}}>
-        {CATS.map(c=>(<button key={c} onClick={()=>setCatFilter(c)} style={{padding:"6px 14px",borderRadius:20,border:`1px solid ${catFilter===c?C.violet:C.border}`,background:catFilter===c?C.violetPale:"transparent",color:catFilter===c?C.violetL:C.soft,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{c}</button>))}
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:12}}>
-        {filteredRoles.map(r=>(
-          <div key={r.id} className="lift" onClick={()=>{setRole(r);setScreen("brief");setGenErr("");}}
-            style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"18px 16px",position:"relative",overflow:"hidden"}}
-            onMouseEnter={e=>e.currentTarget.style.borderColor=C.violet+"50"}
-            onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
-            {r.popular&&<div style={{position:"absolute",top:12,right:12,background:`${C.violet}20`,color:C.violetL,fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:10}}>POPULAR</div>}
-            <div style={{fontSize:28,marginBottom:10}}>{r.icon}</div>
-            <div style={{fontWeight:700,fontSize:13.5,color:C.ink,marginBottom:4}}>{r.title}</div>
-            <div style={{color:C.soft,fontSize:11.5,lineHeight:1.65,marginBottom:10}}>{r.focus}</div>
-            <Tag color={C.teal} size={10}>{r.cat}</Tag>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  if(screen==="brief")return(
-    <div className="fade" style={{maxWidth:500,margin:"0 auto"}}>
-      <button onClick={()=>setScreen("roles")} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginBottom:16,fontFamily:"'Inter',sans-serif"}}>← Choose different role</button>
-      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:20,padding:28}}>
-        <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:22}}>
-          <div style={{width:52,height:52,background:C.violetPale,borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,flexShrink:0}}>{role.icon}</div>
-          <div><div style={{fontWeight:800,fontSize:19,color:C.ink,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{role.title}</div><div style={{color:C.soft,fontSize:12,marginTop:2}}>{role.focus}</div></div>
-        </div>
-        <div style={{marginBottom:20}}>
-          <div style={{fontWeight:700,fontSize:13,color:C.ink,marginBottom:10}}>Experience level</div>
-          <div style={{display:"flex",gap:8}}>
-            {["Entry-level","Mid-level","Senior"].map(d=>(
-              <button key={d} onClick={()=>setDifficulty(d)} style={{flex:1,padding:"10px 4px",borderRadius:10,border:`1px solid ${difficulty===d?C.violet:C.border}`,background:difficulty===d?C.violetPale:"transparent",color:difficulty===d?C.violetL:C.soft,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{d}</button>
-            ))}
-          </div>
-        </div>
-        {genErr&&<div style={{background:C.goldPale,border:`1px solid ${C.gold}25`,borderRadius:8,padding:"8px 12px",fontSize:12,color:C.gold,marginBottom:12}}>{genErr}</div>}
-        <Btn v="violet" onClick={()=>setScreen("slots")} style={{width:"100%",padding:"14px",fontSize:15,borderRadius:12}}>Continue →</Btn>
-      </div>
-    </div>
-  );
-
-  if(screen==="slots")return(
-    <div className="fade" style={{maxWidth:640,margin:"0 auto"}}>
-      <button onClick={()=>setScreen("brief")} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginBottom:16,fontFamily:"'Inter',sans-serif"}}>← Change difficulty</button>
-      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:22}}>
-        <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:18}}>
-          <div style={{width:44,height:44,background:C.violetPale,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{role.icon}</div>
-          <div><div style={{fontWeight:800,fontSize:16,color:C.ink}}>{role.title}</div><div style={{color:C.soft,fontSize:11.5,marginTop:1}}>{difficulty}</div></div>
-        </div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
-          <div style={{fontWeight:700,fontSize:14,color:C.ink}}>Choose a mock interview</div>
-          {!isPro&&<span style={{fontSize:11,color:C.muted}}>{FREE_SLOTS} free · {TOTAL_SLOTS-FREE_SLOTS} locked</span>}
-          {isPro&&<span style={{fontSize:11,color:C.green,fontWeight:700}}>✓ All unlocked</span>}
-        </div>
-        <div style={{color:C.soft,fontSize:12,marginBottom:16}}>Each slot is a fresh set of 6 questions with a different focus area.</div>
-        {genErr&&<div style={{background:C.goldPale,border:`1px solid ${C.gold}25`,borderRadius:8,padding:"8px 12px",fontSize:12,color:C.gold,marginBottom:14}}>{genErr}</div>}
-        <SlotGrid isPro={isPro} completedSlots={completedSlots} loadingSlot={slotLoading} onSelectSlot={selectSlot} onUpgrade={()=>setShowUpgrade(true)}/>
-      </div>
-      {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut}/>}
-    </div>
-  );
-
-  if(screen==="live")return(
-    <InterviewRoom
-      role={role?.title||""} company={null} questions={questions} qIndex={qIndex}
-      phase={phase} aiSpeaking={aiSpeaking} listening={listening}
-      liveText={liveText} interimText={interimText} timeLeft={timeLeft}
-      feedback={feedback} loadingFeedback={loadingFeedback}
-      onFinish={finishQ} onNext={nextQ}
-      onEnd={()=>{window.speechSynthesis?.cancel();stopRec();stopTimer();if(answers.length>0)wrapUp();else setScreen("slots");}}
-      onToggleMic={()=>setMicMuted(m=>!m)} micMuted={micMuted}
-      fillerCount={fillerCount} liveMetrics={liveMetrics}
-    />
-  );
-
-  if(genReport)return(
-    <div style={{textAlign:"center",padding:"80px 20px"}}>
-      <div style={{fontSize:52,marginBottom:16,animation:"float 2s ease-in-out infinite"}}>📋</div>
-      <div style={{fontWeight:800,fontSize:20,color:C.ink,marginBottom:24,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Generating report…</div>
-      <Spin size={36}/>
-    </div>
-  );
-
-  if(screen==="report"&&report)return(
-    <div className="fade">
-      <div style={{background:`linear-gradient(160deg,${C.bgCard},${C.bgSurf})`,border:`1px solid ${C.border}`,borderRadius:20,padding:"28px 22px",marginBottom:16}}>
-        <div style={{textAlign:"center",marginBottom:20}}>
-          <div style={{fontSize:10,color:C.muted,marginBottom:6,letterSpacing:1.5,fontWeight:700,textTransform:"uppercase"}}>{role?.icon} {role?.title} · {difficulty}{activeSlot?` · Mock #${activeSlot}`:""}</div>
-          <div className="mono" style={{fontSize:56,fontWeight:700,lineHeight:1,color:sc(report.overallScore)}}>{report.overallScore}</div>
-          <div style={{fontSize:12,color:C.muted,marginBottom:10}}>/ 100</div>
-          <div><span style={{background:`${sc(report.overallScore)}15`,color:sc(report.overallScore),padding:"5px 18px",borderRadius:20,fontWeight:800,fontSize:13,border:`1px solid ${sc(report.overallScore)}30`}}>{report.verdict}</span></div>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:18}}>
-          {[["Comm.",report.communicationScore],["Technical",report.technicalScore],["Confidence",report.confidenceScore],["Structure",report.structureScore]].map(([l,v],i)=>(
-            <div key={i} style={{textAlign:"center",background:"rgba(255,255,255,.04)",borderRadius:10,padding:"10px 4px"}}>
-              <div className="mono" style={{fontWeight:700,fontSize:16,color:sc(v)}}>{v}</div>
-              <div style={{fontSize:9,color:C.muted,marginTop:3,fontWeight:600,letterSpacing:.4}}>{l}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{fontSize:13.5,lineHeight:1.8,color:C.ink2,textAlign:"center"}}>{report.summary}</div>
-      </div>
-      {report.strengths?.length>0&&<div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}><div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:12}}>✅ What worked</div>{report.strengths.map((s,i)=><div key={i} style={{background:C.greenPale,borderRadius:8,padding:"10px 13px",marginBottom:7,fontSize:13,color:C.ink2,border:`1px solid ${C.green}20`,display:"flex",gap:8}}><span style={{color:C.green}}>✓</span><span>{s}</span></div>)}</div>}
-      {report.improvements?.length>0&&<div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}><div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:12}}>🎯 Improve on</div>{report.improvements.map((s,i)=><div key={i} style={{background:"rgba(255,255,255,.02)",borderRadius:8,padding:"10px 13px",marginBottom:7,border:`1px solid ${C.border}`,display:"flex",gap:9}}><span style={{color:C.gold,fontWeight:800}}>→</span><span style={{color:C.ink2,fontSize:13}}>{s}</span></div>)}</div>}
-      {report.perQuestion?.length>0&&<div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:16}}><div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:12}}>🔍 Q by Q</div>{report.perQuestion.map((p,i)=><div key={i} style={{background:"rgba(255,255,255,.02)",borderRadius:10,padding:"12px 14px",marginBottom:9,border:`1px solid ${C.border}`}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:5,gap:8}}><div style={{fontWeight:600,color:C.ink,fontSize:12.5}}>Q{i+1}. {p.question}</div><div className="mono" style={{fontWeight:700,fontSize:13,color:sc(p.score),flexShrink:0}}>{p.score}%</div></div><div style={{color:C.soft,fontSize:12.5,lineHeight:1.7}}>{p.feedback}</div><Bar pct={p.score} color={sc(p.score)}/></div>)}</div>}
-      <div style={{display:"flex",gap:10}}>
-        <Btn v="violet" onClick={()=>setScreen("slots")} style={{flex:1,padding:"13px"}}>🔁 Pick Another Slot</Btn>
-        <Btn v="ghost" onClick={restart} style={{flex:1,padding:"13px"}}>🎲 Other Role</Btn>
-      </div>
-    </div>
-  );
-
-  return null;
-}
 
 // ── JOBS TAB ──────────────────────────────────────────────────────────────────
 function JobsTab({onPracticeForJob}){
@@ -2658,6 +2350,279 @@ Give 12-20 specific, searchable keywords (e.g. "react","node.js","sql","java","s
     </div>
   );
 }
+// ── ATS RESUME CHECKER ────────────────────────────────────────────────────────
+function ATSCheckTab(){
+  const[step,setStep]=useState("setup");
+  const[jd,setJd]=useState("");
+  const[resumeText,setResumeText]=useState("");
+  const[fileName,setFileName]=useState("");
+  const[report,setReport]=useState(null);
+  const[err,setErr]=useState("");
+  const fileRef=useRef();
+
+  const handleFile=async(e)=>{
+    const f=e.target.files[0];if(!f)return;
+    setFileName(f.name);setErr("");
+    try{
+      let text="";
+      if(f.name.endsWith(".pdf"))text=await extractPDF(f);
+      else if(f.name.endsWith(".docx"))text=await extractDOCX(f);
+      else{const r=new FileReader();r.onload=ev=>setResumeText(ev.target.result);r.readAsText(f);return;}
+      setResumeText(text);
+    }catch(e2){setErr("Could not read file: "+e2.message);}
+  };
+
+  const analyze=async()=>{
+    if(!jd.trim()||!resumeText.trim())return;
+    setStep("analyzing");setErr("");
+    try{
+      const raw=await callGroq(
+        `You are an expert ATS (Applicant Tracking System) resume screener and senior technical recruiter, exactly like Jobscan. Compare this resume against this job description with the strictness and precision of a real ATS parser plus a human recruiter's judgment.
+
+JOB DESCRIPTION:
+---
+${jd.slice(0,4000)}
+---
+
+RESUME:
+---
+${resumeText.slice(0,4000)}
+---
+
+Do a thorough line-by-line comparison. Extract every hard skill, tool, technology, certification, and qualification keyword from the JD. Check each one against the resume — exact match, close synonym, or missing entirely. Evaluate the resume's projects, skills section, and certifications specifically against what the JD demands. Be honest and strict — do not inflate the score if there are real gaps.
+
+Return ONLY this JSON, no markdown:
+{
+  "overallScore": <0-100 integer, ATS + recruiter combined score>,
+  "verdict": "<Strong Match|Good Match|Moderate Match|Weak Match>",
+  "recruiterImpression": "<3-4 sentence honest first-impression summary, written like a recruiter scanning this resume for 6 seconds>",
+  "matchedKeywords": ["<exact keyword found in both JD and resume>", "..."],
+  "missingKeywords": ["<important JD keyword NOT found in resume>", "..."],
+  "strongPoints": ["<specific strength, e.g. 'Your React and Node.js experience directly matches the core stack required'>", "..."],
+  "weakPoints": ["<specific gap, e.g. 'No mention of Kubernetes despite it being a must-have in the JD'>", "..."],
+  "sectionChecks": {
+    "skills": {"status":"<strong|weak|missing>","note":"<1-2 sentence assessment of how well the skills section covers JD requirements>"},
+    "projects": {"status":"<strong|weak|missing>","note":"<1-2 sentence assessment of whether projects demonstrate JD-relevant work>"},
+    "certifications": {"status":"<strong|weak|missing>","note":"<1-2 sentence assessment, or state if JD requires certs the resume lacks>"},
+    "experience": {"status":"<strong|weak|missing>","note":"<1-2 sentence assessment of experience relevance and seniority match>"},
+    "formatting": {"status":"<strong|weak|missing>","note":"<1-2 sentence note on ATS-parseability — standard headers, no tables/columns issues, etc, based on resume text structure>"}
+  },
+  "lineChecks": [
+    {"jdRequirement":"<specific requirement/line from the JD>","resumeEvidence":"<what the resume says, or 'Not found in resume'>","status":"<match|partial|missing>"},
+    ...cover the 8-12 most important JD requirements
+  ],
+  "keywordsToAdd": ["<specific keyword/phrase to add to resume, prioritized by importance>", "..."],
+  "projectMatchNotes": "<2-3 sentences: do the listed projects align with what this JD wants? Call out specifically if a project's tech stack doesn't match, using 'not match' language where relevant>",
+  "nextSteps": ["<specific actionable step to improve ATS score>", "..."]
+}`,3200);
+      const data=safeJSON(raw,null);
+      if(!data?.overallScore&&data?.overallScore!==0)throw new Error("bad report");
+      setReport(data);
+      setStep("report");
+    }catch(e){
+      console.error(e);
+      setErr("⚠ Could not analyze. Check /api/ai and try again.");
+      setStep("setup");
+    }
+  };
+
+  const sc=s=>s>=75?C.green:s>=50?C.gold:C.red;
+  const statusColor=st=>st==="strong"||st==="match"?C.green:st==="weak"||st==="partial"?C.gold:C.red;
+  const statusIcon=st=>st==="strong"||st==="match"?"✓":st==="weak"||st==="partial"?"~":"✕";
+
+  if(step==="setup")return(
+    <div className="fade">
+      <div style={{marginBottom:22}}>
+        <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:5,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>📋 ATS Resume Checker</div>
+        <div style={{color:C.soft,fontSize:13.5,lineHeight:1.75,maxWidth:600}}>Paste a job description and your resume. We'll check it exactly like an ATS + recruiter would — matched keywords, missing keywords, project and skills fit, and a shortlist-ready score out of 100.</div>
+      </div>
+      {err&&<div style={{background:C.redPale,border:`1px solid ${C.red}30`,borderRadius:10,padding:"10px 14px",marginBottom:14,color:C.red,fontSize:12.5}}>{err}</div>}
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,boxShadow:C.shCard}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+            <span style={{fontSize:18}}>📝</span>
+            <div style={{fontWeight:800,fontSize:14,color:C.ink}}>Job Description</div>
+          </div>
+          <textarea style={{...inp,minHeight:280,resize:"vertical",fontSize:12.5,lineHeight:1.7}}
+            placeholder="Paste the full job description here…"
+            value={jd} onChange={e=>setJd(e.target.value)}/>
+          <div style={{color:C.muted,fontSize:11,marginTop:6}}>{jd.trim().split(/\s+/).filter(Boolean).length} words</div>
+        </div>
+
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,boxShadow:C.shCard}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:18}}>📄</span>
+              <div style={{fontWeight:800,fontSize:14,color:C.ink}}>Your Resume</div>
+            </div>
+            <button onClick={()=>fileRef.current.click()}
+              style={{padding:"6px 12px",borderRadius:8,border:`1.5px solid ${C.violet}40`,background:C.violetPale,color:C.violetD,fontSize:11.5,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:800}}>
+              📎 Upload
+            </button>
+            <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" onChange={handleFile} style={{display:"none"}}/>
+          </div>
+          {fileName&&(
+            <div style={{background:C.greenPale,border:`1px solid ${C.green}30`,borderRadius:8,padding:"6px 12px",marginBottom:8,fontSize:12,color:C.green,display:"flex",alignItems:"center",gap:8}}>
+              ✅ {fileName}
+              <button onClick={()=>{setFileName("");setResumeText("");}} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:11,marginLeft:"auto",fontWeight:700}}>✕</button>
+            </div>
+          )}
+          <textarea style={{...inp,minHeight:fileName?232:280,resize:"vertical",fontSize:12.5,lineHeight:1.7,fontFamily:"'JetBrains Mono',monospace"}}
+            placeholder="Or paste your resume text here…"
+            value={resumeText} onChange={e=>setResumeText(e.target.value)}/>
+          <div style={{color:C.muted,fontSize:11,marginTop:6}}>{resumeText.trim().split(/\s+/).filter(Boolean).length} words</div>
+        </div>
+      </div>
+
+      <Btn v="violet" onClick={analyze} disabled={!jd.trim()||!resumeText.trim()} style={{width:"100%",padding:"15px",fontSize:15,borderRadius:12}}>
+        🔍 Run ATS Check →
+      </Btn>
+    </div>
+  );
+
+  if(step==="analyzing")return(
+    <div style={{textAlign:"center",padding:"80px 20px"}}>
+      <div style={{fontSize:52,marginBottom:16,animation:"float 2s ease-in-out infinite"}}>🔍</div>
+      <div style={{fontWeight:800,fontSize:20,color:C.ink,marginBottom:8,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Scanning your resume…</div>
+      <div style={{color:C.soft,fontSize:14,maxWidth:340,margin:"0 auto 24px",lineHeight:1.7}}>Checking keywords, projects, skills, and certifications against the job description.</div>
+      <Spin size={36}/>
+    </div>
+  );
+
+  if(step==="report"&&report)return(
+    <div className="fade">
+      {/* SCORE HEADER */}
+      <div style={{background:`linear-gradient(160deg,${C.bgCard},${C.bgSurf})`,border:`1px solid ${C.border}`,borderRadius:20,padding:"28px 22px",marginBottom:16,position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:-60,right:-60,width:240,height:240,borderRadius:"50%",background:`radial-gradient(circle,${C.violet}10,transparent 70%)`,pointerEvents:"none"}}/>
+        <div style={{textAlign:"center",marginBottom:16}}>
+          <div style={{fontSize:10,color:C.muted,marginBottom:6,letterSpacing:1.5,textTransform:"uppercase",fontWeight:700}}>ATS Match Score</div>
+          <div className="mono" style={{fontSize:60,fontWeight:700,lineHeight:1,color:sc(report.overallScore),textShadow:`0 0 30px ${sc(report.overallScore)}50`}}>{report.overallScore}</div>
+          <div style={{fontSize:13,color:C.muted,marginBottom:10}}>/ 100</div>
+          <span style={{background:`${sc(report.overallScore)}15`,color:sc(report.overallScore),padding:"6px 20px",borderRadius:20,fontWeight:800,fontSize:13,border:`1px solid ${sc(report.overallScore)}30`}}>{report.verdict}</span>
+        </div>
+        {report.recruiterImpression&&(
+          <div style={{background:C.violetPale,border:`1px solid ${C.violet}20`,borderRadius:10,padding:"12px 16px",fontSize:13,color:C.violetD,lineHeight:1.7}}>
+            <span style={{fontWeight:800,fontSize:9,letterSpacing:1,textTransform:"uppercase",display:"block",marginBottom:4}}>👀 Recruiter's first look</span>
+            {report.recruiterImpression}
+          </div>
+        )}
+      </div>
+
+      {/* SECTION CHECKS */}
+      {report.sectionChecks&&(
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,marginBottom:16,boxShadow:C.shCard}}>
+          <div style={{fontWeight:800,color:C.ink,fontSize:14.5,marginBottom:14}}>📂 Section-by-section check</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:10}}>
+            {Object.entries(report.sectionChecks).map(([key,val])=>(
+              <div key={key} style={{border:`1.5px solid ${statusColor(val.status)}30`,background:`${statusColor(val.status)}08`,borderRadius:12,padding:12}}>
+                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+                  <span style={{width:18,height:18,borderRadius:"50%",background:statusColor(val.status),color:"#fff",fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{statusIcon(val.status)}</span>
+                  <span style={{fontWeight:800,fontSize:12.5,color:C.ink,textTransform:"capitalize"}}>{key}</span>
+                </div>
+                <div style={{fontSize:11.5,color:C.soft,lineHeight:1.6}}>{val.note}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* MATCHED / MISSING KEYWORDS */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+        {report.matchedKeywords?.length>0&&(
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,boxShadow:C.shCard}}>
+            <div style={{fontWeight:800,color:C.green,fontSize:13.5,marginBottom:10}}>✓ Matched keywords ({report.matchedKeywords.length})</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {report.matchedKeywords.map((k,i)=><Tag key={i} color={C.green} size={11}>{k}</Tag>)}
+            </div>
+          </div>
+        )}
+        {report.missingKeywords?.length>0&&(
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,boxShadow:C.shCard}}>
+            <div style={{fontWeight:800,color:C.red,fontSize:13.5,marginBottom:10}}>✕ Missing keywords ({report.missingKeywords.length})</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {report.missingKeywords.map((k,i)=><Tag key={i} color={C.red} size={11}>{k}</Tag>)}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* STRONG / WEAK */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+        {report.strongPoints?.length>0&&(
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,boxShadow:C.shCard}}>
+            <div style={{fontWeight:800,color:C.ink,fontSize:13.5,marginBottom:10}}>💪 Strong</div>
+            {report.strongPoints.map((s,i)=>(
+              <div key={i} style={{background:C.greenPale,borderRadius:8,padding:"9px 12px",marginBottom:7,fontSize:12.5,color:C.ink2,border:`1px solid ${C.green}20`,display:"flex",gap:8}}><span style={{color:C.green,flexShrink:0}}>✓</span><span>{s}</span></div>
+            ))}
+          </div>
+        )}
+        {report.weakPoints?.length>0&&(
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,boxShadow:C.shCard}}>
+            <div style={{fontWeight:800,color:C.ink,fontSize:13.5,marginBottom:10}}>⚠️ Weak</div>
+            {report.weakPoints.map((s,i)=>(
+              <div key={i} style={{background:C.redPale,borderRadius:8,padding:"9px 12px",marginBottom:7,fontSize:12.5,color:C.ink2,border:`1px solid ${C.red}20`,display:"flex",gap:8}}><span style={{color:C.red,flexShrink:0}}>✕</span><span>{s}</span></div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* LINE BY LINE CHECK */}
+      {report.lineChecks?.length>0&&(
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,marginBottom:16,boxShadow:C.shCard}}>
+          <div style={{fontWeight:800,color:C.ink,fontSize:14.5,marginBottom:14}}>🔍 Line-by-line JD match</div>
+          {report.lineChecks.map((lc,i)=>(
+            <div key={i} style={{border:`1px solid ${statusColor(lc.status)}25`,borderRadius:10,padding:"11px 13px",marginBottom:8,background:`${statusColor(lc.status)}06`}}>
+              <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+                <span style={{width:20,height:20,borderRadius:"50%",background:statusColor(lc.status),color:"#fff",fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}>{statusIcon(lc.status)}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:12.5,fontWeight:700,color:C.ink,marginBottom:3}}>{lc.jdRequirement}</div>
+                  <div style={{fontSize:11.5,color:C.soft}}>{lc.resumeEvidence}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* PROJECT MATCH NOTES */}
+      {report.projectMatchNotes&&(
+        <div style={{background:C.goldPale,border:`1px solid ${C.gold}25`,borderRadius:14,padding:16,marginBottom:16}}>
+          <div style={{fontWeight:800,color:C.gold,fontSize:13,marginBottom:6}}>🧩 Project relevance</div>
+          <div style={{fontSize:12.5,color:C.ink2,lineHeight:1.7}}>{report.projectMatchNotes}</div>
+        </div>
+      )}
+
+      {/* KEYWORDS TO ADD */}
+      {report.keywordsToAdd?.length>0&&(
+        <div style={{background:C.violetPale,border:`1px solid ${C.violet}25`,borderRadius:14,padding:16,marginBottom:16}}>
+          <div style={{fontWeight:800,color:C.violetD,fontSize:13,marginBottom:8}}>➕ Add these keywords to your resume</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {report.keywordsToAdd.map((k,i)=><Tag key={i} color={C.violet} size={11}>{k}</Tag>)}
+          </div>
+        </div>
+      )}
+
+      {/* NEXT STEPS */}
+      {report.nextSteps?.length>0&&(
+        <div style={{background:C.tealPale,border:`1px solid ${C.teal}20`,borderRadius:14,padding:18,marginBottom:16}}>
+          <div style={{fontWeight:700,color:C.teal,fontSize:14,marginBottom:12}}>🚀 Next steps to improve your score</div>
+          {report.nextSteps.map((s,i)=>(
+            <div key={i} style={{display:"flex",gap:9,alignItems:"flex-start",marginBottom:8,fontSize:13,color:C.ink2}}><span style={{color:C.teal,fontWeight:800,flexShrink:0}}>{i+1}.</span>{s}</div>
+          ))}
+        </div>
+      )}
+
+      <div style={{display:"flex",gap:10,marginBottom:16}}>
+        <Btn v="violet" onClick={()=>{setStep("setup");setReport(null);}} style={{flex:1,padding:"13px"}}>🔁 Check another JD</Btn>
+        <Btn v="ghost" onClick={()=>{setStep("setup");setReport(null);setJd("");setResumeText("");setFileName("");}} style={{flex:1,padding:"13px"}}>🗑️ Start over</Btn>
+      </div>
+    </div>
+  );
+
+  return null;
+}
+
 
 // ── LANDING PAGE ──────────────────────────────────────────────────────────────
 // ════════════════════════════════════════════════════════════════════════════
@@ -3242,7 +3207,7 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
 
   const setTabP=(t)=>{setTab(t);sessionStorage.setItem("tp_tab",t);};
 
-  const TABS=[{icon:"🏠",label:"Home",id:0},{icon:"🔥",label:"Jobs",id:1},{icon:"🎯",label:"Resume Interview",id:2},{icon:"🏢",label:"Interview Prep",id:3},{icon:"🎤",label:"Quick Mock",id:4}];
+  const TABS=[{icon:"🏠",label:"Home",id:0},{icon:"🔥",label:"Jobs",id:1},{icon:"🎯",label:"Resume Interview",id:2},{icon:"🏢",label:"Interview Prep",id:3},{icon:"📋",label:"ATS Check",id:4}];
   useEffect(()=>{fetchUserStats(user?.id).then(s=>setStats(s));},[user]);
   useEffect(()=>{loadRazorpayScript();},[]);
 
@@ -3304,7 +3269,7 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
         {tab===1&&<JobsTab onPracticeForJob={handlePracticeForJob}/>}
         {tab===2&&<ResumeInterviewTab user={user} onInterviewComplete={refreshStats} prefillCompany={prefillCompany} prefillRole={prefillRole}/>}
         {tab===3&&<CompanyPrepTab user={user} onPracticeForCompany={handlePracticeForJob}/>}
-        {tab===4&&<QuickMockTab user={user} onInterviewComplete={refreshStats}/>}
+       {tab===4&&<ATSCheckTab/>}
       </div>
 
      <div className="bn" style={{position:"fixed",bottom:0,left:0,right:0,background:"rgba(8,12,20,.96)",backdropFilter:"blur(24px)",borderTop:`1px solid ${C.border}`,display:"flex",zIndex:200,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
