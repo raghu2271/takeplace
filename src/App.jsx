@@ -962,6 +962,41 @@ Return ONLY this JSON (no markdown):
  
   return null;
 }
+// ── TECH TERM CORRECTION ──────────────────────────────────────────────────────
+// Web Speech API frequently mishears technical vocabulary (e.g. "rest api" -> "rast
+// practice"). This runs a post-pass correction over common tech terms so
+// transcripts read correctly without needing a paid speech API.
+const TECH_CORRECTIONS = [
+  [/\brast\s*(api|practice)?\b/gi, "REST API"],
+  [/\brest\s*api\b/gi, "REST API"],
+  [/\bjava\s*script\b/gi, "JavaScript"],
+  [/\btype\s*script\b/gi, "TypeScript"],
+  [/\bnode\s*(js|dot\s*js)\b/gi, "Node.js"],
+  [/\breact\s*(js|dot\s*js)\b/gi, "React.js"],
+  [/\bmy\s*sequel\b/gi, "MySQL"],
+  [/\bpost\s*gre?y?\s*sequel\b/gi, "PostgreSQL"],
+  [/\bmongo\s*db\b/gi, "MongoDB"],
+  [/\bsequel\b/gi, "SQL"],
+  [/\bget\s*hub\b/gi, "GitHub"],
+  [/\bdock\s*er\b/gi, "Docker"],
+  [/\bcuber\s*net\s*ease\b/gi, "Kubernetes"],
+  [/\bo\s*auth\b/gi, "OAuth"],
+  [/\bdot\s*net\b/gi, ".NET"],
+  [/\bc\s*plus\s*plus\b/gi, "C++"],
+  [/\bc\s*sharp\b/gi, "C#"],
+  [/\bhtml\s*5\b/gi, "HTML5"],
+  [/\bcss\s*3\b/gi, "CSS3"],
+  [/\bci\s*cd\b/gi, "CI/CD"],
+  [/\bui\s*ux\b/gi, "UI/UX"],
+  [/\ba\s*p\s*i\b/gi, "API"],
+];
+function correctSpeechText(text){
+  if(!text)return text;
+  let out=text;
+  TECH_CORRECTIONS.forEach(([pattern,replacement])=>{ out=out.replace(pattern,replacement); });
+  return out;
+}
+
 // ── SPEECH ENGINE HOOK ────────────────────────────────────────────────────────
 // FIX: All speech bugs consolidated into one reusable hook so both
 // ResumeInterviewTab and QuickMockTab use identical, correct behaviour.
@@ -1067,9 +1102,9 @@ function useSpeechEngine({phaseRef, onTimerEnd, QTIME=90}){
         if(e.results[i].isFinal)finalChunksRef.current.push(t);
         else interim+=t;
       }
-      const full=finalChunksRef.current.join(" ").replace(/\s+/g," ").trim();
+      const full=correctSpeechText(finalChunksRef.current.join(" ").replace(/\s+/g," ").trim());
       finalRef.current=full;
-      setLiveText(full); setInterimText(interim.trim());
+      setLiveText(full); setInterimText(correctSpeechText(interim.trim()));
     };
     rec.onerror=(e)=>{
       // "no-speech" is not a real error — just silence, keep going
@@ -2390,9 +2425,16 @@ function JobsTab({onPracticeForJob}){
   const[expanded,setExpanded]=useState(null);
   const[saved,setSaved]=useState([]);
   const quickRoles=["Fresher","React","Node.js","Python","Java","Data Analyst","Full Stack","DevOps","AI ML","UI UX"];
- 
+
+  // ── Resume matching state ──
+  const[resumeFileName,setResumeFileName]=useState("");
+  const[resumeSkills,setResumeSkills]=useState([]);
+  const[matchingResume,setMatchingResume]=useState(false);
+  const[matchErr,setMatchErr]=useState("");
+  const resumeFileRef=useRef();
+
   useEffect(()=>{fetchJobs();},[]);// eslint-disable-line
- 
+
   const fetchJobs=async(q=search,loc=location)=>{
     setLoading(true);sessionStorage.setItem("tp_s",q);sessionStorage.setItem("tp_l",loc);
     try{
@@ -2411,19 +2453,19 @@ function JobsTab({onPracticeForJob}){
     }catch(e){console.error(e);}
     setLoading(false);
   };
- 
+
   const getFreshness=(date)=>{
     const hours=Math.floor((new Date()-date)/3600000);
     if(hours<24)return{label:"New",color:C.green};
     if(hours<72)return{label:"Recent",color:C.teal};
     return null;
   };
- 
+
   const buildShareUrl=(job)=>{
     const params=new URLSearchParams({cmp:job.company||"",role:job.title||"",jurl:job.url||"",jid:String(job.id||"")});
     return`${window.location.origin}${window.location.pathname}?${params.toString()}`;
   };
- 
+
   const shareJob=async(job)=>{
     const url=buildShareUrl(job);
     const text=`${job.title} at ${job.company} — practice the interview + apply on TakePlace`;
@@ -2432,11 +2474,90 @@ function JobsTab({onPracticeForJob}){
       else{await navigator.clipboard.writeText(url);alert("🔗 Link copied!");}
     }catch{}
   };
- 
+
+  // ── Resume → skills extraction (one AI call, not per-job) ──
+  const extractResumeSkills=async(text)=>{
+    const raw=await callGroq(
+      `Extract the candidate's core hire-relevant skills, tools, and role keywords from this resume as a flat JSON list.
+Resume:
+---
+${text.slice(0,3000)}
+---
+Return ONLY: {"skills":["skill1","skill2","..."]}
+Give 12-20 specific, searchable keywords (e.g. "react","node.js","sql","data analysis","python","customer service","project management"). No vague words like "hardworking" or "team player".`,600);
+    const data=safeJSON(raw,null);
+    return data?.skills?.length?data.skills:[];
+  };
+
+  const handleResumeFile=async(e)=>{
+    const f=e.target.files[0];if(!f)return;
+    setResumeFileName(f.name);setMatchErr("");setMatchingResume(true);setResumeSkills([]);
+    try{
+      let text="";
+      if(f.name.endsWith(".pdf"))text=await extractPDF(f);
+      else if(f.name.endsWith(".docx"))text=await extractDOCX(f);
+      else{text=await new Promise((res,rej)=>{const r=new FileReader();r.onload=ev=>res(ev.target.result);r.onerror=rej;r.readAsText(f);});}
+      const skills=await extractResumeSkills(text);
+      if(!skills.length)throw new Error("no skills detected");
+      setResumeSkills(skills);
+    }catch(e2){
+      console.error(e2);
+      setMatchErr("⚠ Could not analyze that resume — try a different file.");
+      setResumeFileName("");
+    }
+    setMatchingResume(false);
+  };
+
+  const clearResumeMatch=()=>{setResumeFileName("");setResumeSkills([]);setMatchErr("");};
+
+  // Client-side keyword match — instant, no per-job API call needed
+  const computeMatch=(job)=>{
+    if(!resumeSkills.length)return null;
+    const hay=`${job.title} ${job.description}`.toLowerCase();
+    const matched=resumeSkills.filter(s=>hay.includes(s.toLowerCase()));
+    const score=Math.round((matched.length/resumeSkills.length)*100);
+    return{score,matched};
+  };
+
+  const displayJobs = resumeSkills.length
+    ? [...jobs].map(j=>({...j,_match:computeMatch(j)})).sort((a,b)=>(b._match?.score||0)-(a._match?.score||0))
+    : jobs;
+
+  const matchColor=(score)=> score>=60?C.green : score>=30?C.gold : C.muted;
+
   return(
     <div>
       <div style={{fontWeight:900,fontSize:23,color:C.ink,marginBottom:5,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🔥 Live Job Feed</div>
       <div style={{color:C.soft,fontSize:14,marginBottom:18,lineHeight:1.7,fontWeight:500}}>Real fresher openings across India · Updated daily · 1-tap interview practice</div>
+
+      {/* ── RESUME MATCH CARD ── */}
+      <div style={{background:`linear-gradient(135deg,${C.violet}10,${C.teal}08)`,border:`1.5px solid ${C.violet}30`,borderRadius:14,padding:18,marginBottom:16,boxShadow:C.shCard}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          <div>
+            <div style={{fontWeight:800,fontSize:14.5,color:C.ink}}>🎯 Match jobs to your resume</div>
+            <div style={{color:C.soft,fontSize:12.5,marginTop:2,fontWeight:500}}>
+              {resumeSkills.length ? `${resumeSkills.length} skills detected — jobs below are sorted by match` : "Upload your resume to see which openings actually fit you"}
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            {resumeFileName&&!matchingResume&&(
+              <button onClick={clearResumeMatch} style={{padding:"8px 14px",borderRadius:8,border:`1.5px solid ${C.border}`,background:C.white,color:C.ink2,fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:700}}>✕ Clear</button>
+            )}
+            <button onClick={()=>resumeFileRef.current.click()} disabled={matchingResume}
+              style={{padding:"9px 18px",borderRadius:10,border:"none",cursor:matchingResume?"wait":"pointer",background:`linear-gradient(135deg,${C.violetD},${C.violet})`,color:"#fff",fontSize:12.5,fontWeight:800,fontFamily:"'Inter',sans-serif",boxShadow:C.shVioletGlow,display:"flex",alignItems:"center",gap:6}}>
+              {matchingResume?<><Spin size={13} color="#fff"/> Analyzing…</>:resumeFileName?"📎 Change resume":"📎 Upload resume"}
+            </button>
+            <input ref={resumeFileRef} type="file" accept=".pdf,.docx,.txt" onChange={handleResumeFile} style={{display:"none"}}/>
+          </div>
+        </div>
+        {resumeFileName&&!matchingResume&&resumeSkills.length>0&&(
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:12}}>
+            {resumeSkills.slice(0,10).map((s,i)=><Tag key={i} color={C.violet} size={11}>{s}</Tag>)}
+          </div>
+        )}
+        {matchErr&&<div style={{color:C.red,fontSize:12,marginTop:10,fontWeight:600}}>{matchErr}</div>}
+      </div>
+
       <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:16,boxShadow:C.shCard}}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
           <div>
@@ -2453,40 +2574,64 @@ function JobsTab({onPracticeForJob}){
         </div>
         <Btn v="violet" onClick={()=>fetchJobs()} style={{width:"100%"}}>🔍 Search Jobs</Btn>
       </div>
+
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <div style={{fontWeight:800,fontSize:16,color:C.ink}}>Results</div>
-        {!loading&&jobs.length>0&&<div style={{display:"flex",alignItems:"center",gap:6,background:C.greenPale,borderRadius:20,padding:"4px 12px",border:`1px solid ${C.green}28`}}>
-          <div style={{width:5,height:5,borderRadius:"50%",background:C.green,animation:"pulse 1.5s infinite"}}/>
-          <span style={{color:C.green,fontSize:11.5,fontWeight:800}}>{jobs.length} live openings</span>
-        </div>}
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {resumeSkills.length>0&&<Tag color={C.violet} size={11}>Sorted by match</Tag>}
+          {!loading&&jobs.length>0&&<div style={{display:"flex",alignItems:"center",gap:6,background:C.greenPale,borderRadius:20,padding:"4px 12px",border:`1px solid ${C.green}28`}}>
+            <div style={{width:5,height:5,borderRadius:"50%",background:C.green,animation:"pulse 1.5s infinite"}}/>
+            <span style={{color:C.green,fontSize:11.5,fontWeight:800}}>{jobs.length} live openings</span>
+          </div>}
+        </div>
       </div>
+
       {loading&&<div style={{textAlign:"center",padding:"60px 0"}}><Spin size={34}/></div>}
-      {!loading&&jobs.map((job)=>{
+
+      {!loading&&displayJobs.map((job)=>{
         const isExp=expanded===job.id,isSaved=saved.includes(job.id);
         const freshness=getFreshness(job.postedRaw);
+        const match=job._match;
+        const isTopMatch=match&&match.score>=60;
         return(
-          <div key={job.id} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:16,marginBottom:9,borderLeft:`3px solid ${C.violet}50`,boxShadow:C.shCard,transition:"border-color .2s,box-shadow .2s"}}
-            onMouseEnter={e=>{e.currentTarget.style.borderColor=C.violet+"80";e.currentTarget.style.boxShadow=C.shHover;}}
-            onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.boxShadow=C.shCard;}}>
+          <div key={job.id} style={{background:C.bgCard,border:isTopMatch?`1.5px solid ${C.green}60`:`1px solid ${C.border}`,borderRadius:14,padding:16,marginBottom:9,borderLeft:`3px solid ${match?matchColor(match.score):C.violet+"50"}`,boxShadow:isTopMatch?`0 4px 20px ${C.green}18`:C.shCard,transition:"border-color .2s,box-shadow .2s"}}
+            onMouseEnter={e=>{e.currentTarget.style.boxShadow=C.shHover;}}
+            onMouseLeave={e=>{e.currentTarget.style.boxShadow=isTopMatch?`0 4px 20px ${C.green}18`:C.shCard;}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,gap:8}}>
               <div style={{flex:1}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3,flexWrap:"wrap"}}>
                   <div style={{fontWeight:800,fontSize:15,color:C.ink}}>{job.title}</div>
                   {freshness&&<Tag color={freshness.color} size={10}>{freshness.label}</Tag>}
+                  {isTopMatch&&<Tag color={C.green} size={10}>★ Best match</Tag>}
                 </div>
                 <div style={{color:C.soft,fontSize:12.5,fontWeight:600}}>{job.company} · {job.location}</div>
               </div>
               <div style={{textAlign:"right",flexShrink:0}}>
-                <div style={{color:C.green,fontWeight:800,fontSize:13.5,fontFamily:"JetBrains Mono,monospace"}}>{job.salary}</div>
+                {match?(
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
+                    <div style={{color:matchColor(match.score),fontWeight:800,fontSize:16,fontFamily:"JetBrains Mono,monospace"}}>{match.score}%</div>
+                    <div style={{color:C.muted,fontSize:9.5,fontWeight:700,textTransform:"uppercase",letterSpacing:.4}}>match</div>
+                  </div>
+                ):(
+                  <div style={{color:C.green,fontWeight:800,fontSize:13.5,fontFamily:"JetBrains Mono,monospace"}}>{job.salary}</div>
+                )}
                 <div style={{color:C.muted,fontSize:11,marginTop:1,fontWeight:600}}>{job.posted}</div>
               </div>
             </div>
+            {match&&match.matched.length>0&&(
+              <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+                {match.matched.slice(0,6).map((s,i)=><Tag key={i} color={matchColor(match.score)} size={10}>✓ {s}</Tag>)}
+              </div>
+            )}
             <div style={{color:C.ink2,fontSize:13,lineHeight:1.7,marginBottom:12,background:C.bgSubtle,borderRadius:8,padding:"9px 11px",fontWeight:500}}>
               {isExp?job.description.replace(/<[^>]+>/g,""):job.desc200.replace(/<[^>]+>/g,"")+(job.description.length>200?"…":"")}
               {job.description.length>200&&<button onClick={()=>setExpanded(isExp?null:job.id)} style={{background:"none",border:"none",color:C.violet,fontSize:11.5,cursor:"pointer",marginLeft:5,fontFamily:"'Inter',sans-serif",fontWeight:800}}>{isExp?"Less ▲":"More ▼"}</button>}
             </div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-              <Tag color={C.teal} size={11}>{job.category}</Tag>
+              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                <Tag color={C.teal} size={11}>{job.category}</Tag>
+                {match&&<span style={{color:C.muted,fontSize:11,fontFamily:"JetBrains Mono,monospace"}}>{job.salary}</span>}
+              </div>
               <div style={{display:"flex",gap:7}}>
                 <button onClick={()=>onPracticeForJob&&onPracticeForJob(job.company,job.title)} style={{padding:"7px 13px",borderRadius:8,border:`1.5px solid ${C.violet}40`,background:C.violetPale,color:C.violetD,fontSize:11.5,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:800,display:"flex",alignItems:"center",gap:4}}>🎙 Practice</button>
                 <button onClick={()=>shareJob(job)} title="Share" style={{padding:"7px 12px",borderRadius:8,border:`1.5px solid ${C.border}`,background:C.white,cursor:"pointer",fontSize:13,color:C.ink2,fontFamily:"'Inter',sans-serif"}}>📤</button>
@@ -2501,7 +2646,6 @@ function JobsTab({onPracticeForJob}){
     </div>
   );
 }
- 
 
 // ── LANDING PAGE ──────────────────────────────────────────────────────────────
 // ════════════════════════════════════════════════════════════════════════════
