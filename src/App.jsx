@@ -2561,10 +2561,11 @@ ${resumeText.slice(0,3500)}
 MISSING KEYWORDS FLAGGED BY ATS: ${missing.join(", ")}
 
 STRICT RULES:
+STRICT RULES:
 1. NEVER add a skill/tool/technology the candidate did not already mention or that isn't a direct, honest extension of their real projects. If a missing keyword has zero evidence in the resume, DROP it — do not add it anywhere.
 2. Only reword/strengthen EXISTING bullets — no invented claims, employers, or metrics.
-3. Preserve the exact same sections as the original resume (Summary, Technical Skills, Experience, Projects, Education, Achievements — use only sections that exist in the original).
-4. Must compress to fit ONE page — trim bullets to be tight and impactful, don't bloat.
+3. Preserve the exact same sections AND the same amount of detail as the original resume (Summary, Technical Skills, Experience, Projects, Education, Achievements — use only sections that exist in the original). Do not drop bullets, projects, or skill categories that exist in the original just to save space.
+4. Aim to fit on one page through tighter wording, not by deleting real accomplishments. If the honest content genuinely doesn't fit on one page, it's fine to run slightly long rather than cut real experience or projects.
 5. If genuinely nothing can be honestly added, just tighten wording.
 
 Return ONLY this JSON, no markdown, no commentary:
@@ -2578,7 +2579,7 @@ Return ONLY this JSON, no markdown, no commentary:
   "education": [{"school":"<school>","degree":"<degree>","dates":"<dates>","location":"<city>"}],
   "achievements": ["<bullet>","..."]
 }`,
-      3500,
+      4500,
       "You are an expert resume writer. You never fabricate candidate skills or experience. Output valid JSON only, matching the schema exactly."
     );
     const data=safeJSON(raw,null);
@@ -2790,7 +2791,7 @@ Return ONLY this JSON, no markdown, no commentary:
       {rewrittenData&&(
   <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,marginBottom:16,boxShadow:C.shCard}}>
     <div style={{fontWeight:800,fontSize:14.5,color:C.ink,marginBottom:10}}>📄 Rewritten resume — matches your original format</div>
-    <div style={{border:`1px solid ${C.border}`,borderRadius:10,padding:20,background:"#fff",maxHeight:420,overflow:"auto"}}
+    <div style={{border:`1px solid ${C.border}`,borderRadius:10,padding:20,background:"#fff",maxHeight:700,overflow:"auto"}}
       dangerouslySetInnerHTML={{__html:buildResumeHTML(rewrittenData)}}/>
     <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}>
       <Btn v="violet" small onClick={()=>downloadResumeAsDoc(rewrittenData,"resume-optimized.doc")}>⬇ Download .doc</Btn>
