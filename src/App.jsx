@@ -2350,6 +2350,41 @@ Give 12-20 specific, searchable keywords (e.g. "react","node.js","sql","java","s
     </div>
   );
 }
+// ── RESUME DOWNLOAD HELPERS ────────────────────────────────────────────────
+function downloadTextAsTxt(text, filename){
+  const blob=new Blob([text],{type:"text/plain;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=filename;a.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadTextAsDoc(text, filename){
+  const esc=text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const html=`<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+  <head><meta charset='utf-8'><title>Resume</title></head>
+  <body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;">${esc.split("\n").map(l=>`<p style="margin:0 0 6pt 0;">${l||"&nbsp;"}</p>`).join("")}</body></html>`;
+  const blob=new Blob(['\ufeff', html],{type:"application/msword"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=filename;a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function downloadTextAsPDF(text, filename){
+  if(!window.jspdf){
+    await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+  }
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:"pt",format:"a4"});
+  const marginX=48,marginY=56,maxWidth=500,lineHeight=14;
+  doc.setFont("Helvetica","normal");doc.setFontSize(10.5);
+  const lines=doc.splitTextToSize(text,maxWidth);
+  let y=marginY;
+  lines.forEach(line=>{
+    if(y>790){doc.addPage();y=marginY;}
+    doc.text(line,marginX,y);y+=lineHeight;
+  });
+  doc.save(filename);
+}
 // ── ATS RESUME CHECKER ────────────────────────────────────────────────────────
 function ATSCheckTab(){
   const[step,setStep]=useState("setup");
@@ -2359,6 +2394,11 @@ function ATSCheckTab(){
   const[report,setReport]=useState(null);
   const[err,setErr]=useState("");
   const fileRef=useRef();
+  const[rewrittenResume,setRewrittenResume]=useState("");
+  const[rewriting,setRewriting]=useState(false);
+  const[rewriteReport,setRewriteReport]=useState(null);
+  const[rewriteErr,setRewriteErr]=useState("");
+  const[reanalyzing,setReanalyzing]=useState(false);
 
   const handleFile=async(e)=>{
     const f=e.target.files[0];if(!f)return;
@@ -2372,12 +2412,9 @@ function ATSCheckTab(){
     }catch(e2){setErr("Could not read file: "+e2.message);}
   };
 
-  const analyze=async()=>{
-    if(!jd.trim()||!resumeText.trim())return;
-    setStep("analyzing");setErr("");
-    try{
-      const raw=await callGroq(
-        `You are an expert ATS (Applicant Tracking System) resume screener and senior technical recruiter, exactly like Jobscan. Compare this resume against this job description with the strictness and precision of a real ATS parser plus a human recruiter's judgment.
+  const runAnalysis=async(resumeInput)=>{
+  const raw=await callGroq(
+    `You are an expert ATS (Applicant Tracking System) resume screener and senior technical recruiter, exactly like Jobscan. Compare this resume against this job description with the strictness and precision of a real ATS parser plus a human recruiter's judgment.
 
 JOB DESCRIPTION:
 ---
@@ -2386,7 +2423,7 @@ ${jd.slice(0,4000)}
 
 RESUME:
 ---
-${resumeText.slice(0,4000)}
+${resumeInput.slice(0,4000)}
 ---
 
 Do a thorough line-by-line comparison. Extract every hard skill, tool, technology, certification, and qualification keyword from the JD. Check each one against the resume — exact match, close synonym, or missing entirely. Evaluate the resume's projects, skills section, and certifications specifically against what the JD demands. Be honest and strict — do not inflate the score if there are real gaps.
@@ -2395,36 +2432,91 @@ Return ONLY this JSON, no markdown:
 {
   "overallScore": <0-100 integer, ATS + recruiter combined score>,
   "verdict": "<Strong Match|Good Match|Moderate Match|Weak Match>",
-  "recruiterImpression": "<3-4 sentence honest first-impression summary, written like a recruiter scanning this resume for 6 seconds>",
-  "matchedKeywords": ["<exact keyword found in both JD and resume>", "..."],
-  "missingKeywords": ["<important JD keyword NOT found in resume>", "..."],
-  "strongPoints": ["<specific strength, e.g. 'Your React and Node.js experience directly matches the core stack required'>", "..."],
-  "weakPoints": ["<specific gap, e.g. 'No mention of Kubernetes despite it being a must-have in the JD'>", "..."],
+  "recruiterImpression": "<3-4 sentence honest first-impression summary>",
+  "matchedKeywords": ["...","..."],
+  "missingKeywords": ["...","..."],
+  "strongPoints": ["...","..."],
+  "weakPoints": ["...","..."],
   "sectionChecks": {
-    "skills": {"status":"<strong|weak|missing>","note":"<1-2 sentence assessment of how well the skills section covers JD requirements>"},
-    "projects": {"status":"<strong|weak|missing>","note":"<1-2 sentence assessment of whether projects demonstrate JD-relevant work>"},
-    "certifications": {"status":"<strong|weak|missing>","note":"<1-2 sentence assessment, or state if JD requires certs the resume lacks>"},
-    "experience": {"status":"<strong|weak|missing>","note":"<1-2 sentence assessment of experience relevance and seniority match>"},
-    "formatting": {"status":"<strong|weak|missing>","note":"<1-2 sentence note on ATS-parseability — standard headers, no tables/columns issues, etc, based on resume text structure>"}
+    "skills": {"status":"<strong|weak|missing>","note":"..."},
+    "projects": {"status":"<strong|weak|missing>","note":"..."},
+    "certifications": {"status":"<strong|weak|missing>","note":"..."},
+    "experience": {"status":"<strong|weak|missing>","note":"..."},
+    "formatting": {"status":"<strong|weak|missing>","note":"..."}
   },
-  "lineChecks": [
-    {"jdRequirement":"<specific requirement/line from the JD>","resumeEvidence":"<what the resume says, or 'Not found in resume'>","status":"<match|partial|missing>"},
-    ...cover the 8-12 most important JD requirements
-  ],
-  "keywordsToAdd": ["<specific keyword/phrase to add to resume, prioritized by importance>", "..."],
-  "projectMatchNotes": "<2-3 sentences: do the listed projects align with what this JD wants? Call out specifically if a project's tech stack doesn't match, using 'not match' language where relevant>",
-  "nextSteps": ["<specific actionable step to improve ATS score>", "..."]
+  "lineChecks": [{"jdRequirement":"...","resumeEvidence":"...","status":"<match|partial|missing>"}],
+  "keywordsToAdd": ["...","..."],
+  "projectMatchNotes": "...",
+  "nextSteps": ["...","..."]
 }`,3200);
-      const data=safeJSON(raw,null);
-      if(!data?.overallScore&&data?.overallScore!==0)throw new Error("bad report");
-      setReport(data);
-      setStep("report");
-    }catch(e){
-      console.error(e);
-      setErr("⚠ Could not analyze. Check /api/ai and try again.");
-      setStep("setup");
-    }
-  };
+  const data=safeJSON(raw,null);
+  if(!data?.overallScore&&data?.overallScore!==0)throw new Error("bad report");
+  return data;
+};
+
+const analyze=async()=>{
+  if(!jd.trim()||!resumeText.trim())return;
+  setStep("analyzing");setErr("");
+  try{
+    const data=await runAnalysis(resumeText);
+    setReport(data);
+    setStep("report");
+  }catch(e){
+    console.error(e);
+    setErr("⚠ Could not analyze. Check /api/ai and try again.");
+    setStep("setup");
+  }
+};
+  const reAnalyze=async(resumeInput)=>{
+    setReanalyzing(true);setRewriteErr("");
+  try{
+    const data=await runAnalysis(resumeInput);
+    setRewriteReport(data);
+  }catch(e){
+    setRewriteErr("⚠ Re-scoring failed — try 'Re-check score' again.");
+  }
+  setReanalyzing(false);
+};
+
+const rewriteResume=async()=>{
+  if(!report)return;
+  setRewriting(true);setRewriteErr("");
+  try{
+    const missing=[...new Set([...(report.missingKeywords||[]),...(report.keywordsToAdd||[])])];
+    const raw=await callGroq(
+      `You are an expert resume writer optimizing a resume for a specific job description to maximize ATS match score.
+
+JOB DESCRIPTION:
+---
+${jd.slice(0,3500)}
+---
+
+CURRENT RESUME:
+---
+${resumeText.slice(0,3500)}
+---
+
+MISSING KEYWORDS THE ATS FLAGGED (target score 90+): ${missing.join(", ")}
+
+TASK: Rewrite the FULL resume, keeping the candidate's real experience, projects, and structure intact, but:
+- Naturally weave in the missing keywords ONLY where they plausibly fit the candidate's actual skills, tools, or projects — do not invent new jobs, companies, degrees, or years of experience
+- Strengthen weak bullet points with clearer, quantifiable impact where the original already implies it
+- Add a short "Additional Skills" line near the skills section listing remaining relevant missing keywords, so the candidate can review and keep only what they genuinely know
+- Keep it ATS-friendly: standard section headers, plain text, no tables
+- Keep roughly the same length and structure as the original
+
+Return ONLY the full rewritten resume text — no commentary, no markdown fences.`,
+      3500,
+      "You are an expert resume writer and ATS optimization specialist. Output plain resume text only."
+    );
+    const cleaned=raw.replace(/```/g,"").trim();
+    setRewrittenResume(cleaned);
+    await reAnalyze(cleaned);
+  }catch(e){
+    setRewriteErr("⚠ Could not rewrite resume. Try again.");
+  }
+  setRewriting(false);
+};
 
   const sc=s=>s>=75?C.green:s>=50?C.gold:C.red;
   const statusColor=st=>st==="strong"||st==="match"?C.green:st==="weak"||st==="partial"?C.gold:C.red;
@@ -2612,6 +2704,52 @@ Return ONLY this JSON, no markdown:
           ))}
         </div>
       )}
+      {/* REWRITE CTA */}
+<div style={{background:`linear-gradient(135deg,${C.violet}12,${C.teal}08)`,border:`1px solid ${C.violet}25`,borderRadius:14,padding:"16px 20px",marginBottom:16}}>
+  <div style={{fontWeight:800,fontSize:14,color:C.ink,marginBottom:4}}>✍️ Fix this automatically</div>
+  <div style={{color:C.soft,fontSize:12.5,marginBottom:12,lineHeight:1.6}}>
+    AI will rewrite your resume, weaving in the missing keywords above and targeting a 90+ ATS score. Review the additions afterward — only keep skills you genuinely have.
+  </div>
+  <Btn v="violet" onClick={rewriteResume} loading={rewriting} small>
+    {rewriting?"Rewriting…":"✍️ Rewrite resume to close these gaps →"}
+  </Btn>
+  {rewriteErr&&<div style={{color:C.red,fontSize:12,marginTop:8}}>{rewriteErr}</div>}
+</div>
+
+{rewrittenResume&&(
+  <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,marginBottom:16,boxShadow:C.shCard}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:8}}>
+      <div style={{fontWeight:800,fontSize:14.5,color:C.ink}}>📄 Rewritten resume</div>
+      {reanalyzing?(
+        <div style={{display:"flex",alignItems:"center",gap:8,color:C.soft,fontSize:12.5}}><Spin size={14}/> Re-scoring…</div>
+      ):rewriteReport?(
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:11,color:C.muted,fontWeight:700}}>New score</span>
+          <span className="mono" style={{fontWeight:900,fontSize:20,color:sc(rewriteReport.overallScore)}}>{rewriteReport.overallScore}</span>
+          <span style={{fontSize:11,color:rewriteReport.overallScore>=report.overallScore?C.green:C.red,fontWeight:700}}>
+            {rewriteReport.overallScore>=report.overallScore?`↑ +${rewriteReport.overallScore-report.overallScore}`:`↓ ${rewriteReport.overallScore-report.overallScore}`}
+          </span>
+        </div>
+      ):null}
+    </div>
+
+    <textarea readOnly value={rewrittenResume}
+      style={{...inp,minHeight:280,resize:"vertical",fontFamily:"'JetBrains Mono',monospace",fontSize:12,lineHeight:1.7}}/>
+
+    <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}>
+      <Btn v="ghost" small onClick={()=>downloadTextAsTxt(rewrittenResume,"resume-optimized.txt")}>⬇ .txt</Btn>
+      <Btn v="ghost" small onClick={()=>downloadTextAsDoc(rewrittenResume,"resume-optimized.doc")}>⬇ .doc</Btn>
+      <Btn v="ghost" small onClick={()=>downloadTextAsPDF(rewrittenResume,"resume-optimized.pdf")}>⬇ .pdf</Btn>
+      <Btn v="outline" small onClick={()=>reAnalyze(rewrittenResume)} loading={reanalyzing}>🔁 Re-check score</Btn>
+    </div>
+
+    {rewriteReport?.missingKeywords?.length>0&&(
+      <div style={{marginTop:12,background:C.goldPale,border:`1px solid ${C.gold}25`,borderRadius:10,padding:"10px 14px",fontSize:12,color:C.gold}}>
+        Still missing: {rewriteReport.missingKeywords.join(", ")}
+      </div>
+    )}
+  </div>
+)}
 
       <div style={{display:"flex",gap:10,marginBottom:16}}>
         <Btn v="violet" onClick={()=>{setStep("setup");setReport(null);}} style={{flex:1,padding:"13px"}}>🔁 Check another JD</Btn>
