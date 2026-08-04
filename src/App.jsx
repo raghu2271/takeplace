@@ -3377,6 +3377,208 @@ function AuthPage({onLogin,onBack,pendingJob}){
     </div>
   );
 }
+// ── AI CHAT WIDGET (ChatGPT-style floating assistant) ─────────────────────────
+// Paste this anywhere below your other component definitions (e.g. right after
+// the Dashboard function, or right before MainApp). Then render it once inside
+// MainApp's return, as a sibling of everything else — see the note at the
+// bottom of this file for the exact one-line change.
+//
+// Uses your existing C design tokens, Btn, Spin, and callGroq — nothing new to
+// import. Chat history lives in component state only (resets on page reload).
+
+function ChatWidget({ user, context }) {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState([
+    { role: "assistant", content: "Hi! I'm your TakePlace AI assistant. Ask me anything about interviews, resumes, or your job search 👋" }
+  ]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [unread, setUnread] = useState(0);
+  const scrollRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (open && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, open, sending]);
+
+  useEffect(() => {
+    if (open) { setUnread(0); setTimeout(() => inputRef.current?.focus(), 250); }
+  }, [open]);
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || sending) return;
+    const nextMessages = [...messages, { role: "user", content: text }];
+    setMessages(nextMessages);
+    setInput("");
+    setSending(true);
+
+    try {
+      // Build a short system prompt so the assistant stays on-topic and knows
+      // who it's talking to. Adjust freely.
+      const sys = `You are the TakePlace AI Assistant — a friendly, sharp career coach embedded inside the TakePlace app (an AI mock-interview and job-prep platform for Indian freshers). Help with: interview prep, resume advice, job search strategy, career questions, and using TakePlace's own features (mock interviews, ATS checker, job feed, company prep). Keep answers concise, practical, and encouraging. Use short paragraphs or bullet points. If asked something totally unrelated to careers/jobs/interviews, answer briefly and steer back.${user?.user_metadata?.full_name ? ` The user's name is ${user.user_metadata.full_name.split(" ")[0]}.` : ""}`;
+
+      // Send last ~10 messages of history for context, formatted as one prompt
+      // since callGroq takes a single user-turn prompt + system message.
+      const history = nextMessages.slice(-10)
+        .map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+        .join("\n");
+
+      const raw = await callGroq(
+        `${history}\nAssistant:`,
+        700,
+        sys
+      );
+      const reply = (raw || "").trim() || "Sorry, I couldn't generate a response — try again.";
+      setMessages(m => [...m, { role: "assistant", content: reply }]);
+      if (!open) setUnread(u => u + 1);
+    } catch (e) {
+      setMessages(m => [...m, { role: "assistant", content: "⚠ I couldn't reach the AI service. Please try again in a moment." }]);
+    }
+    setSending(false);
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  };
+
+  return (
+    <>
+      {/* Floating launcher button */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        aria-label="Open chat assistant"
+        style={{
+          position: "fixed", bottom: 24, right: 24, zIndex: 9998,
+          width: 58, height: 58, borderRadius: "50%", border: "none", cursor: "pointer",
+          background: `linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,
+          boxShadow: C.shVioletGlow, display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "transform .18s cubic-bezier(.22,1,.36,1)",
+        }}
+        onMouseEnter={e => e.currentTarget.style.transform = "scale(1.06)"}
+        onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+      >
+        <span style={{ fontSize: 24, lineHeight: 1, transform: open ? "rotate(90deg)" : "none", transition: "transform .2s" }}>
+          {open ? "✕" : "💬"}
+        </span>
+        {!open && unread > 0 && (
+          <span style={{
+            position: "absolute", top: -2, right: -2, background: C.red, color: "#fff",
+            fontSize: 10, fontWeight: 800, width: 18, height: 18, borderRadius: "50%",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            border: `2px solid ${C.white}`, fontFamily: "'Inter',sans-serif",
+          }}>{unread}</span>
+        )}
+      </button>
+
+      {/* Chat panel */}
+      {open && (
+        <div className="fadein" style={{
+          position: "fixed", bottom: 92, right: 24, zIndex: 9998,
+          width: 360, maxWidth: "calc(100vw - 32px)", height: 520, maxHeight: "calc(100vh - 140px)",
+          background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 20,
+          boxShadow: C.shHover, display: "flex", flexDirection: "column", overflow: "hidden",
+        }}>
+          {/* Header */}
+          <div style={{
+            background: `linear-gradient(135deg,${C.violetD},${C.violet})`, padding: "14px 18px",
+            display: "flex", alignItems: "center", gap: 10, flexShrink: 0,
+          }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,.2)",
+              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0,
+            }}>🤖</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ color: "#fff", fontWeight: 800, fontSize: 13.5, fontFamily: "'Inter',sans-serif" }}>TakePlace Assistant</div>
+              <div style={{ color: "rgba(255,255,255,.75)", fontSize: 11, fontWeight: 600 }}>
+                {sending ? "Typing…" : "Online · Ask me anything"}
+              </div>
+            </div>
+            <button
+              onClick={() => setOpen(false)}
+              style={{ background: "none", border: "none", color: "rgba(255,255,255,.85)", fontSize: 16, cursor: "pointer", padding: 4 }}
+            >✕</button>
+          </div>
+
+          {/* Messages */}
+          <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 14px", display: "flex", flexDirection: "column", gap: 10, background: C.bgSubtle }}>
+            {messages.map((m, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+                <div style={{
+                  maxWidth: "82%", padding: "10px 13px", borderRadius: m.role === "user" ? "14px 14px 3px 14px" : "14px 14px 14px 3px",
+                  background: m.role === "user" ? `linear-gradient(135deg,${C.violetD},${C.violet})` : C.white,
+                  color: m.role === "user" ? "#fff" : C.ink,
+                  border: m.role === "user" ? "none" : `1px solid ${C.border}`,
+                  fontSize: 13.5, lineHeight: 1.6, fontWeight: 500, whiteSpace: "pre-wrap", wordBreak: "break-word",
+                  boxShadow: m.role === "user" ? "none" : C.shCard,
+                }}>
+                  {m.content}
+                </div>
+              </div>
+            ))}
+            {sending && (
+              <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                <div style={{
+                  padding: "10px 14px", borderRadius: "14px 14px 14px 3px", background: C.white,
+                  border: `1px solid ${C.border}`, display: "flex", gap: 4, alignItems: "center",
+                }}>
+                  {[0, 1, 2].map(i => (
+                    <span key={i} style={{
+                      width: 6, height: 6, borderRadius: "50%", background: C.violet,
+                      animation: `pulse .9s ease-in-out ${i * 0.15}s infinite`,
+                    }} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Input */}
+          <div style={{ padding: 12, borderTop: `1px solid ${C.border}`, background: C.white, flexShrink: 0, display: "flex", gap: 8, alignItems: "flex-end" }}>
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Ask about interviews, resumes, jobs…"
+              rows={1}
+              style={{
+                flex: 1, resize: "none", border: `1.5px solid ${C.border}`, borderRadius: 12,
+                padding: "10px 12px", fontSize: 13.5, fontFamily: "'Inter',sans-serif", color: C.ink,
+                outline: "none", maxHeight: 90, background: C.white, fontWeight: 500,
+              }}
+            />
+            <button
+              onClick={send}
+              disabled={!input.trim() || sending}
+              style={{
+                width: 40, height: 40, borderRadius: 12, border: "none", flexShrink: 0,
+                cursor: (!input.trim() || sending) ? "not-allowed" : "pointer",
+                opacity: (!input.trim() || sending) ? 0.5 : 1,
+                background: `linear-gradient(135deg,${C.violetD},${C.violet})`,
+                color: "#fff", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >{sending ? <Spin size={15} color="#fff" /> : "➤"}</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── HOW TO RENDER IT ───────────────────────────────────────────────────────
+// Inside function MainApp(...), find the closing </div> of the outermost
+// wrapper (the one with paddingBottom:76) and add <ChatWidget user={user}/>
+// as the last child, e.g.:
+//
+//   return(
+//     <div style={{minHeight:"100vh",background:C.bg,...}}>
+//       ...everything you already have...
+//       <ChatWidget user={user}/>
+//     </div>
+//   );
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
