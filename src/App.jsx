@@ -2476,20 +2476,20 @@ function JobsTab({onPracticeForJob}){
   };
 
   // ── Resume → skills extraction (one AI call, not per-job) ──
-  const extractResumeSkills=async(text)=>{
+ const extractResumeSkills=async(text)=>{
     const raw=await callGroq(
-      `Extract the candidate's core hire-relevant skills, tools, and role keywords from this resume as a flat JSON list.
+      `Extract the candidate's core hire-relevant skills, tools, and best-fit job title from this resume.
 Resume:
 ---
 ${text.slice(0,3000)}
 ---
-Return ONLY: {"skills":["skill1","skill2","..."]}
-Give 12-20 specific, searchable keywords (e.g. "react","node.js","sql","data analysis","python","customer service","project management"). No vague words like "hardworking" or "team player".`,600);
+Return ONLY: {"skills":["skill1","skill2","..."],"role":"<best-fit job title, e.g. 'Backend Developer' or 'Java Developer'>"}
+Give 12-20 specific, searchable keywords (e.g. "react","node.js","sql","java","spring boot"). No vague words like "hardworking" or "team player".`,600);
     const data=safeJSON(raw,null);
-    return data?.skills?.length?data.skills:[];
+    return{skills:data?.skills?.length?data.skills:[],role:data?.role||""};
   };
 
-  const handleResumeFile=async(e)=>{
+ const handleResumeFile=async(e)=>{
     const f=e.target.files[0];if(!f)return;
     setResumeFileName(f.name);setMatchErr("");setMatchingResume(true);setResumeSkills([]);
     try{
@@ -2497,9 +2497,10 @@ Give 12-20 specific, searchable keywords (e.g. "react","node.js","sql","data ana
       if(f.name.endsWith(".pdf"))text=await extractPDF(f);
       else if(f.name.endsWith(".docx"))text=await extractDOCX(f);
       else{text=await new Promise((res,rej)=>{const r=new FileReader();r.onload=ev=>res(ev.target.result);r.onerror=rej;r.readAsText(f);});}
-      const skills=await extractResumeSkills(text);
+      const{skills,role}=await extractResumeSkills(text);
       if(!skills.length)throw new Error("no skills detected");
       setResumeSkills(skills);
+      if(role){setSearch(role);fetchJobs(role,location);}
     }catch(e2){
       console.error(e2);
       setMatchErr("⚠ Could not analyze that resume — try a different file.");
@@ -2511,19 +2512,31 @@ Give 12-20 specific, searchable keywords (e.g. "react","node.js","sql","data ana
   const clearResumeMatch=()=>{setResumeFileName("");setResumeSkills([]);setMatchErr("");};
 
   // Client-side keyword match — instant, no per-job API call needed
+  // Client-side keyword match, tiered instead of percentage-based
   const computeMatch=(job)=>{
     if(!resumeSkills.length)return null;
     const hay=`${job.title} ${job.description}`.toLowerCase();
+    const titleLower=job.title.toLowerCase();
     const matched=resumeSkills.filter(s=>hay.includes(s.toLowerCase()));
-    const score=Math.round((matched.length/resumeSkills.length)*100);
-    return{score,matched};
+    const titleMatched=resumeSkills.filter(s=>titleLower.includes(s.toLowerCase()));
+    let tier;
+    if(titleMatched.length>=1&&matched.length>=5)tier="Strong";
+    else if(matched.length>=3)tier="Good";
+    else if(matched.length>=1)tier="Medium";
+    else tier="Low";
+    return{tier,matched,titleMatched};
   };
 
   const displayJobs = resumeSkills.length
-    ? [...jobs].map(j=>({...j,_match:computeMatch(j)})).sort((a,b)=>(b._match?.score||0)-(a._match?.score||0))
+    ? [...jobs].map(j=>({...j,_match:computeMatch(j)}))
+        .filter(j=>j._match.tier!=="Low")   // drops irrelevant jobs like "Assistant Professor"
+        .sort((a,b)=>{
+          const order={Strong:3,Good:2,Medium:1};
+          return order[b._match.tier]-order[a._match.tier];
+        })
     : jobs;
 
-  const matchColor=(score)=> score>=60?C.green : score>=30?C.gold : C.muted;
+  const matchColor=(tier)=> tier==="Strong"?C.green : tier==="Good"?C.teal : tier==="Medium"?C.gold : C.muted;
 
   return(
     <div>
@@ -2592,10 +2605,9 @@ Give 12-20 specific, searchable keywords (e.g. "react","node.js","sql","data ana
         const isExp=expanded===job.id,isSaved=saved.includes(job.id);
         const freshness=getFreshness(job.postedRaw);
         const match=job._match;
-        const isTopMatch=match&&match.score>=60;
+        const isTopMatch=match&&match.tier==="Strong";
         return(
-          <div key={job.id} style={{background:C.bgCard,border:isTopMatch?`1.5px solid ${C.green}60`:`1px solid ${C.border}`,borderRadius:14,padding:16,marginBottom:9,borderLeft:`3px solid ${match?matchColor(match.score):C.violet+"50"}`,boxShadow:isTopMatch?`0 4px 20px ${C.green}18`:C.shCard,transition:"border-color .2s,box-shadow .2s"}}
-            onMouseEnter={e=>{e.currentTarget.style.boxShadow=C.shHover;}}
+          <div key={job.id} style={{background:C.bgCard,border:isTopMatch?`1.5px solid ${C.green}60`:`1px solid ${C.border}`,borderRadius:14,padding:16,marginBottom:9,borderLeft:`3px solid ${match?matchColor(match.tier):C.violet+"50"}`,boxShadow:isTopMatch?`0 4px 20px ${C.green}18`:C.shCard,transition:"border-color .2s,box-shadow .2s"}}
             onMouseLeave={e=>{e.currentTarget.style.boxShadow=isTopMatch?`0 4px 20px ${C.green}18`:C.shCard;}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,gap:8}}>
               <div style={{flex:1}}>
@@ -2609,7 +2621,7 @@ Give 12-20 specific, searchable keywords (e.g. "react","node.js","sql","data ana
               <div style={{textAlign:"right",flexShrink:0}}>
                 {match?(
                   <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
-                    <div style={{color:matchColor(match.score),fontWeight:800,fontSize:16,fontFamily:"JetBrains Mono,monospace"}}>{match.score}%</div>
+                    <div style={{color:matchColor(match.tier),fontWeight:800,fontSize:14,fontFamily:"'Inter',sans-serif"}}>{match.tier}</div>
                     <div style={{color:C.muted,fontSize:9.5,fontWeight:700,textTransform:"uppercase",letterSpacing:.4}}>match</div>
                   </div>
                 ):(
@@ -2620,7 +2632,7 @@ Give 12-20 specific, searchable keywords (e.g. "react","node.js","sql","data ana
             </div>
             {match&&match.matched.length>0&&(
               <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
-                {match.matched.slice(0,6).map((s,i)=><Tag key={i} color={matchColor(match.score)} size={10}>✓ {s}</Tag>)}
+                {match.matched.map((s,i)=><Tag key={i} color={matchColor(match.tier)} size={10}>✓ {s}</Tag>)}
               </div>
             )}
             <div style={{color:C.ink2,fontSize:13,lineHeight:1.7,marginBottom:12,background:C.bgSubtle,borderRadius:8,padding:"9px 11px",fontWeight:500}}>
