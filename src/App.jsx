@@ -2385,6 +2385,80 @@ async function downloadTextAsPDF(text, filename){
   });
   doc.save(filename);
 }
+function buildResumeHTML(d){
+  const esc=s=>(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const sec=(title,inner)=>inner?`
+    <div style="margin-top:10pt;">
+      <div style="font-size:11pt;font-weight:700;letter-spacing:.5pt;text-transform:uppercase;border-bottom:1pt solid #000;padding-bottom:2pt;margin-bottom:5pt;">${title}</div>
+      ${inner}
+    </div>`:"";
+
+  const skills=(d.skillGroups||[]).map(g=>`<div style="margin-bottom:2pt;"><b>${esc(g.label)}:</b> ${esc(g.items)}</div>`).join("");
+
+  const exp=(d.experience||[]).map(e=>`
+    <div style="margin-bottom:7pt;">
+      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:10.5pt;">
+        <span>${esc(e.title)} — ${esc(e.org)}</span><span>${esc(e.dates)}</span>
+      </div>
+      ${e.location?`<div style="font-style:italic;font-size:9.5pt;">${esc(e.location)}</div>`:""}
+      <ul style="margin:3pt 0 0 14pt;padding:0;">${(e.bullets||[]).map(b=>`<li style="margin-bottom:2pt;">${esc(b)}</li>`).join("")}</ul>
+    </div>`).join("");
+
+  const proj=(d.projects||[]).map(p=>`
+    <div style="margin-bottom:7pt;">
+      <div style="font-weight:700;font-size:10.5pt;">${esc(p.title)}</div>
+      ${p.stack?`<div style="font-style:italic;font-size:9.5pt;">${esc(p.stack)}${p.link?` · ${esc(p.link)}`:""}</div>`:""}
+      <ul style="margin:3pt 0 0 14pt;padding:0;">${(p.bullets||[]).map(b=>`<li style="margin-bottom:2pt;">${esc(b)}</li>`).join("")}</ul>
+    </div>`).join("");
+
+  const edu=(d.education||[]).map(e=>`
+    <div style="display:flex;justify-content:space-between;margin-bottom:4pt;">
+      <span><b>${esc(e.school)}</b> — ${esc(e.degree)}</span><span>${esc(e.dates)}</span>
+    </div>`).join("");
+
+  const ach=(d.achievements||[]).length?`<ul style="margin:0 0 0 14pt;padding:0;">${d.achievements.map(a=>`<li style="margin-bottom:2pt;">${esc(a)}</li>`).join("")}</ul>`:"";
+
+  return`
+    <div style="font-family:Calibri,Arial,sans-serif;font-size:10.5pt;line-height:1.35;color:#111;">
+      <div style="text-align:center;font-size:16pt;font-weight:800;letter-spacing:.5pt;">${esc(d.name)}</div>
+      <div style="text-align:center;font-size:9.5pt;margin-top:2pt;">${esc(d.contact)}</div>
+      ${sec("Professional Summary",`<div>${esc(d.summary)}</div>`)}
+      ${sec("Technical Skills",skills)}
+      ${sec("Professional Experience",exp)}
+      ${sec("Projects",proj)}
+      ${sec("Education",edu)}
+      ${sec("Achievements & Certifications",ach)}
+    </div>`;
+}
+
+function downloadResumeAsDoc(d, filename){
+  const html=`<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+  <head><meta charset='utf-8'><title>Resume</title></head>
+  <body>${buildResumeHTML(d)}</body></html>`;
+  const blob=new Blob(['\ufeff', html],{type:"application/msword"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=filename;a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function downloadResumeAsPDF(d, filename){
+  if(!window.html2pdf){
+    await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+  }
+  const wrap=document.createElement("div");
+  wrap.style.cssText="position:fixed;left:-9999px;top:0;width:750px;padding:36px 40px;background:#fff;";
+  wrap.innerHTML=buildResumeHTML(d);
+  document.body.appendChild(wrap);
+  try{
+    await window.html2pdf().set({
+      margin:0,filename,
+      html2canvas:{scale:2},
+      jsPDF:{unit:"pt",format:"a4",orientation:"portrait"},
+      pagebreak:{mode:"avoid-all"}
+    }).from(wrap).save();
+  }finally{document.body.removeChild(wrap);}
+}
+
 // ── ATS RESUME CHECKER ────────────────────────────────────────────────────────
 function ATSCheckTab(){
   const[step,setStep]=useState("setup");
@@ -2394,11 +2468,9 @@ function ATSCheckTab(){
   const[report,setReport]=useState(null);
   const[err,setErr]=useState("");
   const fileRef=useRef();
-  const[rewrittenResume,setRewrittenResume]=useState("");
+  const[rewrittenData,setRewrittenData]=useState(null);
   const[rewriting,setRewriting]=useState(false);
-  const[rewriteReport,setRewriteReport]=useState(null);
   const[rewriteErr,setRewriteErr]=useState("");
-  const[reanalyzing,setReanalyzing]=useState(false);
 
   const handleFile=async(e)=>{
     const f=e.target.files[0];if(!f)return;
@@ -2467,51 +2539,51 @@ const analyze=async()=>{
     setStep("setup");
   }
 };
-  const reAnalyze=async(resumeInput)=>{
-    setReanalyzing(true);setRewriteErr("");
-  try{
-    const data=await runAnalysis(resumeInput);
-    setRewriteReport(data);
-  }catch(e){
-    setRewriteErr("⚠ Re-scoring failed — try 'Re-check score' again.");
-  }
-  setReanalyzing(false);
-};
-
+ 
 const rewriteResume=async()=>{
   if(!report)return;
   setRewriting(true);setRewriteErr("");
   try{
     const missing=[...new Set([...(report.missingKeywords||[]),...(report.keywordsToAdd||[])])];
     const raw=await callGroq(
-      `You are an expert resume writer optimizing a resume for a specific job description to maximize ATS match score.
+      `You are an expert resume writer optimizing a resume for a specific job description.
 
 JOB DESCRIPTION:
 ---
 ${jd.slice(0,3500)}
 ---
 
-CURRENT RESUME:
+CURRENT RESUME (this is the candidate's real, only source of truth):
 ---
 ${resumeText.slice(0,3500)}
 ---
 
-MISSING KEYWORDS THE ATS FLAGGED (target score 90+): ${missing.join(", ")}
+MISSING KEYWORDS FLAGGED BY ATS: ${missing.join(", ")}
 
-TASK: Rewrite the FULL resume, keeping the candidate's real experience, projects, and structure intact, but:
-- Naturally weave in the missing keywords ONLY where they plausibly fit the candidate's actual skills, tools, or projects — do not invent new jobs, companies, degrees, or years of experience
-- Strengthen weak bullet points with clearer, quantifiable impact where the original already implies it
-- Add a short "Additional Skills" line near the skills section listing remaining relevant missing keywords, so the candidate can review and keep only what they genuinely know
-- Keep it ATS-friendly: standard section headers, plain text, no tables
-- Keep roughly the same length and structure as the original
+STRICT RULES:
+1. NEVER add a skill/tool/technology the candidate did not already mention or that isn't a direct, honest extension of their real projects. If a missing keyword has zero evidence in the resume, DROP it — do not add it anywhere.
+2. Only reword/strengthen EXISTING bullets — no invented claims, employers, or metrics.
+3. Preserve the exact same sections as the original resume (Summary, Technical Skills, Experience, Projects, Education, Achievements — use only sections that exist in the original).
+4. Must compress to fit ONE page — trim bullets to be tight and impactful, don't bloat.
+5. If genuinely nothing can be honestly added, just tighten wording.
 
-Return ONLY the full rewritten resume text — no commentary, no markdown fences.`,
+Return ONLY this JSON, no markdown, no commentary:
+{
+  "name": "<full name from resume>",
+  "contact": "<phone | email | linkedin | github, pipe-separated, from resume>",
+  "summary": "<2-3 sentence professional summary, rewritten tight>",
+  "skillGroups": [{"label":"<e.g. Languages>","items":"<comma-separated skills>"}],
+  "experience": [{"title":"<role>","org":"<company>","dates":"<date range>","location":"<city>","bullets":["<bullet>","..."]}],
+  "projects": [{"title":"<project name>","stack":"<tech stack line>","link":"<repo/link if any>","bullets":["<bullet>","..."]}],
+  "education": [{"school":"<school>","degree":"<degree>","dates":"<dates>","location":"<city>"}],
+  "achievements": ["<bullet>","..."]
+}`,
       3500,
-      "You are an expert resume writer and ATS optimization specialist. Output plain resume text only."
+      "You are an expert resume writer. You never fabricate candidate skills or experience. Output valid JSON only, matching the schema exactly."
     );
-    const cleaned=raw.replace(/```/g,"").trim();
-    setRewrittenResume(cleaned);
-    await reAnalyze(cleaned);
+    const data=safeJSON(raw,null);
+    if(!data?.name)throw new Error("bad rewrite");
+    setRewrittenData(data);
   }catch(e){
     setRewriteErr("⚠ Could not rewrite resume. Try again.");
   }
@@ -2715,42 +2787,17 @@ Return ONLY the full rewritten resume text — no commentary, no markdown fences
   </Btn>
   {rewriteErr&&<div style={{color:C.red,fontSize:12,marginTop:8}}>{rewriteErr}</div>}
 </div>
-
-{rewrittenResume&&(
+      {rewrittenData&&(
   <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,marginBottom:16,boxShadow:C.shCard}}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:8}}>
-      <div style={{fontWeight:800,fontSize:14.5,color:C.ink}}>📄 Rewritten resume</div>
-      {reanalyzing?(
-        <div style={{display:"flex",alignItems:"center",gap:8,color:C.soft,fontSize:12.5}}><Spin size={14}/> Re-scoring…</div>
-      ):rewriteReport?(
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <span style={{fontSize:11,color:C.muted,fontWeight:700}}>New score</span>
-          <span className="mono" style={{fontWeight:900,fontSize:20,color:sc(rewriteReport.overallScore)}}>{rewriteReport.overallScore}</span>
-          <span style={{fontSize:11,color:rewriteReport.overallScore>=report.overallScore?C.green:C.red,fontWeight:700}}>
-            {rewriteReport.overallScore>=report.overallScore?`↑ +${rewriteReport.overallScore-report.overallScore}`:`↓ ${rewriteReport.overallScore-report.overallScore}`}
-          </span>
-        </div>
-      ):null}
-    </div>
-
-    <textarea readOnly value={rewrittenResume}
-      style={{...inp,minHeight:280,resize:"vertical",fontFamily:"'JetBrains Mono',monospace",fontSize:12,lineHeight:1.7}}/>
-
+    <div style={{fontWeight:800,fontSize:14.5,color:C.ink,marginBottom:10}}>📄 Rewritten resume — matches your original format</div>
+    <div style={{border:`1px solid ${C.border}`,borderRadius:10,padding:20,background:"#fff",maxHeight:420,overflow:"auto"}}
+      dangerouslySetInnerHTML={{__html:buildResumeHTML(rewrittenData)}}/>
     <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}>
-      <Btn v="ghost" small onClick={()=>downloadTextAsTxt(rewrittenResume,"resume-optimized.txt")}>⬇ .txt</Btn>
-      <Btn v="ghost" small onClick={()=>downloadTextAsDoc(rewrittenResume,"resume-optimized.doc")}>⬇ .doc</Btn>
-      <Btn v="ghost" small onClick={()=>downloadTextAsPDF(rewrittenResume,"resume-optimized.pdf")}>⬇ .pdf</Btn>
-      <Btn v="outline" small onClick={()=>reAnalyze(rewrittenResume)} loading={reanalyzing}>🔁 Re-check score</Btn>
+      <Btn v="violet" small onClick={()=>downloadResumeAsDoc(rewrittenData,"resume-optimized.doc")}>⬇ Download .doc</Btn>
+      <Btn v="outline" small onClick={()=>downloadResumeAsPDF(rewrittenData,"resume-optimized.pdf")}>⬇ Download .pdf</Btn>
     </div>
-
-    {rewriteReport?.missingKeywords?.length>0&&(
-      <div style={{marginTop:12,background:C.goldPale,border:`1px solid ${C.gold}25`,borderRadius:10,padding:"10px 14px",fontSize:12,color:C.gold}}>
-        Still missing: {rewriteReport.missingKeywords.join(", ")}
-      </div>
-    )}
   </div>
 )}
-
       <div style={{display:"flex",gap:10,marginBottom:16}}>
         <Btn v="violet" onClick={()=>{setStep("setup");setReport(null);}} style={{flex:1,padding:"13px"}}>🔁 Check another JD</Btn>
         <Btn v="ghost" onClick={()=>{setStep("setup");setReport(null);setJd("");setResumeText("");setFileName("");}} style={{flex:1,padding:"13px"}}>🗑️ Start over</Btn>
@@ -2760,6 +2807,9 @@ Return ONLY the full rewritten resume text — no commentary, no markdown fences
 
   return null;
 }
+
+
+      
 
 
 // ── LANDING PAGE ──────────────────────────────────────────────────────────────
