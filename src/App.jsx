@@ -447,6 +447,99 @@ function AIFace({speaking,size=200}){
   );
 }
 
+// ── AI GLOBE AVATAR (replaces AIFace visual) ─────────────────────────────────
+function AIGlobe({speaking,size=200}){
+  const mountRef=useRef(null);
+  const speakingRef=useRef(speaking);
+  useEffect(()=>{speakingRef.current=speaking;},[speaking]);
+
+  useEffect(()=>{
+    let renderer,scene,camera,globeGroup,raf,disposed=false;
+
+    const init=async()=>{
+      if(!window.THREE){
+        await new Promise((res,rej)=>{
+          const s=document.createElement("script");
+          s.src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+          s.onload=res;s.onerror=rej;document.head.appendChild(s);
+        });
+      }
+      if(disposed||!mountRef.current)return;
+      const THREE=window.THREE;
+
+      scene=new THREE.Scene();
+      camera=new THREE.PerspectiveCamera(45,1,0.1,100);
+      camera.position.z=3.1;
+
+      renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+      renderer.setSize(size,size);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+      mountRef.current.innerHTML="";
+      mountRef.current.appendChild(renderer.domElement);
+
+      globeGroup=new THREE.Group();
+      scene.add(globeGroup);
+
+      globeGroup.add(new THREE.Mesh(
+        new THREE.SphereGeometry(1,26,20),
+        new THREE.MeshBasicMaterial({color:0x7C72F0,wireframe:true,transparent:true,opacity:0.35})
+      ));
+      globeGroup.add(new THREE.Mesh(
+        new THREE.SphereGeometry(0.985,28,20),
+        new THREE.MeshBasicMaterial({color:0x2DD4AE,transparent:true,opacity:0.05})
+      ));
+
+      const regionCoords=[
+        {lat:40,lon:-100,color:0x7C72F0},{lat:50,lon:10,color:0x2DD4AE},
+        {lat:20,lon:78,color:0xE08E1F},{lat:35,lon:105,color:0xFF8A5C},
+        {lat:2,lon:20,color:0x9B7BFF},{lat:-15,lon:-60,color:0x5B9CFF},
+      ];
+      const latLonToVec3=(lat,lon,r)=>{
+        const phi=(90-lat)*(Math.PI/180), theta=(lon+180)*(Math.PI/180);
+        return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(theta),r*Math.cos(phi),r*Math.sin(phi)*Math.sin(theta));
+      };
+      regionCoords.forEach(rc=>{
+        const pos=latLonToVec3(rc.lat,rc.lon,1.02);
+        const dot=new THREE.Mesh(new THREE.SphereGeometry(0.035,10,10),new THREE.MeshBasicMaterial({color:rc.color}));
+        dot.position.copy(pos); globeGroup.add(dot);
+        const ring=new THREE.Mesh(new THREE.RingGeometry(0.05,0.07,20),new THREE.MeshBasicMaterial({color:rc.color,transparent:true,opacity:0.55,side:THREE.DoubleSide}));
+        ring.position.copy(pos); ring.lookAt(pos.clone().multiplyScalar(2));
+        globeGroup.add(ring);
+      });
+
+      const scatterCount=160;
+      const positions=new Float32Array(scatterCount*3);
+      for(let i=0;i<scatterCount;i++){
+        const v=latLonToVec3((Math.random()*180)-90,(Math.random()*360)-180,1.001);
+        positions[i*3]=v.x;positions[i*3+1]=v.y;positions[i*3+2]=v.z;
+      }
+      const scatterGeo=new THREE.BufferGeometry();
+      scatterGeo.setAttribute("position",new THREE.BufferAttribute(positions,3));
+      globeGroup.add(new THREE.Points(scatterGeo,new THREE.PointsMaterial({color:0x4a4f66,size:0.012,transparent:true,opacity:0.6})));
+
+      const animate=()=>{
+        raf=requestAnimationFrame(animate);
+        globeGroup.rotation.y+=speakingRef.current?0.008:0.0025;
+        renderer.render(scene,camera);
+      };
+      animate();
+    };
+    init();
+
+    return()=>{disposed=true;cancelAnimationFrame(raf);renderer?.dispose();};
+  // eslint-disable-next-line
+  },[size]);
+
+  return(
+    <div style={{position:"relative",width:size,height:size,borderRadius:"50%",overflow:"hidden",background:"radial-gradient(circle,#1A1E33,#0B0E1A)"}}>
+      <div ref={mountRef} style={{width:"100%",height:"100%"}}/>
+      {speaking&&(
+        <div style={{position:"absolute",inset:0,borderRadius:"50%",background:"radial-gradient(circle at center,transparent 55%,rgba(124,114,240,.25) 100%)",animation:"breathe 1.4s ease-in-out infinite",pointerEvents:"none"}}/>
+      )}
+    </div>
+  );
+}
+
 // ── SLOT GRID & UPGRADE MODAL ─────────────────────────────────────────────────
 function SlotGrid({isPro,onSelectSlot,onUpgrade,completedSlots=[],loadingSlot=null}){
   return(
@@ -1119,11 +1212,11 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
         {/* AI Avatar */}
         <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:16,zIndex:5}}>
           <div style={{borderRadius:"50%",padding:6,border:`2px solid ${aiSpeaking?"#7C72F0":"rgba(255,255,255,.14)"}`,boxShadow:aiSpeaking?"0 0 40px rgba(124,114,240,.35)":"none",animation:aiSpeaking?"ringPulse 1.8s infinite":"none",transition:"all .4s"}}>
-            <AIFace speaking={aiSpeaking} size={160}/>
+            <AIGlobe speaking={aiSpeaking} size={160}/>
           </div>
           <div style={{textAlign:"center"}}>
-            <div style={{color:"#fff",fontWeight:800,fontSize:17}}>Priya Sharma</div>
-            <div style={{color:"rgba(255,255,255,.55)",fontSize:12.5,marginTop:2,fontWeight:500}}>Senior Hiring Manager{company?` · ${company}`:role?` · ${role}`:""}</div>
+            <div style={{color:"#fff",fontWeight:800,fontSize:17}}>TakePlace AI</div>
+            <div style={{color:"rgba(255,255,255,.55)",fontSize:12.5,marginTop:2,fontWeight:500}}>Interview Intelligence{company?` · ${company}`:role?` · ${role}`:""}</div>
             {aiSpeaking&&(
               <div style={{display:"flex",justifyContent:"center",gap:3,alignItems:"flex-end",marginTop:8,height:16}}>
                 {[.35,.55,.8,.55,.35].map((d,i)=>(
@@ -2627,7 +2720,7 @@ function LandingPage({onStart}){
                   boxShadow:"0 0 36px rgba(124,114,240,.4)",
                   animation:"ringPulse 2s infinite"
                 }}>
-                  <AIFace speaking={true} size={84}/>
+                  <AIGlobe speaking={true} size={84}/>
                 </div>
                 <div style={{color:"#fff",fontWeight:800,fontSize:15,marginBottom:3}}>Priya Sharma</div>
                 <div style={{color:"rgba(255,255,255,.4)",fontSize:11,marginBottom:20}}>Senior Hiring Manager · Google</div>
