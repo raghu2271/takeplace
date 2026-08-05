@@ -1387,33 +1387,20 @@ function PostCard({post,user,onChanged}){
     </div>
   );
 }
-function ProfileSidebar({user}){
+function ProfilePanel({user,open,onClose,onLogout}){
   const[editing,setEditing]=useState(false);
   const meta=user?.user_metadata||{};
   const[headline,setHeadline]=useState(meta.headline||"");
   const[education,setEducation]=useState(meta.education||"");
   const[interests,setInterests]=useState(meta.interests||"");
-  const[avatarUrl,setAvatarUrl]=useState(meta.avatar_url||"");
   const[saving,setSaving]=useState(false);
-  const[uploadingPhoto,setUploadingPhoto]=useState(false);
-  const photoRef=useRef();
   const name=meta.full_name||"You";
   const initials=name.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
 
-  const uploadPhoto=async(e)=>{
-    const f=e.target.files[0];if(!f)return;
-    setUploadingPhoto(true);
-    try{
-      const ext=f.name.split(".").pop();
-      const path=`avatars/${user.id}.${ext}`;
-      await supabase.storage.from("post-media").upload(path,f,{upsert:true});
-      const{data}=supabase.storage.from("post-media").getPublicUrl(path);
-      const url=data.publicUrl+`?t=${Date.now()}`; // cache-bust
-      await supabase.auth.updateUser({data:{avatar_url:url}});
-      setAvatarUrl(url);
-    }catch(e2){alert("Could not upload photo: "+e2.message);}
-    setUploadingPhoto(false);
-  };
+  useEffect(()=>{
+    if(open){setHeadline(meta.headline||"");setEducation(meta.education||"");setInterests(meta.interests||"");setEditing(false);}
+  // eslint-disable-next-line
+  },[open]);
 
   const save=async()=>{
     setSaving(true);
@@ -1421,39 +1408,46 @@ function ProfileSidebar({user}){
     setSaving(false);setEditing(false);
   };
 
+  if(!open)return null;
+
   return(
-    <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:20,boxShadow:C.shCard,position:"sticky",top:70}}>
-      <div style={{position:"relative",width:64,height:64,margin:"0 auto 10px"}}>
-        {avatarUrl?(
-          <img src={avatarUrl} alt={name} style={{width:64,height:64,borderRadius:"50%",objectFit:"cover",display:"block"}}/>
-        ):(
-          <div style={{width:64,height:64,borderRadius:"50%",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:20}}>{initials}</div>
-        )}
-        <button onClick={()=>photoRef.current.click()} disabled={uploadingPhoto}
-          style={{position:"absolute",bottom:-2,right:-2,width:22,height:22,borderRadius:"50%",border:`2px solid ${C.bgCard}`,background:C.violet,color:"#fff",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
-          {uploadingPhoto?<Spin size={10} color="#fff"/>:"📷"}
-        </button>
-        <input ref={photoRef} type="file" accept="image/*" style={{display:"none"}} onChange={uploadPhoto}/>
-      </div>
-      <div style={{textAlign:"center",fontWeight:800,fontSize:15,color:C.ink}}>{name}</div>
-      {!editing?(
-        <>
-          <div style={{textAlign:"center",color:C.soft,fontSize:12.5,marginTop:4,fontWeight:500}}>{meta.headline||"Add a headline"}</div>
-          {meta.education&&<div style={{marginTop:12,fontSize:12,color:C.ink2}}>🎓 {meta.education}</div>}
-          {meta.interests&&<div style={{marginTop:6,fontSize:12,color:C.ink2}}>✨ {meta.interests}</div>}
-          <button onClick={()=>setEditing(true)} style={{width:"100%",marginTop:14,padding:"8px",borderRadius:8,border:`1.5px solid ${C.border}`,background:C.white,color:C.ink2,fontSize:12,fontWeight:700,cursor:"pointer"}}>Edit profile</button>
-        </>
-      ):(
-        <div style={{marginTop:12,display:"grid",gap:8}}>
-          <input style={{...inp,fontSize:12.5,padding:"8px 10px"}} placeholder="Headline (e.g. Aspiring SDE)" value={headline} onChange={e=>setHeadline(e.target.value)}/>
-          <input style={{...inp,fontSize:12.5,padding:"8px 10px"}} placeholder="Education" value={education} onChange={e=>setEducation(e.target.value)}/>
-          <input style={{...inp,fontSize:12.5,padding:"8px 10px"}} placeholder="Interests" value={interests} onChange={e=>setInterests(e.target.value)}/>
-          <div style={{display:"flex",gap:8}}>
-            <Btn v="ghost" small onClick={()=>setEditing(false)} style={{flex:1}}>Cancel</Btn>
-            <Btn v="violet" small loading={saving} onClick={save} style={{flex:1}}>Save</Btn>
-          </div>
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:9999,display:"flex"}}>
+      <div onClick={e=>e.stopPropagation()} className="fade" style={{width:320,maxWidth:"85vw",height:"100%",background:C.bgCard,boxShadow:"4px 0 30px rgba(0,0,0,.2)",overflowY:"auto",padding:0}}>
+        <div style={{background:`linear-gradient(135deg,${C.violetD},${C.violet})`,height:70,position:"relative"}}>
+          <button onClick={onClose} style={{position:"absolute",top:12,right:12,background:"rgba(255,255,255,.2)",border:"none",borderRadius:"50%",width:28,height:28,color:"#fff",cursor:"pointer",fontSize:14}}>✕</button>
         </div>
-      )}
+        <div style={{padding:"0 20px 20px",marginTop:-36}}>
+          {meta.avatar_url?(
+            <img src={meta.avatar_url} alt={name} style={{width:72,height:72,borderRadius:"50%",objectFit:"cover",border:`3px solid ${C.bgCard}`,display:"block"}}/>
+          ):(
+            <div style={{width:72,height:72,borderRadius:"50%",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:26,border:`3px solid ${C.bgCard}`}}>{initials}</div>
+          )}
+
+          {!editing?(
+            <>
+              <div style={{fontWeight:900,fontSize:18,color:C.ink,marginTop:12}}>{name}</div>
+              <div style={{color:C.soft,fontSize:13,marginTop:2,fontWeight:500}}>{meta.headline||"Add a headline"}</div>
+              {meta.education&&<div style={{marginTop:14,fontSize:13,color:C.ink2,display:"flex",alignItems:"center",gap:6}}>🎓 {meta.education}</div>}
+              {meta.interests&&<div style={{marginTop:6,fontSize:13,color:C.ink2,display:"flex",alignItems:"center",gap:6}}>✨ {meta.interests}</div>}
+              <button onClick={()=>setEditing(true)} style={{width:"100%",marginTop:16,padding:"9px",borderRadius:20,border:`1.5px solid ${C.violet}50`,background:C.violetPale,color:C.violetD,fontSize:13,fontWeight:800,cursor:"pointer"}}>Edit profile</button>
+
+              <div style={{height:1,background:C.border,margin:"18px 0"}}/>
+
+              <button onClick={onLogout} style={{width:"100%",textAlign:"left",padding:"11px 4px",background:"none",border:"none",color:C.red,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>🚪 Sign Out</button>
+            </>
+          ):(
+            <div style={{marginTop:16,display:"grid",gap:10}}>
+              <input style={{...inp,fontSize:13,padding:"9px 12px"}} placeholder="Headline" value={headline} onChange={e=>setHeadline(e.target.value)}/>
+              <input style={{...inp,fontSize:13,padding:"9px 12px"}} placeholder="Education" value={education} onChange={e=>setEducation(e.target.value)}/>
+              <input style={{...inp,fontSize:13,padding:"9px 12px"}} placeholder="Interests" value={interests} onChange={e=>setInterests(e.target.value)}/>
+              <div style={{display:"flex",gap:8}}>
+                <Btn v="ghost" small onClick={()=>setEditing(false)} style={{flex:1}}>Cancel</Btn>
+                <Btn v="violet" small loading={saving} onClick={save} style={{flex:1}}>Save</Btn>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1470,14 +1464,11 @@ function FeedTab({user}){
   useEffect(()=>{load();},[]);
 
   return(
-    <div className="fade feed-grid" style={{display:"grid",gridTemplateColumns:"1fr 260px",gap:20,alignItems:"start"}}>
-      <div>
-        <PostComposer user={user} profile={user?.user_metadata} onPosted={load}/>
-        {loading&&<div style={{textAlign:"center",padding:40}}><Spin size={30}/></div>}
-        {!loading&&posts.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>No posts yet — be the first to share something.</div>}
-        {posts.map(p=><PostCard key={p.id} post={p} user={user} onChanged={load}/>)}
-      </div>
-      <div className="feed-sidebar"><ProfileSidebar user={user}/></div>
+    <div className="fade" style={{maxWidth:640,margin:"0 auto"}}>
+      <PostComposer user={user} profile={user?.user_metadata} onPosted={load}/>
+      {loading&&<div style={{textAlign:"center",padding:40}}><Spin size={30}/></div>}
+      {!loading&&posts.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>No posts yet — be the first to share something.</div>}
+      {posts.map(p=><PostCard key={p.id} post={p} user={user} onChanged={load}/>)}
     </div>
   );
 }
@@ -4026,31 +4017,12 @@ const TABS=[{icon:"🏠",label:"Home",id:0},{icon:"💼",label:"Jobs",id:1},{ico
           <div className="ttb" style={{display:"none",gap:0}}>
             {TABS.map(t=>(<button key={t.id} onClick={()=>setTabP(t.id)} style={{padding:"8px 16px",border:"none",background:"transparent",cursor:"pointer",color:tab===t.id?C.violetL:C.soft,fontFamily:"'Inter',sans-serif",fontWeight:tab===t.id?700:500,fontSize:13,borderBottom:`2px solid ${tab===t.id?C.violet:"transparent"}`,transition:"all .2s",display:"flex",alignItems:"center",gap:5}}>{t.icon} {t.label}</button>))}
           </div>
-         <div style={{position:"relative"}}>
-            <button onClick={()=>setMenuOpen(m=>!m)} style={{width:34,height:34,borderRadius:"50%",overflow:"hidden",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:"#fff",border:"none",cursor:"pointer",boxShadow:`0 2px 12px ${C.violet}40`,padding:0}}>
-              {user?.user_metadata?.avatar_url
-                ?<img src={user.user_metadata.avatar_url} alt={name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                :initials}
-            </button>
-            {menuOpen&&(
-              <div style={{position:"absolute",right:0,top:42,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,boxShadow:"0 12px 40px rgba(0,0,0,.4)",padding:8,minWidth:230,zIndex:50}}>
-                <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 10px 12px",borderBottom:`1px solid ${C.border}`,marginBottom:6}}>
-                  <div style={{width:42,height:42,borderRadius:"50%",overflow:"hidden",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:14,color:"#fff",flexShrink:0}}>
-                    {user?.user_metadata?.avatar_url
-                      ?<img src={user.user_metadata.avatar_url} alt={name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                      :initials}
-                  </div>
-                  <div style={{minWidth:0}}>
-                    <div style={{fontWeight:800,fontSize:13.5,color:C.ink,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{name}</div>
-                    {user?.user_metadata?.headline&&<div style={{fontSize:11.5,color:C.soft,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{user.user_metadata.headline}</div>}
-                  </div>
-                </div>
-                <button onClick={()=>{setTabP(0);setMenuOpen(false);}} style={{width:"100%",textAlign:"left",display:"flex",alignItems:"center",gap:8,padding:"9px 10px",borderRadius:8,border:"none",background:"transparent",color:C.ink2,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>👤 View profile</button>
-                <a href="mailto:HireFlo.in@gmail.com" style={{display:"flex",alignItems:"center",gap:8,padding:"9px 10px",borderRadius:8,fontSize:13,color:C.ink2,fontWeight:500,fontFamily:"'Inter',sans-serif",textDecoration:"none"}}>✉ Support</a>
-                <button onClick={onLogout} style={{width:"100%",textAlign:"left",padding:"9px 10px",borderRadius:8,border:"none",background:"transparent",color:C.red,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>🚪 Sign Out</button>
-              </div>
-            )}
-          </div>
+        <button onClick={()=>setMenuOpen(true)} style={{width:34,height:34,borderRadius:"50%",overflow:"hidden",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:"#fff",border:"none",cursor:"pointer",boxShadow:`0 2px 12px ${C.violet}40`,padding:0}}>
+            {user?.user_metadata?.avatar_url
+              ?<img src={user.user_metadata.avatar_url} alt={name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+              :initials}
+          </button>
+          <ProfilePanel user={user} open={menuOpen} onClose={()=>setMenuOpen(false)} onLogout={onLogout}/>
         </div>
       </div>
 
