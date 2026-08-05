@@ -36,7 +36,7 @@ function Logo({ size = 32, withText = true, textSize = 20 }) {
 
 // ── PAYWALL / SLOT CONFIG ──────────────────────────────────────────────────────
 const TOTAL_SLOTS = 15;
-const FREE_SLOTS  = 2;
+const FREE_SLOTS  = 4;
 const FOCUS_BY_SLOT = [
   "intro + resume walkthrough","core technical fundamentals","system design basics",
   "behavioral / teamwork","debugging & problem solving","project deep-dive",
@@ -1446,7 +1446,7 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
   };
 
   const quickActions=[
-    {icon:"🎯",title:"AI Mock Interview",desc:"Resume-personalized, on camera",action:onStartInterview,color:C.violet,badge:results.length===0?"Start here":null},
+    {icon:"🎯",title:"AI Mock Interview",desc:"Personalized interview based on your resume and target role.",action:onStartInterview,color:C.violet,badge:results.length===0?"Start here":null},
     {icon:"🔥",title:"Live Job Feed",desc:"Fresher openings, updated daily",action:onGoToJobs,color:C.teal},
     {icon:"🏢",title:"Interview Prep",desc:"Company-exact Q&A + answers",action:()=>onGoToTab(3),color:C.gold},
     {icon:"📋",title:"ATS Resume Check",desc:"Score your resume vs a JD",action:()=>onGoToTab(4),color:C.blue},
@@ -1495,7 +1495,7 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
                 background:"#fff",color:C.violetD,fontWeight:800,fontSize:14,
                 fontFamily:"'Inter',sans-serif",display:"inline-flex",alignItems:"center",gap:8,
                 boxShadow:"0 8px 20px rgba(0,0,0,.15)"
-              }}>🎙️ Practice now</button>
+              }}>🎙️ Start Interview</button>
               <button onClick={onGoToJobs} style={{
                 padding:"13px 20px",borderRadius:12,cursor:"pointer",
                 background:"rgba(255,255,255,.12)",border:"1.5px solid rgba(255,255,255,.3)",
@@ -1530,7 +1530,7 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
       {!isPro&&(
         <div onClick={()=>setShowUpgrade(true)} className="lift" style={{background:`linear-gradient(135deg,${C.gold}12,${C.violet}0A)`,border:`1px solid ${C.gold}30`,borderRadius:14,padding:"14px 18px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",cursor:"pointer",boxShadow:C.shCard}}>
           <div>
-            <div style={{fontWeight:800,fontSize:13.5,color:C.ink}}>🔓 Unlock all 15 mock interviews per role</div>
+            <div style={{fontWeight:800,fontSize:13.5,color:C.ink}}>🔓 Unlock unlimited AI interviews</div>
             <div style={{color:C.soft,fontSize:12,marginTop:2,fontWeight:500}}>Free plan includes 2 · ₹49/week or ₹199/month for all 15</div>
           </div>
           <Tag color={C.gold} size={11}>Upgrade →</Tag>
@@ -2995,8 +2995,8 @@ function LandingPage({onStart}){
               fontSize:"clamp(38px,4.8vw,64px)",lineHeight:1.04,
               marginBottom:24,letterSpacing:"-1.8px",color:C.ink
             }}>
-              Walk in ready.<br/>
-              <span style={{background:`linear-gradient(135deg,${C.violetD},${C.teal})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>Not nervous.</span>
+              Real conversations.<br/>
+              <span style={{background:`linear-gradient(135deg,${C.violetD},${C.teal})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>Right candidates.</span>
             </h1>
 
             <p style={{fontSize:17.5,color:C.ink2,lineHeight:1.82,maxWidth:490,marginBottom:38,fontWeight:400}}>
@@ -3009,7 +3009,7 @@ function LandingPage({onStart}){
                 background:`linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,
                 color:"#fff",fontWeight:800,fontSize:16,fontFamily:"'Inter',sans-serif",letterSpacing:.2
               }}>
-                🎙️ Start free interview →
+                ▶️ Start your AI interview →
               </button>
               <button onClick={onStart} style={{
                 padding:"16px 28px",borderRadius:13,
@@ -3018,7 +3018,7 @@ function LandingPage({onStart}){
                 color:C.ink2,fontWeight:700,fontSize:16,
                 fontFamily:"'Inter',sans-serif",transition:"all .2s",
                 boxShadow:C.shCard
-              }}>Browse live jobs</button>
+              }}>Explore Live jobs</button>
             </div>
 
             <div className="hero-stats" style={{display:"flex",gap:0,alignItems:"center"}}>
