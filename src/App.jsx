@@ -1471,6 +1471,7 @@ function FeedTab({user}){
 
   return(
     <div className="fade feed-grid" style={{display:"grid",gridTemplateColumns:"1fr 260px",gap:20,alignItems:"start"}}>
+      <div>
         <PostComposer user={user} profile={user?.user_metadata} onPosted={load}/>
         {loading&&<div style={{textAlign:"center",padding:40}}><Spin size={30}/></div>}
         {!loading&&posts.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>No posts yet — be the first to share something.</div>}
