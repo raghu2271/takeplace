@@ -4026,11 +4026,26 @@ const TABS=[{icon:"🏠",label:"Home",id:0},{icon:"💼",label:"Jobs",id:1},{ico
           <div className="ttb" style={{display:"none",gap:0}}>
             {TABS.map(t=>(<button key={t.id} onClick={()=>setTabP(t.id)} style={{padding:"8px 16px",border:"none",background:"transparent",cursor:"pointer",color:tab===t.id?C.violetL:C.soft,fontFamily:"'Inter',sans-serif",fontWeight:tab===t.id?700:500,fontSize:13,borderBottom:`2px solid ${tab===t.id?C.violet:"transparent"}`,transition:"all .2s",display:"flex",alignItems:"center",gap:5}}>{t.icon} {t.label}</button>))}
           </div>
-          <div style={{position:"relative"}}>
-            <button onClick={()=>setMenuOpen(m=>!m)} style={{width:34,height:34,borderRadius:"50%",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:"#fff",border:"none",cursor:"pointer",boxShadow:`0 2px 12px ${C.violet}40`}}>{initials}</button>
+         <div style={{position:"relative"}}>
+            <button onClick={()=>setMenuOpen(m=>!m)} style={{width:34,height:34,borderRadius:"50%",overflow:"hidden",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:"#fff",border:"none",cursor:"pointer",boxShadow:`0 2px 12px ${C.violet}40`,padding:0}}>
+              {user?.user_metadata?.avatar_url
+                ?<img src={user.user_metadata.avatar_url} alt={name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                :initials}
+            </button>
             {menuOpen&&(
-              <div style={{position:"absolute",right:0,top:42,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,boxShadow:"0 12px 40px rgba(0,0,0,.4)",padding:8,minWidth:180,zIndex:50}}>
-                <div style={{padding:"8px 10px",fontSize:12,color:C.muted,borderBottom:`1px solid ${C.border}`,marginBottom:6}}>{firstName}</div>
+              <div style={{position:"absolute",right:0,top:42,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,boxShadow:"0 12px 40px rgba(0,0,0,.4)",padding:8,minWidth:230,zIndex:50}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 10px 12px",borderBottom:`1px solid ${C.border}`,marginBottom:6}}>
+                  <div style={{width:42,height:42,borderRadius:"50%",overflow:"hidden",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:14,color:"#fff",flexShrink:0}}>
+                    {user?.user_metadata?.avatar_url
+                      ?<img src={user.user_metadata.avatar_url} alt={name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                      :initials}
+                  </div>
+                  <div style={{minWidth:0}}>
+                    <div style={{fontWeight:800,fontSize:13.5,color:C.ink,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{name}</div>
+                    {user?.user_metadata?.headline&&<div style={{fontSize:11.5,color:C.soft,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{user.user_metadata.headline}</div>}
+                  </div>
+                </div>
+                <button onClick={()=>{setTabP(0);setMenuOpen(false);}} style={{width:"100%",textAlign:"left",display:"flex",alignItems:"center",gap:8,padding:"9px 10px",borderRadius:8,border:"none",background:"transparent",color:C.ink2,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>👤 View profile</button>
                 <a href="mailto:HireFlo.in@gmail.com" style={{display:"flex",alignItems:"center",gap:8,padding:"9px 10px",borderRadius:8,fontSize:13,color:C.ink2,fontWeight:500,fontFamily:"'Inter',sans-serif",textDecoration:"none"}}>✉ Support</a>
                 <button onClick={onLogout} style={{width:"100%",textAlign:"left",padding:"9px 10px",borderRadius:8,border:"none",background:"transparent",color:C.red,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>🚪 Sign Out</button>
               </div>
