@@ -22,13 +22,13 @@ const LOGO_URL = "/logo.png";
 function Logo({ size = 32, withText = true, textSize = 20 }) {
   return (
     <div style={{display:"flex",alignItems:"center",gap:8}}>
-      <img src={LOGO_URL} alt="TakePlace" style={{width:size,height:size,objectFit:"contain",flexShrink:0}}/>
+      <img src={LOGO_URL} alt="HireFlo" style={{width:size,height:size,objectFit:"contain",flexShrink:0}}/>
       {withText && (
         <span style={{
           fontWeight:900,fontSize:textSize,fontFamily:"'Plus Jakarta Sans',sans-serif",
           background:`linear-gradient(135deg,${C.violetD},${C.teal})`,
           WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"
-        }}>TakePlace</span>
+        }}>HireFlo</span>
       )}
     </div>
   );
@@ -336,14 +336,14 @@ async function startCheckout(plan,user,onSuccess){
     const order=await res.json();
     const rzp=new window.Razorpay({
       key:order.keyId||RAZORPAY_KEY_ID,amount:order.amount,currency:order.currency||"INR",order_id:order.id,
-      name:"TakePlace",description:plan==="week"?"TakePlace — 1 Week Pro":"TakePlace — 1 Month Pro",
+      name:"HireFlo",description:plan==="week"?"HireFlo — 1 Week Pro":"HireFlo — 1 Month Pro",
       prefill:{email:user.email||""},
       handler:async(response)=>{
         try{
           const v=await fetch("/api/verify-payment",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...response,plan,userId:user.id})});
           const vd=await v.json().catch(()=>({}));
           if(vd.ok){onSuccess&&onSuccess();}
-          else{alert("Payment verification failed. If money was deducted, contact takeplace.in@gmail.com");}
+          else{alert("Payment verification failed. If money was deducted, contact HireFlo.in@gmail.com");}
         }catch(e){alert("Payment verification error: "+e.message);}
       },
       theme:{color:"#6D5BF6"},
@@ -371,13 +371,13 @@ async function generateScorecard(data){
       <div style="display:flex;gap:24px;justify-content:center;margin:24px 0;">
         ${[["Technical",data.technicalScore],["Communication",data.communicationScore],["Confidence",data.confidenceScore]].map(([l,v])=>`<div style="text-align:center;background:rgba(255,255,255,.05);border-radius:12px;padding:16px 24px;min-width:130px"><div style="font-size:28px;font-weight:700;color:#8B7DFA;font-family:'JetBrains Mono',monospace">${v}%</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:1px">${l}</div></div>`).join("")}
       </div>
-      <div style="font-size:14px;color:rgba(255,255,255,.3);margin-top:24px;font-weight:600">🎤 TakePlace · takeplace.vercel.app</div>
+      <div style="font-size:14px;color:rgba(255,255,255,.3);margin-top:24px;font-weight:600">🎤 HireFlo · HireFlo.vercel.app</div>
     </div>`;
   document.body.appendChild(div);
   try{
     const canvas=await window.html2canvas(div,{scale:1,backgroundColor:null,logging:false});
     const url=canvas.toDataURL("image/png");
-    const a=document.createElement("a");a.href=url;a.download=`takeplace-score-${data.overallScore}.png`;a.click();
+    const a=document.createElement("a");a.href=url;a.download=`HireFlo-score-${data.overallScore}.png`;a.click();
     return url;
   }finally{document.body.removeChild(div);}
 }
@@ -1250,7 +1250,7 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
             <AIGlobe speaking={aiSpeaking} size={160}/>
           </div>
           <div style={{textAlign:"center"}}>
-            <div style={{color:"#fff",fontWeight:800,fontSize:17}}>TakePlace AI</div>
+            <div style={{color:"#fff",fontWeight:800,fontSize:17}}>HireFlo AI</div>
             <div style={{color:"rgba(255,255,255,.55)",fontSize:12.5,marginTop:2,fontWeight:500}}>Interview Intelligence{company?` · ${company}`:role?` · ${role}`:""}</div>
             {aiSpeaking&&(
               <div style={{display:"flex",justifyContent:"center",gap:3,alignItems:"flex-end",marginTop:8,height:16}}>
@@ -2225,9 +2225,9 @@ function JobsTab({onPracticeForJob}){
 
   const shareJob=async(job)=>{
     const url=buildShareUrl(job);
-    const text=`${job.title} at ${job.company} — practice the interview + apply on TakePlace`;
+    const text=`${job.title} at ${job.company} — practice the interview + apply on HireFlo`;
     try{
-      if(navigator.share){await navigator.share({title:"TakePlace",text,url});}
+      if(navigator.share){await navigator.share({title:"HireFlo",text,url});}
       else{await navigator.clipboard.writeText(url);alert("🔗 Link copied!");}
     }catch{}
   };
@@ -3110,7 +3110,7 @@ function LandingPage({onStart}){
                     <span style={{color:"rgba(255,255,255,.3)",fontSize:10,fontFamily:"'JetBrains Mono',monospace",fontWeight:700}}>01:24 remaining</span>
                   </div>
                   <div style={{color:"rgba(255,255,255,.9)",fontSize:13,lineHeight:1.7,fontWeight:500}}>
-                    How did you handle CORS with the Groq API in TakePlace?
+                    How did you handle CORS with the Groq API in HireFlo?
                   </div>
                   <div style={{height:2,background:"rgba(255,255,255,.07)",borderRadius:2,marginTop:12,overflow:"hidden"}}>
                     <div style={{height:"100%",width:"58%",background:"#2DD4AE",borderRadius:2,boxShadow:"0 0 6px rgba(45,212,174,.5)"}}/>
@@ -3304,10 +3304,10 @@ function LandingPage({onStart}){
         <div style={{maxWidth:1100,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14}}>
           <Logo size={26} textSize={17}/>
           
-          <div style={{color:C.muted,fontSize:12}}>© 2026 TakePlace · Built by Raghu Dadigela</div>
+          <div style={{color:C.muted,fontSize:12}}>© 2026 HireFlo · Built by Raghu Dadigela</div>
           <div style={{display:"flex",gap:18,alignItems:"center"}}>
-            <a href="mailto:takeplace.in@gmail.com" style={{color:C.ink2,fontWeight:600,fontSize:13,textDecoration:"none"}}>✉ takeplace.in@gmail.com</a>
-            <a href="https://takeplace.vercel.app" target="_blank" rel="noreferrer" style={{color:C.muted,fontSize:12,textDecoration:"none"}}>takeplace.vercel.app</a>
+            <a href="mailto:HireFlo.in@gmail.com" style={{color:C.ink2,fontWeight:600,fontSize:13,textDecoration:"none"}}>✉ HireFlo.in@gmail.com</a>
+            <a href="https://HireFlo.vercel.app" target="_blank" rel="noreferrer" style={{color:C.muted,fontSize:12,textDecoration:"none"}}>HireFlo.vercel.app</a>
           </div>
         </div>
       </footer>
@@ -3409,9 +3409,9 @@ function AuthPage({onLogin,onBack,pendingJob}){
         <button onClick={onBack} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginBottom:24,fontFamily:"'Inter',sans-serif"}}>← Back</button>
         <div style={{textAlign:"center",marginBottom:28}}>
           <div style={{display:"flex",justifyContent:"center",marginBottom:8}}>
-             <img src={LOGO_URL} alt="TakePlace" style={{width:56,height:56,objectFit:"contain"}}/>
+             <img src={LOGO_URL} alt="HireFlo" style={{width:56,height:56,objectFit:"contain"}}/>
           </div>
-          <div style={{fontWeight:900,fontSize:24,fontFamily:"'Plus Jakarta Sans',sans-serif",background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TakePlace</div>
+          <div style={{fontWeight:900,fontSize:24,fontFamily:"'Plus Jakarta Sans',sans-serif",background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>HireFlo</div>
         
         </div>
         {pendingJob&&(pendingJob.role||pendingJob.company)&&(
@@ -3437,7 +3437,7 @@ function AuthPage({onLogin,onBack,pendingJob}){
         {err&&<div style={{color:C.red,fontSize:12,marginTop:10,background:C.redPale,padding:"8px 12px",borderRadius:8,border:`1px solid ${C.red}20`}}>⚠ {err}</div>}
         {msg&&<div style={{color:C.green,fontSize:12,marginTop:10,background:C.greenPale,padding:"8px 12px",borderRadius:8,border:`1px solid ${C.green}20`}}>{msg}</div>}
         <Btn v="violet" onClick={handle} loading={loading} style={{width:"100%",marginTop:16,padding:"13px",fontSize:15}}>{mode==="login"?"Sign In →":"Create Account →"}</Btn>
-        <div style={{textAlign:"center",marginTop:16,fontSize:12,color:C.muted}}>Questions? <a href="mailto:takeplace.in@gmail.com" style={{color:C.violetL,fontWeight:700}}>takeplace.in@gmail.com</a></div>
+        <div style={{textAlign:"center",marginTop:16,fontSize:12,color:C.muted}}>Questions? <a href="mailto:HireFlo.in@gmail.com" style={{color:C.violetL,fontWeight:700}}>HireFlo.in@gmail.com</a></div>
       </div>
     </div>
   );
@@ -3454,7 +3454,7 @@ function AuthPage({onLogin,onBack,pendingJob}){
 function ChatWidget({ user, context }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: "assistant", content: "Hi! I'm your TakePlace AI assistant. Ask me anything about interviews, resumes, or your job search 👋" }
+    { role: "assistant", content: "Hi! I'm your HireFlo AI assistant. Ask me anything about interviews, resumes, or your job search 👋" }
   ]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -3483,7 +3483,7 @@ function ChatWidget({ user, context }) {
     try {
       // Build a short system prompt so the assistant stays on-topic and knows
       // who it's talking to. Adjust freely.
-      const sys = `You are the TakePlace AI Assistant — a friendly, sharp career coach embedded inside the TakePlace app (an AI mock-interview and job-prep platform for Indian freshers). Help with: interview prep, resume advice, job search strategy, career questions, and using TakePlace's own features (mock interviews, ATS checker, job feed, company prep). Keep answers concise, practical, and encouraging. Use short paragraphs or bullet points. If asked something totally unrelated to careers/jobs/interviews, answer briefly and steer back.${user?.user_metadata?.full_name ? ` The user's name is ${user.user_metadata.full_name.split(" ")[0]}.` : ""}`;
+      const sys = `You are the HireFlo AI Assistant — a friendly, sharp career coach embedded inside the HireFlo app (an AI mock-interview and job-prep platform for Indian freshers). Help with: interview prep, resume advice, job search strategy, career questions, and using HireFlo's own features (mock interviews, ATS checker, job feed, company prep). Keep answers concise, practical, and encouraging. Use short paragraphs or bullet points. If asked something totally unrelated to careers/jobs/interviews, answer briefly and steer back.${user?.user_metadata?.full_name ? ` The user's name is ${user.user_metadata.full_name.split(" ")[0]}.` : ""}`;
 
       // Send last ~10 messages of history for context, formatted as one prompt
       // since callGroq takes a single user-turn prompt + system message.
@@ -3556,7 +3556,7 @@ function ChatWidget({ user, context }) {
               display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0,
             }}>🤖</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: "#fff", fontWeight: 800, fontSize: 13.5, fontFamily: "'Inter',sans-serif" }}>TakePlace Assistant</div>
+              <div style={{ color: "#fff", fontWeight: 800, fontSize: 13.5, fontFamily: "'Inter',sans-serif" }}>HireFlo Assistant</div>
               <div style={{ color: "rgba(255,255,255,.75)", fontSize: 11, fontWeight: 600 }}>
                 {sending ? "Typing…" : "Online · Ask me anything"}
               </div>
@@ -3712,7 +3712,7 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
             {menuOpen&&(
               <div style={{position:"absolute",right:0,top:42,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,boxShadow:"0 12px 40px rgba(0,0,0,.4)",padding:8,minWidth:180,zIndex:50}}>
                 <div style={{padding:"8px 10px",fontSize:12,color:C.muted,borderBottom:`1px solid ${C.border}`,marginBottom:6}}>{firstName}</div>
-                <a href="mailto:takeplace.in@gmail.com" style={{display:"flex",alignItems:"center",gap:8,padding:"9px 10px",borderRadius:8,fontSize:13,color:C.ink2,fontWeight:500,fontFamily:"'Inter',sans-serif",textDecoration:"none"}}>✉ Support</a>
+                <a href="mailto:HireFlo.in@gmail.com" style={{display:"flex",alignItems:"center",gap:8,padding:"9px 10px",borderRadius:8,fontSize:13,color:C.ink2,fontWeight:500,fontFamily:"'Inter',sans-serif",textDecoration:"none"}}>✉ Support</a>
                 <button onClick={onLogout} style={{width:"100%",textAlign:"left",padding:"9px 10px",borderRadius:8,border:"none",background:"transparent",color:C.red,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>🚪 Sign Out</button>
               </div>
             )}
@@ -3754,7 +3754,7 @@ class ErrorBoundary extends React.Component{
         <div style={{minHeight:"100vh",background:"#080C14",color:"#fff",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14,padding:24,textAlign:"center",fontFamily:"'Inter',sans-serif"}}>
           <div style={{fontSize:40}}>⚠️</div>
           <div style={{fontWeight:700,fontSize:18}}>Something went wrong</div>
-          <div style={{color:"rgba(255,255,255,.5)",fontSize:13,maxWidth:320}}>Please reload. If this persists, check the browser console and contact takeplace.in@gmail.com.</div>
+          <div style={{color:"rgba(255,255,255,.5)",fontSize:13,maxWidth:320}}>Please reload. If this persists, check the browser console and contact HireFlo.in@gmail.com.</div>
           <button onClick={()=>window.location.reload()} style={{padding:"10px 24px",borderRadius:10,border:"none",background:"#7C6EFA",color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>Reload</button>
         </div>
       );
@@ -3818,7 +3818,7 @@ function AppInner(){
       <style>{CSS}</style>
       <div style={{fontSize:36,animation:"float 2s ease-in-out infinite"}}>🎤</div>
       <Spin size={32}/>
-      <div style={{color:C.muted,fontSize:13,fontFamily:"'Inter',sans-serif"}}>Loading TakePlace…</div>
+      <div style={{color:C.muted,fontSize:13,fontFamily:"'Inter',sans-serif"}}>Loading HireFlo…</div>
     </div>
   );
 
