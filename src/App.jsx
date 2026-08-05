@@ -99,8 +99,11 @@ const CSS = `
   .mono{font-family:'JetBrains Mono',monospace;}
   .gradient-text{background:linear-gradient(135deg,${C.violetD},${C.teal});-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
   .skeleton{background:linear-gradient(90deg,${C.bgSubtle} 25%,${C.bgSurf} 50%,${C.bgSubtle} 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;}
+  @media(max-width:768px){
+    .feed-grid{grid-template-columns:1fr!important;}
+    .feed-sidebar{order:-1;}
+  }
 `;
-
 const inp = {
   width:"100%",background:C.white,border:`1.5px solid ${C.border}`,
   borderRadius:12,padding:"13px 16px",color:C.ink,fontSize:14.5,
@@ -1155,6 +1158,327 @@ function useSpeechEngine({phaseRef, onTimerEnd, QTIME=90}){
     speak, startRec, stopRec, startTimer, stopTimer, reset, getAnswer,
     listening, liveText, interimText, timeLeft, aiSpeaking, speechOK,
   };
+}
+// ── FEED (replaces Dashboard as Home) ──────────────────────────────────────
+function timeAgo(dateStr){
+  const s=Math.floor((new Date()-new Date(dateStr))/1000);
+  if(s<60)return"now";
+  if(s<3600)return`${Math.floor(s/60)}m`;
+  if(s<86400)return`${Math.floor(s/3600)}h`;
+  if(s<604800)return`${Math.floor(s/86400)}d`;
+  return new Date(dateStr).toLocaleDateString("en-IN",{day:"numeric",month:"short"});
+}
+
+async function uploadMedia(file){
+  const ext=file.name.split(".").pop();
+  const path=`${crypto.randomUUID()}.${ext}`;
+  const{error}=await supabase.storage.from("post-media").upload(path,file);
+  if(error)throw error;
+  const{data}=supabase.storage.from("post-media").getPublicUrl(path);
+  return{url:data.publicUrl,type:file.type.startsWith("video")?"video":"image"};
+}
+
+function PostComposer({user,profile,onPosted}){
+  const[open,setOpen]=useState(false);
+  const[type,setType]=useState("post");
+  const[content,setContent]=useState("");
+  const[jobTitle,setJobTitle]=useState(""),[jobCompany,setJobCompany]=useState(""),[jobLocation,setJobLocation]=useState(""),[jobLink,setJobLink]=useState("");
+  const[eventTitle,setEventTitle]=useState(""),[eventDetails,setEventDetails]=useState(""),[eventDate,setEventDate]=useState(""),[eventTime,setEventTime]=useState("");
+  const[file,setFile]=useState(null);
+  const[posting,setPosting]=useState(false);
+  const[err,setErr]=useState("");
+  const fileRef=useRef();
+  const name=user?.user_metadata?.full_name||"You";
+  const initials=name.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
+
+  const reset=()=>{setType("post");setContent("");setJobTitle("");setJobCompany("");setJobLocation("");setJobLink("");setEventTitle("");setEventDetails("");setEventDate("");setEventTime("");setFile(null);setErr("");};
+
+  const submit=async()=>{
+    if(type==="post"&&!content.trim())return;
+    if(type==="job"&&!jobTitle.trim())return;
+    if(type==="event"&&!eventTitle.trim())return;
+    setPosting(true);setErr("");
+    try{
+      let media_url=null,media_type=null;
+      if(file){const up=await uploadMedia(file);media_url=up.url;media_type=up.type;}
+      const row={
+        user_id:user.id,author_name:name,author_headline:profile?.headline||"",author_initials:initials,
+        type,content:content.trim()||null,media_url,media_type,
+        job_title:jobTitle||null,job_company:jobCompany||null,job_location:jobLocation||null,job_link:jobLink||null,
+        event_title:eventTitle||null,event_details:eventDetails||null,event_date:eventDate||null,event_time:eventTime||null,
+      };
+      const{error}=await supabase.from("posts").insert(row);
+      if(error)throw error;
+      reset();setOpen(false);onPosted&&onPosted();
+    }catch(e){setErr(e.message||"Could not post");}
+    setPosting(false);
+  };
+
+  return(
+    <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:16,marginBottom:16,boxShadow:C.shCard}}>
+      {!open?(
+        <div onClick={()=>setOpen(true)} style={{display:"flex",alignItems:"center",gap:12,cursor:"pointer"}}>
+          <div style={{width:40,height:40,borderRadius:"50%",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:13,flexShrink:0}}>{initials}</div>
+          <div style={{flex:1,background:C.bgSubtle,border:`1px solid ${C.border}`,borderRadius:24,padding:"11px 18px",color:C.muted,fontSize:13.5,fontWeight:500}}>Share a post, job, or event…</div>
+        </div>
+      ):(
+        <div>
+          <div style={{display:"flex",gap:8,marginBottom:12}}>
+            {[["post","📝 Post"],["job","💼 Job"],["event","📅 Event"]].map(([v,l])=>(
+              <button key={v} onClick={()=>setType(v)} style={{padding:"7px 14px",borderRadius:20,border:`1.5px solid ${type===v?C.violet:C.border}`,background:type===v?C.violetPale:C.white,color:type===v?C.violetD:C.ink2,fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>{l}</button>
+            ))}
+          </div>
+
+          {type==="post"&&(
+            <textarea style={{...inp,minHeight:90,resize:"vertical"}} placeholder="What do you want to share?" value={content} onChange={e=>setContent(e.target.value)}/>
+          )}
+
+          {type==="job"&&(
+            <div style={{display:"grid",gap:8}}>
+              <input style={inp} placeholder="Job title *" value={jobTitle} onChange={e=>setJobTitle(e.target.value)}/>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <input style={inp} placeholder="Company" value={jobCompany} onChange={e=>setJobCompany(e.target.value)}/>
+                <input style={inp} placeholder="Location" value={jobLocation} onChange={e=>setJobLocation(e.target.value)}/>
+              </div>
+              <input style={inp} placeholder="Apply link (optional)" value={jobLink} onChange={e=>setJobLink(e.target.value)}/>
+              <textarea style={{...inp,minHeight:70,resize:"vertical"}} placeholder="Job details" value={content} onChange={e=>setContent(e.target.value)}/>
+            </div>
+          )}
+
+          {type==="event"&&(
+            <div style={{display:"grid",gap:8}}>
+              <input style={inp} placeholder="Event name *" value={eventTitle} onChange={e=>setEventTitle(e.target.value)}/>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <input style={inp} type="date" value={eventDate} onChange={e=>setEventDate(e.target.value)}/>
+                <input style={inp} type="time" value={eventTime} onChange={e=>setEventTime(e.target.value)}/>
+              </div>
+              <textarea style={{...inp,minHeight:70,resize:"vertical"}} placeholder="Event details" value={eventDetails} onChange={e=>setEventDetails(e.target.value)}/>
+            </div>
+          )}
+
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:12}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <button onClick={()=>fileRef.current.click()} style={{padding:"7px 13px",borderRadius:8,border:`1.5px solid ${C.border}`,background:C.white,color:C.ink2,fontSize:12,cursor:"pointer",fontWeight:700}}>📎 Photo/Video</button>
+              <input ref={fileRef} type="file" accept="image/*,video/*" style={{display:"none"}} onChange={e=>setFile(e.target.files[0]||null)}/>
+              {file&&<Tag color={C.teal} size={11}>{file.name}</Tag>}
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <Btn v="ghost" small onClick={()=>{reset();setOpen(false);}}>Cancel</Btn>
+              <Btn v="violet" small loading={posting} onClick={submit}>Post</Btn>
+            </div>
+          </div>
+          {err&&<div style={{color:C.red,fontSize:12,marginTop:8}}>{err}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PostCard({post,user,onChanged}){
+  const[liked,setLiked]=useState(false);
+  const[likes,setLikes]=useState(post.likes_count||0);
+  const[showComments,setShowComments]=useState(false);
+  const[comments,setComments]=useState([]);
+  const[commentText,setCommentText]=useState("");
+  const[loadingComments,setLoadingComments]=useState(false);
+
+  useEffect(()=>{
+    supabase.from("post_likes").select("id").eq("post_id",post.id).eq("user_id",user.id).maybeSingle()
+      .then(({data})=>setLiked(!!data));
+  },[post.id,user.id]);
+
+  const toggleLike=async()=>{
+    if(liked){
+      setLiked(false);setLikes(l=>Math.max(0,l-1));
+      await supabase.from("post_likes").delete().eq("post_id",post.id).eq("user_id",user.id);
+      await supabase.from("posts").update({likes_count:Math.max(0,likes-1)}).eq("id",post.id);
+    }else{
+      setLiked(true);setLikes(l=>l+1);
+      await supabase.from("post_likes").insert({post_id:post.id,user_id:user.id});
+      await supabase.from("posts").update({likes_count:likes+1}).eq("id",post.id);
+    }
+  };
+
+  const loadComments=async()=>{
+    setShowComments(s=>!s);
+    if(!comments.length){
+      setLoadingComments(true);
+      const{data}=await supabase.from("post_comments").select("*").eq("post_id",post.id).order("created_at",{ascending:true});
+      setComments(data||[]);setLoadingComments(false);
+    }
+  };
+
+  const submitComment=async()=>{
+    if(!commentText.trim())return;
+    const name=user?.user_metadata?.full_name||"You";
+    const row={post_id:post.id,user_id:user.id,author_name:name,content:commentText.trim()};
+    const{data}=await supabase.from("post_comments").insert(row).select().single();
+    if(data)setComments(c=>[...c,data]);
+    await supabase.from("posts").update({comments_count:(post.comments_count||0)+1}).eq("id",post.id);
+    setCommentText("");
+  };
+
+  const share=async()=>{
+    const url=`${window.location.origin}${window.location.pathname}?post=${post.id}`;
+    try{if(navigator.share)await navigator.share({title:"HireFlo",url});else{await navigator.clipboard.writeText(url);alert("🔗 Link copied!");}}catch{}
+  };
+
+  const badge=post.type==="job"?["💼 Job",C.blue]:post.type==="event"?["📅 Event",C.gold]:null;
+
+  return(
+    <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:16,marginBottom:14,boxShadow:C.shCard}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+        <div style={{width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:13,flexShrink:0}}>{post.author_initials||"U"}</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:800,fontSize:13.5,color:C.ink}}>{post.author_name}</div>
+          <div style={{color:C.muted,fontSize:11.5,fontWeight:500}}>{post.author_headline?`${post.author_headline} · `:""}{timeAgo(post.created_at)}</div>
+        </div>
+        {badge&&<Tag color={badge[1]} size={11}>{badge[0]}</Tag>}
+      </div>
+
+      {post.type==="job"&&(
+        <div style={{background:C.bluePale,border:`1px solid ${C.blue}25`,borderRadius:12,padding:14,marginBottom:10}}>
+          <div style={{fontWeight:800,fontSize:15,color:C.ink}}>{post.job_title}</div>
+          <div style={{color:C.soft,fontSize:12.5,marginTop:2,fontWeight:600}}>{post.job_company}{post.job_location?` · ${post.job_location}`:""}</div>
+          {post.job_link&&<a href={post.job_link} target="_blank" rel="noreferrer" style={{display:"inline-block",marginTop:8,color:C.blue,fontSize:12.5,fontWeight:700,textDecoration:"none"}}>Apply link →</a>}
+        </div>
+      )}
+      {post.type==="event"&&(
+        <div style={{background:C.goldPale,border:`1px solid ${C.gold}25`,borderRadius:12,padding:14,marginBottom:10}}>
+          <div style={{fontWeight:800,fontSize:15,color:C.ink}}>{post.event_title}</div>
+          <div style={{color:C.gold,fontSize:12.5,marginTop:2,fontWeight:700}}>{post.event_date&&new Date(post.event_date).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}{post.event_time?` · ${post.event_time}`:""}</div>
+        </div>
+      )}
+      {post.content&&<div style={{fontSize:13.5,color:C.ink2,lineHeight:1.7,marginBottom:post.media_url?10:0,whiteSpace:"pre-wrap"}}>{post.type==="event"?post.event_details:post.content}</div>}
+
+      {post.media_url&&(post.media_type==="video"
+        ?<video src={post.media_url} controls style={{width:"100%",borderRadius:12,marginBottom:10}}/>
+        :<img src={post.media_url} alt="" style={{width:"100%",borderRadius:12,marginBottom:10,display:"block"}}/>
+      )}
+
+      <div style={{display:"flex",gap:6,color:C.muted,fontSize:11.5,marginBottom:8,fontWeight:600}}>
+        {likes>0&&<span>{likes} like{likes>1?"s":""}</span>}
+        {post.comments_count>0&&<span style={{marginLeft:"auto"}}>{post.comments_count} comment{post.comments_count>1?"s":""}</span>}
+      </div>
+      <div style={{display:"flex",borderTop:`1px solid ${C.border}`,paddingTop:8,gap:4}}>
+        <button onClick={toggleLike} style={{flex:1,background:"none",border:"none",cursor:"pointer",padding:"8px",borderRadius:8,fontSize:12.5,fontWeight:700,color:liked?C.violet:C.ink2,fontFamily:"'Inter',sans-serif"}}>{liked?"❤️":"🤍"} Like</button>
+        <button onClick={loadComments} style={{flex:1,background:"none",border:"none",cursor:"pointer",padding:"8px",borderRadius:8,fontSize:12.5,fontWeight:700,color:C.ink2,fontFamily:"'Inter',sans-serif"}}>💬 Comment</button>
+        <button onClick={share} style={{flex:1,background:"none",border:"none",cursor:"pointer",padding:"8px",borderRadius:8,fontSize:12.5,fontWeight:700,color:C.ink2,fontFamily:"'Inter',sans-serif"}}>↗ Share</button>
+      </div>
+
+      {showComments&&(
+        <div style={{marginTop:10,borderTop:`1px solid ${C.border}`,paddingTop:10}}>
+          {loadingComments&&<Spin size={16}/>}
+          {comments.map(c=>(
+            <div key={c.id} style={{display:"flex",gap:8,marginBottom:8}}>
+              <div style={{width:26,height:26,borderRadius:"50%",background:C.bgSurf,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:C.ink2,flexShrink:0}}>{(c.author_name||"U")[0]}</div>
+              <div style={{background:C.bgSubtle,borderRadius:10,padding:"7px 11px",fontSize:12.5}}>
+                <span style={{fontWeight:800,color:C.ink}}>{c.author_name}</span><br/>
+                <span style={{color:C.ink2}}>{c.content}</span>
+              </div>
+            </div>
+          ))}
+          <div style={{display:"flex",gap:8,marginTop:6}}>
+            <input style={{...inp,padding:"8px 12px",fontSize:12.5}} placeholder="Write a comment…" value={commentText} onChange={e=>setCommentText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submitComment()}/>
+            <Btn v="violet" small onClick={submitComment}>Send</Btn>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+function ProfileSidebar({user}){
+  const[editing,setEditing]=useState(false);
+  const meta=user?.user_metadata||{};
+  const[headline,setHeadline]=useState(meta.headline||"");
+  const[education,setEducation]=useState(meta.education||"");
+  const[interests,setInterests]=useState(meta.interests||"");
+  const[avatarUrl,setAvatarUrl]=useState(meta.avatar_url||"");
+  const[saving,setSaving]=useState(false);
+  const[uploadingPhoto,setUploadingPhoto]=useState(false);
+  const photoRef=useRef();
+  const name=meta.full_name||"You";
+  const initials=name.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
+
+  const uploadPhoto=async(e)=>{
+    const f=e.target.files[0];if(!f)return;
+    setUploadingPhoto(true);
+    try{
+      const ext=f.name.split(".").pop();
+      const path=`avatars/${user.id}.${ext}`;
+      await supabase.storage.from("post-media").upload(path,f,{upsert:true});
+      const{data}=supabase.storage.from("post-media").getPublicUrl(path);
+      const url=data.publicUrl+`?t=${Date.now()}`; // cache-bust
+      await supabase.auth.updateUser({data:{avatar_url:url}});
+      setAvatarUrl(url);
+    }catch(e2){alert("Could not upload photo: "+e2.message);}
+    setUploadingPhoto(false);
+  };
+
+  const save=async()=>{
+    setSaving(true);
+    await supabase.auth.updateUser({data:{headline,education,interests}});
+    setSaving(false);setEditing(false);
+  };
+
+  return(
+    <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:20,boxShadow:C.shCard,position:"sticky",top:70}}>
+      <div style={{position:"relative",width:64,height:64,margin:"0 auto 10px"}}>
+        {avatarUrl?(
+          <img src={avatarUrl} alt={name} style={{width:64,height:64,borderRadius:"50%",objectFit:"cover",display:"block"}}/>
+        ):(
+          <div style={{width:64,height:64,borderRadius:"50%",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:20}}>{initials}</div>
+        )}
+        <button onClick={()=>photoRef.current.click()} disabled={uploadingPhoto}
+          style={{position:"absolute",bottom:-2,right:-2,width:22,height:22,borderRadius:"50%",border:`2px solid ${C.bgCard}`,background:C.violet,color:"#fff",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          {uploadingPhoto?<Spin size={10} color="#fff"/>:"📷"}
+        </button>
+        <input ref={photoRef} type="file" accept="image/*" style={{display:"none"}} onChange={uploadPhoto}/>
+      </div>
+      <div style={{textAlign:"center",fontWeight:800,fontSize:15,color:C.ink}}>{name}</div>
+      {!editing?(
+        <>
+          <div style={{textAlign:"center",color:C.soft,fontSize:12.5,marginTop:4,fontWeight:500}}>{meta.headline||"Add a headline"}</div>
+          {meta.education&&<div style={{marginTop:12,fontSize:12,color:C.ink2}}>🎓 {meta.education}</div>}
+          {meta.interests&&<div style={{marginTop:6,fontSize:12,color:C.ink2}}>✨ {meta.interests}</div>}
+          <button onClick={()=>setEditing(true)} style={{width:"100%",marginTop:14,padding:"8px",borderRadius:8,border:`1.5px solid ${C.border}`,background:C.white,color:C.ink2,fontSize:12,fontWeight:700,cursor:"pointer"}}>Edit profile</button>
+        </>
+      ):(
+        <div style={{marginTop:12,display:"grid",gap:8}}>
+          <input style={{...inp,fontSize:12.5,padding:"8px 10px"}} placeholder="Headline (e.g. Aspiring SDE)" value={headline} onChange={e=>setHeadline(e.target.value)}/>
+          <input style={{...inp,fontSize:12.5,padding:"8px 10px"}} placeholder="Education" value={education} onChange={e=>setEducation(e.target.value)}/>
+          <input style={{...inp,fontSize:12.5,padding:"8px 10px"}} placeholder="Interests" value={interests} onChange={e=>setInterests(e.target.value)}/>
+          <div style={{display:"flex",gap:8}}>
+            <Btn v="ghost" small onClick={()=>setEditing(false)} style={{flex:1}}>Cancel</Btn>
+            <Btn v="violet" small loading={saving} onClick={save} style={{flex:1}}>Save</Btn>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FeedTab({user}){
+  const[posts,setPosts]=useState([]);
+  const[loading,setLoading]=useState(true);
+
+  const load=async()=>{
+    setLoading(true);
+    const{data}=await supabase.from("posts").select("*").order("created_at",{ascending:false}).limit(40);
+    setPosts(data||[]);setLoading(false);
+  };
+  useEffect(()=>{load();},[]);
+
+  return(
+    <div className="fade feed-grid" style={{display:"grid",gridTemplateColumns:"1fr 260px",gap:20,alignItems:"start"}}>
+        <PostComposer user={user} profile={user?.user_metadata} onPosted={load}/>
+        {loading&&<div style={{textAlign:"center",padding:40}}><Spin size={30}/></div>}
+        {!loading&&posts.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>No posts yet — be the first to share something.</div>}
+        {posts.map(p=><PostCard key={p.id} post={p} user={user} onChanged={load}/>)}
+      </div>
+      <div className="feed-sidebar"><ProfileSidebar user={user}/></div>
+    </div>
+  );
 }
 
 // ── INTERVIEW ROOM ────────────────────────────────────────────────────────────
@@ -3513,8 +3837,9 @@ function ChatWidget({ user, context }) {
     <>
       {/* Floating launcher button */}
       <button
-        onClick={() => setOpen(o => !o)}
+       onClick={() => setOpen(o => !o)}
         aria-label="Open chat assistant"
+        className="chat-launcher"
         style={{
           position: "fixed", bottom: 24, right: 24, zIndex: 9998,
           width: 58, height: 58, borderRadius: "50%", border: "none", cursor: "pointer",
@@ -3540,7 +3865,7 @@ function ChatWidget({ user, context }) {
 
       {/* Chat panel */}
       {open && (
-        <div className="fadein" style={{
+       <div className="chat-panel fadein" style={{
           position: "fixed", bottom: 92, right: 24, zIndex: 9998,
           width: 360, maxWidth: "calc(100vw - 32px)", height: 520, maxHeight: "calc(100vh - 140px)",
           background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 20,
@@ -3663,7 +3988,7 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
 
   const setTabP=(t)=>{setTab(t);sessionStorage.setItem("tp_tab",t);};
 
-  const TABS=[{icon:"🏠",label:"Home",id:0},{icon:"🔥",label:"Jobs",id:1},{icon:"🎯",label:"Resume Interview",id:2},{icon:"🏢",label:"Interview Prep",id:3},{icon:"📋",label:"ATS Check",id:4}];
+const TABS=[{icon:"🏠",label:"Home",id:0},{icon:"💼",label:"Jobs",id:1},{icon:"🎙️",label:"Mock",id:2},{icon:"🏢",label:"Prep",id:3},{icon:"📄",label:"ATS",id:4}];
   useEffect(()=>{fetchUserStats(user?.id).then(s=>setStats(s));},[user]);
   useEffect(()=>{loadRazorpayScript();},[]);
 
@@ -3683,16 +4008,9 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
 
   return(
     <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Inter',sans-serif",paddingBottom:76}}>
-      <style>{CSS}{`@media(min-width:640px){.bn{display:none!important;}.ttb{display:flex!important;}}@media(max-width:639px){.ttb{display:none!important;}.bn{display:flex!important;}}`}</style>
+    <style>{CSS}{`@media(min-width:640px){.bn{display:none!important;}.ttb{display:flex!important;}}@media(max-width:639px){.ttb{display:none!important;}.bn{display:flex!important;}.chat-launcher{bottom:88px!important;}.chat-panel{bottom:156px!important;}}`}</style>
 
-      {/* Announcement banner */}
-      {!isPro&&(
-        <div style={{background:`linear-gradient(90deg,${C.violetD},${C.violet})`,padding:"8px 20px",textAlign:"center",fontSize:12,color:"#fff",fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:10,flexWrap:"wrap"}}>
-          <span>🎉 New: Interview Prep with company-specific questions is live!</span>
-          <button onClick={()=>setTabP(3)} style={{background:"rgba(255,255,255,.2)",border:"1px solid rgba(255,255,255,.3)",borderRadius:20,padding:"2px 12px",color:"#fff",fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:700}}>Try it free →</button>
-        </div>
-      )}
-
+     
       <div style={{background:"rgba(8,12,20,.95)",backdropFilter:"blur(20px)",borderBottom:`1px solid ${C.border}`,padding:"0 20px",position:"sticky",top:0,zIndex:100}}>
         <div style={{maxWidth:900,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:58}}>
           <Logo size={30} textSize={20}/>
@@ -3721,7 +4039,7 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
       </div>
 
       <div style={{maxWidth:900,margin:"0 auto",padding:"22px 16px"}}>
-        {tab===0&&<Dashboard user={user} onStartInterview={()=>setTabP(2)} onGoToJobs={()=>setTabP(1)} onGoToTab={setTabP} stats={stats}/>}
+        {tab===0&&<FeedTab user={user}/>}
         {tab===1&&<JobsTab onPracticeForJob={handlePracticeForJob}/>}
         {tab===2&&<ResumeInterviewTab user={user} onInterviewComplete={refreshStats} prefillCompany={prefillCompany} prefillRole={prefillRole}/>}
         {tab===3&&<CompanyPrepTab user={user} onPracticeForCompany={handlePracticeForJob}/>}
