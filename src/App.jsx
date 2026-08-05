@@ -3667,13 +3667,14 @@ function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
         {TABS.map(t=>{
           const active=tab===t.id;
           return(
-          <button key={t.id} onClick={()=>setTabP(t.id)} style={{flex:1,padding:"10px 4px 8px",border:"none",borderRadius:0,background:active?"rgba(124,110,250,.12)":"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,color:active?C.violetL:C.muted,fontFamily:"'Inter',sans-serif",transition:"all .2s",borderTop:active?`2px solid ${C.violet}`:"2px solid transparent"}}>
-              <span style={{fontSize:active?21:19,lineHeight:1,transition:"font-size .18s"}}>{t.icon}</span>
-              <span style={{fontSize:9.5,fontWeight:active?800:600,letterSpacing:.2,whiteSpace:"nowrap",maxWidth:58,overflow:"hidden",textOverflow:"ellipsis",color:active?C.violetL:"rgba(255,255,255,.45)"}}>{t.label}</span>
+          <button key={t.id} onClick={()=>setTabP(t.id)} style={{...}}>
+              <span style={{...}}>{t.icon}</span>
+              <span style={{...}}>{t.label}</span>
             </button>
           );
         })}
       </div>
+      <ChatWidget user={user}/>
     </div>
   );
 }
