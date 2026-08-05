@@ -1403,6 +1403,11 @@ function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
+// ── DASHBOARD (product-level redesign) ─────────────────────────────────────
+// Drop-in replacement for your existing `function Dashboard({...}){...}`.
+// Same props, same data shape (user, onStartInterview, onGoToJobs, onGoToTab, stats).
+// Nothing else in your file needs to change.
+
 function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
   const name=user?.user_metadata?.full_name?.split(" ")[0]||"there";
   const results=stats?.results||[];
@@ -1429,72 +1434,155 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
   const hour=new Date().getHours();
   const greeting=hour<12?"Good morning":hour<17?"Good afternoon":"Good evening";
 
+  // "Readiness" — a single at-a-glance number, product dashboards love these
+  const readiness=results.length?avgScore:0;
+  const readinessLabel=readiness===0?"Not started":readiness>=75?"Interview ready":readiness>=55?"Getting there":"Needs work";
+  const readinessColor=readiness===0?C.muted:readiness>=75?C.green:readiness>=55?C.gold:C.red;
+
   const handleChoosePlan=async(plan)=>{
     setCheckingOut(true);
     await startCheckout(plan,user,()=>{setShowUpgrade(false);setCheckingOut(false);window.location.reload();});
     setCheckingOut(false);
   };
 
+  const quickActions=[
+    {icon:"🎯",title:"AI Mock Interview",desc:"Resume-personalized, on camera",action:onStartInterview,color:C.violet,badge:results.length===0?"Start here":null},
+    {icon:"🔥",title:"Live Job Feed",desc:"Fresher openings, updated daily",action:onGoToJobs,color:C.teal},
+    {icon:"🏢",title:"Interview Prep",desc:"Company-exact Q&A + answers",action:()=>onGoToTab(3),color:C.gold},
+    {icon:"📋",title:"ATS Resume Check",desc:"Score your resume vs a JD",action:()=>onGoToTab(4),color:C.blue},
+  ];
+
   return(
     <div className="fade" style={{paddingBottom:20}}>
-      <div style={{background:`linear-gradient(135deg,${C.bgCard},${C.bgSubtle})`,border:`1px solid ${C.border}`,borderRadius:20,padding:"24px",marginBottom:16,position:"relative",overflow:"hidden",boxShadow:C.shCard}}>
-        <div style={{position:"absolute",top:-40,right:-40,width:200,height:200,borderRadius:"50%",background:`radial-gradient(circle,${C.violet}10,transparent 70%)`,pointerEvents:"none"}}/>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:16}}>
-          <div>
-            <div style={{color:C.soft,fontSize:13.5,marginBottom:6,fontWeight:600}}>{greeting}, {name} 👋</div>
+
+      {/* ── HERO ── */}
+      <div style={{
+        background:`linear-gradient(135deg,${C.violetD} 0%,${C.violet} 55%,${C.violetL} 100%)`,
+        borderRadius:24,padding:"30px 28px",marginBottom:16,position:"relative",overflow:"hidden",
+        boxShadow:"0 20px 50px rgba(91,79,232,.28)"
+      }}>
+        {/* decorative mesh */}
+        <div style={{position:"absolute",top:-80,right:-60,width:280,height:280,borderRadius:"50%",background:"radial-gradient(circle,rgba(255,255,255,.16),transparent 70%)",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",bottom:-100,left:"30%",width:260,height:260,borderRadius:"50%",background:"radial-gradient(circle,rgba(14,168,137,.25),transparent 70%)",pointerEvents:"none"}}/>
+
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:24,position:"relative"}}>
+          <div style={{flex:"1 1 320px",minWidth:0}}>
+            <div style={{color:"rgba(255,255,255,.75)",fontSize:13,fontWeight:600,marginBottom:8}}>{greeting}, {name} 👋</div>
+
             {streak.streak>0?(
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-                <span style={{fontSize:24,animation:streak.streak>0?"streakPop 2s ease infinite":"none"}}>🔥</span>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                <span style={{fontSize:26,animation:"streakPop 2s ease infinite"}}>🔥</span>
                 <div>
-                  <div style={{fontWeight:900,fontSize:23,fontFamily:"'Plus Jakarta Sans',sans-serif",color:C.ink}}>{streak.streak}-day streak</div>
-                  <div style={{color:C.soft,fontSize:12.5,fontWeight:500}}>Longest: {streak.longest} days</div>
+                  <div style={{fontWeight:900,fontSize:26,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"#fff",lineHeight:1.1}}>{streak.streak}-day streak</div>
+                  <div style={{color:"rgba(255,255,255,.65)",fontSize:12.5,fontWeight:500}}>Best: {streak.longest} days</div>
                 </div>
               </div>
             ):(
-              <div style={{fontWeight:800,fontSize:21,color:C.ink,marginBottom:6,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Start your first interview today</div>
-            )}
-            {weakest&&weakest[1]>0&&(
-              <div style={{background:C.goldPale,border:`1px solid ${C.gold}30`,borderRadius:10,padding:"8px 14px",display:"inline-block"}}>
-                <span style={{color:C.gold,fontSize:12.5,fontWeight:700}}>💡 Focus area: {skillNames[weakest[0]]} ({weakest[1]}%)</span>
+              <div style={{fontWeight:900,fontSize:26,color:"#fff",marginBottom:14,fontFamily:"'Plus Jakarta Sans',sans-serif",lineHeight:1.2}}>
+                Let's get you interview-ready
               </div>
             )}
+
+            {weakest&&weakest[1]>0&&(
+              <div style={{background:"rgba(255,255,255,.14)",border:"1px solid rgba(255,255,255,.2)",borderRadius:10,padding:"7px 14px",display:"inline-block",marginBottom:18}}>
+                <span style={{color:"#fff",fontSize:12.5,fontWeight:600}}>💡 Focus area: {skillNames[weakest[0]]} ({weakest[1]}%)</span>
+              </div>
+            )}
+
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+              <button onClick={onStartInterview} style={{
+                padding:"13px 24px",borderRadius:12,border:"none",cursor:"pointer",
+                background:"#fff",color:C.violetD,fontWeight:800,fontSize:14,
+                fontFamily:"'Inter',sans-serif",display:"inline-flex",alignItems:"center",gap:8,
+                boxShadow:"0 8px 20px rgba(0,0,0,.15)"
+              }}>🎙️ Practice now</button>
+              <button onClick={onGoToJobs} style={{
+                padding:"13px 20px",borderRadius:12,cursor:"pointer",
+                background:"rgba(255,255,255,.12)",border:"1.5px solid rgba(255,255,255,.3)",
+                color:"#fff",fontWeight:700,fontSize:14,fontFamily:"'Inter',sans-serif"
+              }}>Browse jobs →</button>
+            </div>
           </div>
-          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-            <Btn v="violet" onClick={onStartInterview} style={{padding:"12px 22px",fontSize:13.5}}>🎙️ Practice now</Btn>
-            <Btn v="ghost" onClick={onGoToJobs} style={{padding:"12px 18px",fontSize:13.5}}>Browse jobs →</Btn>
+
+          {/* Readiness ring — the single "product-level" glanceable metric */}
+          <div style={{
+            background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.18)",
+            borderRadius:18,padding:"18px 22px",textAlign:"center",minWidth:150,backdropFilter:"blur(6px)"
+          }}>
+            <div style={{position:"relative",width:88,height:88,margin:"0 auto 8px"}}>
+              <svg width={88} height={88} viewBox="0 0 88 88">
+                <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(255,255,255,.18)" strokeWidth="7"/>
+                <circle cx="44" cy="44" r="36" fill="none" stroke="#fff" strokeWidth="7"
+                  strokeDasharray={2*Math.PI*36} strokeDashoffset={2*Math.PI*36*(1-readiness/100)}
+                  strokeLinecap="round" transform="rotate(-90 44 44)"
+                  style={{transition:"stroke-dashoffset 1.2s cubic-bezier(.22,1,.36,1)"}}/>
+              </svg>
+              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column"}}>
+                <span style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:800,fontSize:22,color:"#fff",lineHeight:1}}>{readiness}</span>
+              </div>
+            </div>
+            <div style={{color:"#fff",fontSize:12,fontWeight:800,letterSpacing:.3}}>{readinessLabel}</div>
+            <div style={{color:"rgba(255,255,255,.6)",fontSize:10.5,fontWeight:600,marginTop:2,textTransform:"uppercase",letterSpacing:.6}}>Readiness score</div>
           </div>
         </div>
       </div>
 
       {!isPro&&(
-        <div onClick={()=>setShowUpgrade(true)} className="lift" style={{background:`linear-gradient(135deg,${C.gold}14,${C.violet}0C)`,border:`1px solid ${C.gold}35`,borderRadius:16,padding:"16px 20px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",cursor:"pointer",boxShadow:C.shCard}}>
+        <div onClick={()=>setShowUpgrade(true)} className="lift" style={{background:`linear-gradient(135deg,${C.gold}12,${C.violet}0A)`,border:`1px solid ${C.gold}30`,borderRadius:14,padding:"14px 18px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",cursor:"pointer",boxShadow:C.shCard}}>
           <div>
-            <div style={{fontWeight:800,fontSize:14.5,color:C.ink}}>🔓 Unlock all 15 mock interviews per role</div>
-            <div style={{color:C.soft,fontSize:12.5,marginTop:2,fontWeight:500}}>Free plan includes 2 mocks · ₹49/week or ₹199/month for all 15</div>
+            <div style={{fontWeight:800,fontSize:13.5,color:C.ink}}>🔓 Unlock all 15 mock interviews per role</div>
+            <div style={{color:C.soft,fontSize:12,marginTop:2,fontWeight:500}}>Free plan includes 2 · ₹49/week or ₹199/month for all 15</div>
           </div>
-          <Tag color={C.gold}>Upgrade →</Tag>
+          <Tag color={C.gold} size={11}>Upgrade →</Tag>
         </div>
       )}
       {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut}/>}
 
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:12,marginBottom:16}}>
+      {/* ── STAT ROW ── */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12,marginBottom:16}}>
         {[
-          {label:"Interviews",value:results.length,icon:"🎯",color:C.violet,mono:true},
-          {label:"Avg score",value:`${avgScore}%`,icon:"📊",color:C.teal,mono:true},
-          {label:"Last score",value:`${latestScore}%`,icon:"⚡",color:scores.length?C.green:C.muted,mono:true,delta:scores.length>1?delta:null},
-          {label:"Best streak",value:`${streak.longest}d`,icon:"🔥",color:C.gold,mono:true},
-        ].map(({label,value,icon,color,mono,delta})=>(
-          <div key={label} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px",position:"relative",overflow:"hidden",boxShadow:C.shCard}}>
-            <div style={{position:"absolute",top:12,right:12,fontSize:20,opacity:.6}}>{icon}</div>
-            <div style={{color:C.soft,fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:.7,marginBottom:8}}>{label}</div>
-            <div className={mono?"mono":""} style={{fontWeight:900,fontSize:27,color,lineHeight:1}}>{value}</div>
-            {delta!==null&&delta!==undefined&&(
-              <div style={{fontSize:11,color:delta>=0?C.green:C.red,marginTop:4,fontWeight:700}}>{delta>=0?`↑ +${delta}`:` ↓ ${delta}`} pts</div>
-            )}
+          {label:"Interviews",value:results.length,icon:"🎯",color:C.violet},
+          {label:"Avg score",value:`${avgScore}%`,icon:"📊",color:C.teal},
+          {label:"Last score",value:`${latestScore}%`,icon:"⚡",color:scores.length?C.green:C.muted,delta:scores.length>1?delta:null},
+          {label:"Best streak",value:`${streak.longest}d`,icon:"🔥",color:C.gold},
+        ].map(({label,value,icon,color,delta})=>(
+          <div key={label} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"16px 18px",boxShadow:C.shCard,display:"flex",alignItems:"center",gap:14}}>
+            <div style={{width:40,height:40,borderRadius:11,background:`${color}14`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{icon}</div>
+            <div style={{minWidth:0}}>
+              <div style={{color:C.muted,fontSize:10.5,fontWeight:800,textTransform:"uppercase",letterSpacing:.6,marginBottom:2}}>{label}</div>
+              <div className="mono" style={{fontWeight:800,fontSize:20,color,lineHeight:1}}>{value}
+                {delta!==null&&delta!==undefined&&(
+                  <span style={{fontSize:11,fontFamily:"'Inter',sans-serif",fontWeight:700,color:delta>=0?C.green:C.red,marginLeft:6}}>{delta>=0?`↑${delta}`:`↓${Math.abs(delta)}`}</span>
+                )}
+              </div>
+            </div>
           </div>
         ))}
       </div>
 
+      {/* ── QUICK ACTIONS (list style, product-app feel) ── */}
+      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,marginBottom:16,boxShadow:C.shCard,overflow:"hidden"}}>
+        {quickActions.map((a,i)=>(
+          <div key={a.title} onClick={a.action} className="lift" style={{
+            display:"flex",alignItems:"center",gap:14,padding:"16px 18px",cursor:"pointer",
+            borderBottom:i<quickActions.length-1?`1px solid ${C.border}`:"none",transition:"background .15s"
+          }}
+          onMouseEnter={e=>e.currentTarget.style.background=C.bgSubtle}
+          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+            <div style={{width:44,height:44,borderRadius:12,background:`${a.color}14`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{a.icon}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <div style={{fontWeight:800,fontSize:14.5,color:C.ink}}>{a.title}</div>
+                {a.badge&&<Tag color={a.color} size={10}>{a.badge}</Tag>}
+              </div>
+              <div style={{color:C.soft,fontSize:12.5,fontWeight:500,marginTop:1}}>{a.desc}</div>
+            </div>
+            <span style={{color:C.muted,fontSize:18,flexShrink:0}}>→</span>
+          </div>
+        ))}
+      </div>
+
+      {/* ── SKILL PROFILE + TRAJECTORY ── */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
         <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",boxShadow:C.shCard}}>
           <div style={{fontWeight:800,color:C.ink,fontSize:14.5,marginBottom:4}}>Skill profile</div>
@@ -1526,6 +1614,7 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
         </div>
       </div>
 
+      {/* ── RECENT INTERVIEWS ── */}
       {results.length>0&&(
         <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:16,boxShadow:C.shCard}}>
           <div style={{fontWeight:800,color:C.ink,fontSize:14.5,marginBottom:14}}>Recent interviews</div>
@@ -1546,31 +1635,7 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
         </div>
       )}
 
-      {/* 4-card quick action grid */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-        <div className="lift" onClick={onStartInterview} style={{background:`linear-gradient(135deg,${C.violetD}14,${C.violet}0E)`,border:`1px solid ${C.violet}30`,borderRadius:16,padding:"20px",cursor:"pointer",boxShadow:C.shCard}}>
-          <div style={{fontSize:28,marginBottom:10}}>🎯</div>
-          <div style={{fontWeight:800,fontSize:14.5,color:C.ink,marginBottom:4}}>AI Mock Interview</div>
-          <div style={{color:C.soft,fontSize:12.5,lineHeight:1.6,fontWeight:500}}>Upload resume, pick company — get a fully personalized interview on camera</div>
-        </div>
-        <div className="lift" onClick={onGoToJobs} style={{background:`linear-gradient(135deg,${C.tealD}12,${C.teal}0C)`,border:`1px solid ${C.teal}28`,borderRadius:16,padding:"20px",cursor:"pointer",boxShadow:C.shCard}}>
-          <div style={{fontSize:28,marginBottom:10}}>🔥</div>
-          <div style={{fontWeight:800,fontSize:14.5,color:C.ink,marginBottom:4}}>Live Job Feed</div>
-          <div style={{color:C.soft,fontSize:12.5,lineHeight:1.6,fontWeight:500}}>Real fresher openings across India · updated daily</div>
-        </div>
-        <div className="lift" onClick={()=>onGoToTab(3)} style={{background:`linear-gradient(135deg,${C.gold}12,${C.gold}08)`,border:`1px solid ${C.gold}28`,borderRadius:16,padding:"20px",cursor:"pointer",boxShadow:C.shCard}}>
-          <div style={{fontSize:28,marginBottom:10}}>🏢</div>
-          <div style={{fontWeight:800,fontSize:14.5,color:C.ink,marginBottom:4}}>Interview Prep</div>
-          <div style={{color:C.soft,fontSize:12.5,lineHeight:1.6,fontWeight:500}}>Real questions Google, TCS, Wipro ask — with model answers</div>
-        </div>
-        <div className="lift" onClick={()=>onGoToTab(4)} style={{background:`linear-gradient(135deg,${C.teal}0C,${C.violet}0C)`,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",cursor:"pointer",boxShadow:C.shCard}}>
-          <div style={{fontSize:28,marginBottom:10}}>📋</div>
-          <div style={{fontWeight:800,fontSize:14.5,color:C.ink,marginBottom:4}}>ATS Resume Check</div>
-          <div style={{color:C.soft,fontSize:12.5,lineHeight:1.6,fontWeight:500}}>Paste a JD, upload your resume — get a shortlist-ready ATS score</div>
-        </div>
-      </div>
-
-      {/* Daily tip card */}
+      {/* ── DAILY TIP ── */}
       {(()=>{
         const tips=[
           {icon:"💡",tip:"Answer behavioral questions using STAR: Situation, Task, Action, Result.",color:C.violet},
@@ -1591,7 +1656,7 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
         );
       })()}
 
-      {/* Progress checklist */}
+      {/* ── PROGRESS CHECKLIST ── */}
       {(()=>{
         const done=results.length;
         const checks=[
