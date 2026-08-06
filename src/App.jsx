@@ -339,6 +339,23 @@ function useSubscription(userId){
   useEffect(()=>{refresh();},[refresh]);
   return{isPro:!!sub,plan:sub?.plan||null,expiresAt:sub?.expires_at||null,loading,refresh};
 }
+function useInstallPrompt(){
+  const[deferredPrompt,setDeferredPrompt]=useState(null);
+  const[installable,setInstallable]=useState(false);
+  useEffect(()=>{
+    const handler=(e)=>{e.preventDefault();setDeferredPrompt(e);setInstallable(true);};
+    window.addEventListener("beforeinstallprompt",handler);
+    window.addEventListener("appinstalled",()=>setInstallable(false));
+    return()=>window.removeEventListener("beforeinstallprompt",handler);
+  },[]);
+  const promptInstall=async()=>{
+    if(!deferredPrompt)return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    setDeferredPrompt(null);setInstallable(false);
+  };
+  return{installable,promptInstall};
+}
 
 // ── RAZORPAY ──────────────────────────────────────────────────────────────────
 function loadRazorpayScript(){
@@ -1481,6 +1498,7 @@ function ProfilePanel({user,open,onClose,onLogout}){
   const[interests,setInterests]=useState(meta.interests||"");
   const[saving,setSaving]=useState(false);
   const[copied,setCopied]=useState(false);
+  const{installable,promptInstall}=useInstallPrompt();
   const name=meta.full_name||"You";
   const initials=name.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
   const referLink=`${typeof window!=="undefined"?window.location.origin:""}?ref=${user?.id||""}`;
@@ -1534,6 +1552,12 @@ function ProfilePanel({user,open,onClose,onLogout}){
 
               <div style={{display:"flex",flexDirection:"column",gap:2}}>
                 <button onClick={copyReferLink} style={{width:"100%",textAlign:"left",padding:"12px 6px",background:copied?C.greenPale:"none",borderRadius:10,border:"none",color:C.ink,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10,transition:"background .2s"}}>
+                  {installable&&(
+                  <button onClick={promptInstall} style={{width:"100%",textAlign:"left",padding:"12px 6px",background:"none",borderRadius:10,border:"none",color:C.ink,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+                    📲 Install App
+                    <span style={{marginLeft:"auto",color:C.violet,fontSize:11,fontWeight:800}}>→</span>
+                  </button>
+                )}
                   🎁 Refer &amp; Earn
                   <span style={{marginLeft:"auto",color:copied?C.green:C.muted,fontSize:11,fontWeight:800}}>
                     {copied?"Link copied!":"→"}
