@@ -2950,14 +2950,14 @@ async function downloadTextAsPDF(text, filename){
 function buildResumeHTML(d){
   const esc=s=>(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   const sec=(title,inner)=>inner?`
-    <div style="margin-top:10pt;">
+    <div class="resume-section" style="margin-top:10pt;">
       <div style="font-size:11pt;font-weight:700;letter-spacing:.5pt;text-transform:uppercase;border-bottom:1pt solid #000;padding-bottom:2pt;margin-bottom:5pt;">${title}</div>
       ${inner}
     </div>`:"";
 
-  const skills=(d.skillGroups||[]).map(g=>`<div style="margin-bottom:2pt;"><b>${esc(g.label)}:</b> ${esc(g.items)}</div>`).join("");
+  const skills=(d.skillGroups||[]).map(g=>`<div class="avoid-break" style="margin-bottom:2pt;"><b>${esc(g.label)}:</b> ${esc(g.items)}</div>`).join("");
   const exp=(d.experience||[]).map(e=>`
-    <div style="margin-bottom:7pt;">
+    <div class="avoid-break" style="margin-bottom:7pt;">
       <table style="width:100%;border-collapse:collapse;"><tr>
         <td style="font-weight:700;font-size:10.5pt;text-align:left;">${esc(e.title)} — ${esc(e.org)}</td>
         <td style="font-weight:700;font-size:10.5pt;text-align:right;white-space:nowrap;">${esc(e.dates)}</td>
@@ -2967,35 +2967,40 @@ function buildResumeHTML(d){
     </div>`).join("");
 
   const proj=(d.projects||[]).map(p=>`
-    <div style="margin-bottom:7pt;">
+    <div class="avoid-break" style="margin-bottom:7pt;">
       <div style="font-weight:700;font-size:10.5pt;">${esc(p.title)}</div>
       ${p.stack?`<div style="font-style:italic;font-size:9.5pt;">${esc(p.stack)}${p.link?` · ${esc(p.link)}`:""}</div>`:""}
       <ul style="margin:3pt 0 0 14pt;padding:0;">${(p.bullets||[]).map(b=>`<li style="margin-bottom:2pt;">${esc(b)}</li>`).join("")}</ul>
     </div>`).join("");
   const edu=(d.education||[]).map(e=>`
-    <table style="width:100%;border-collapse:collapse;margin-bottom:4pt;"><tr>
+    <table class="avoid-break" style="width:100%;border-collapse:collapse;margin-bottom:4pt;"><tr>
       <td style="text-align:left;"><b>${esc(e.school)}</b> — ${esc(e.degree)}</td>
       <td style="text-align:right;white-space:nowrap;">${esc(e.dates)}</td>
     </tr></table>`).join("");
 
-  const ach=(d.achievements||[]).length?`<ul style="margin:0 0 0 14pt;padding:0;">${d.achievements.map(a=>`<li style="margin-bottom:2pt;">${esc(a)}</li>`).join("")}</ul>`:"";
+  const ach=(d.achievements||[]).length?`<ul style="margin:0 0 0 14pt;padding:0;">${d.achievements.map(a=>`<li class="avoid-break" style="margin-bottom:2pt;">${esc(a)}</li>`).join("")}</ul>`:"";
 
   return`
     <div style="font-family:Calibri,Arial,sans-serif;font-size:10.5pt;line-height:1.35;color:#111;">
       <div style="text-align:center;font-size:16pt;font-weight:800;letter-spacing:.5pt;">${esc(d.name)}</div>
       <div style="text-align:center;font-size:9.5pt;margin-top:2pt;">${esc(d.contact)}</div>
-      ${sec("Professional Summary",`<div>${esc(d.summary)}</div>`)}
+      ${sec("Professional Summary",d.summary?`<div>${esc(d.summary)}</div>`:"")}
       ${sec("Technical Skills",skills)}
       ${sec("Professional Experience",exp)}
       ${sec("Projects",proj)}
       ${sec("Education",edu)}
-      ${sec("Achievements & Certifications",ach)}
+      ${sec("Achievements &amp; Certifications",ach)}
     </div>`;
 }
 
 function downloadResumeAsDoc(d, filename){
   const html=`<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-  <head><meta charset='utf-8'><title>Resume</title></head>
+  <head><meta charset='utf-8'><title>Resume</title>
+  <style>
+    @page { size: A4; margin: 0.75in; }
+    body { font-family: Calibri, Arial, sans-serif; }
+  </style>
+  </head>
   <body>${buildResumeHTML(d)}</body></html>`;
   const blob=new Blob(['\ufeff', html],{type:"application/msword"});
   const url=URL.createObjectURL(blob);
@@ -3008,16 +3013,34 @@ async function downloadResumeAsPDF(d, filename){
     await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});
   }
   const wrap=document.createElement("div");
-  wrap.style.cssText="position:fixed;left:-9999px;top:0;width:750px;padding:36px 40px;background:#fff;";
-  wrap.innerHTML=buildResumeHTML(d);
+  wrap.style.cssText=`
+    position:fixed; top:0; left:0; width:750px; z-index:-1;
+    opacity:0; pointer-events:none;
+    padding:36px 40px; background:#fff;
+  `;
+  const pageBreakCSS=document.createElement("style");
+  pageBreakCSS.textContent=`
+    .avoid-break { break-inside: avoid; page-break-inside: avoid; }
+    .resume-section { break-inside: auto; page-break-inside: auto; }
+    ul, ol { break-inside: auto; page-break-inside: auto; }
+    li { break-inside: avoid; page-break-inside: avoid; }
+  `;
+  wrap.appendChild(pageBreakCSS);
+  const contentDiv=document.createElement("div");
+  contentDiv.innerHTML=buildResumeHTML(d);
+  wrap.appendChild(contentDiv);
   document.body.appendChild(wrap);
   try{
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch{} }
+    if(wrap.scrollHeight < 50){ throw new Error("Resume content is empty — nothing to export."); }
     await window.html2pdf().set({
-      margin:0,filename,
-      html2canvas:{scale:2},
+      margin:[36,40,36,40],
+      filename,
+      html2canvas:{ scale:2, useCORS:true, backgroundColor:"#ffffff", windowWidth:750 },
       jsPDF:{unit:"pt",format:"a4",orientation:"portrait"},
-      pagebreak:{mode:"avoid-all"}
-    }).from(wrap).save();
+      pagebreak:{mode:["css","legacy"]},
+    }).from(contentDiv).save();
   }finally{document.body.removeChild(wrap);}
 }
 
