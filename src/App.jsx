@@ -2956,12 +2956,12 @@ function buildResumeHTML(d){
     </div>`:"";
 
   const skills=(d.skillGroups||[]).map(g=>`<div style="margin-bottom:2pt;"><b>${esc(g.label)}:</b> ${esc(g.items)}</div>`).join("");
-
   const exp=(d.experience||[]).map(e=>`
     <div style="margin-bottom:7pt;">
-      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:10.5pt;">
-        <span>${esc(e.title)} — ${esc(e.org)}</span><span>${esc(e.dates)}</span>
-      </div>
+      <table style="width:100%;border-collapse:collapse;"><tr>
+        <td style="font-weight:700;font-size:10.5pt;text-align:left;">${esc(e.title)} — ${esc(e.org)}</td>
+        <td style="font-weight:700;font-size:10.5pt;text-align:right;white-space:nowrap;">${esc(e.dates)}</td>
+      </tr></table>
       ${e.location?`<div style="font-style:italic;font-size:9.5pt;">${esc(e.location)}</div>`:""}
       <ul style="margin:3pt 0 0 14pt;padding:0;">${(e.bullets||[]).map(b=>`<li style="margin-bottom:2pt;">${esc(b)}</li>`).join("")}</ul>
     </div>`).join("");
@@ -2972,11 +2972,11 @@ function buildResumeHTML(d){
       ${p.stack?`<div style="font-style:italic;font-size:9.5pt;">${esc(p.stack)}${p.link?` · ${esc(p.link)}`:""}</div>`:""}
       <ul style="margin:3pt 0 0 14pt;padding:0;">${(p.bullets||[]).map(b=>`<li style="margin-bottom:2pt;">${esc(b)}</li>`).join("")}</ul>
     </div>`).join("");
-
   const edu=(d.education||[]).map(e=>`
-    <div style="display:flex;justify-content:space-between;margin-bottom:4pt;">
-      <span><b>${esc(e.school)}</b> — ${esc(e.degree)}</span><span>${esc(e.dates)}</span>
-    </div>`).join("");
+    <table style="width:100%;border-collapse:collapse;margin-bottom:4pt;"><tr>
+      <td style="text-align:left;"><b>${esc(e.school)}</b> — ${esc(e.degree)}</td>
+      <td style="text-align:right;white-space:nowrap;">${esc(e.dates)}</td>
+    </tr></table>`).join("");
 
   const ach=(d.achievements||[]).length?`<ul style="margin:0 0 0 14pt;padding:0;">${d.achievements.map(a=>`<li style="margin-bottom:2pt;">${esc(a)}</li>`).join("")}</ul>`:"";
 
@@ -3046,9 +3046,16 @@ function ATSCheckTab(){
     }catch(e2){setErr("Could not read file: "+e2.message);}
   };
 
-  const runAnalysis=async(resumeInput)=>{
+ const runAnalysis=async(resumeInput)=>{
   const raw=await callGroq(
     `You are an expert ATS (Applicant Tracking System) resume screener and senior technical recruiter, exactly like Jobscan. Compare this resume against this job description with the strictness and precision of a real ATS parser plus a human recruiter's judgment.
+
+CRITICAL — CERTIFICATIONS CHECK: Certifications are frequently combined into a single header like 
+"Achievements & Certifications" or listed inline in Education/Summary, not always under a standalone 
+"Certifications" heading. Before marking the certifications section as "missing," scan the ENTIRE 
+resume text for words like "certified," "certificate," "certification," named credentials (AWS, ITIL, 
+Java Full Stack, etc.), or "(in progress)" — wherever they appear. Only use "missing" if there is truly 
+zero mention of any certification or credential anywhere in the resume.
 
 JOB DESCRIPTION:
 ---
@@ -3356,8 +3363,8 @@ Return ONLY this JSON, no markdown, no commentary:
     <div style={{border:`1px solid ${C.border}`,borderRadius:10,padding:20,background:"#fff",maxHeight:700,overflow:"auto"}}
       dangerouslySetInnerHTML={{__html:buildResumeHTML(rewrittenData)}}/>
     <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}>
-      <Btn v="violet" small onClick={()=>downloadResumeAsDoc(rewrittenData,"resume-optimized.doc")}>⬇ Download .doc</Btn>
-      <Btn v="outline" small onClick={()=>downloadResumeAsPDF(rewrittenData,"resume-optimized.pdf")}>⬇ Download .pdf</Btn>
+       <Btn v="violet" small disabled={!rewrittenData?.experience?.length && !rewrittenData?.projects?.length} onClick={()=>downloadResumeAsDoc(rewrittenData,"resume-optimized.doc")}>⬇ Download .doc</Btn>
+      <Btn v="outline" small disabled={!rewrittenData?.experience?.length && !rewrittenData?.projects?.length} onClick={()=>downloadResumeAsPDF(rewrittenData,"resume-optimized.pdf")}>⬇ Download .pdf</Btn>
     </div>
   </div>
 )}
