@@ -342,21 +342,33 @@ function useSubscription(userId){
 function useInstallPrompt(){
   const[deferredPrompt,setDeferredPrompt]=useState(null);
   const[installable,setInstallable]=useState(false);
+  const[isStandalone,setIsStandalone]=useState(false);
+
   useEffect(()=>{
+    const standalone=window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone===true;
+    setIsStandalone(standalone);
     const handler=(e)=>{e.preventDefault();setDeferredPrompt(e);setInstallable(true);};
     window.addEventListener("beforeinstallprompt",handler);
-    window.addEventListener("appinstalled",()=>setInstallable(false));
+    window.addEventListener("appinstalled",()=>{setInstallable(false);setIsStandalone(true);});
     return()=>window.removeEventListener("beforeinstallprompt",handler);
   },[]);
-  const promptInstall=async()=>{
-    if(!deferredPrompt)return;
-    deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
-    setDeferredPrompt(null);setInstallable(false);
-  };
-  return{installable,promptInstall};
-}
 
+  const ua=typeof navigator!=="undefined"?navigator.userAgent:"";
+  const isIOS=/iPhone|iPad|iPod/i.test(ua);
+  const isInAppBrowser=/FBAN|FBAV|Instagram|WhatsApp|Line\//i.test(ua);
+
+  const promptInstall=async()=>{
+    if(deferredPrompt){
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      setDeferredPrompt(null);setInstallable(false);
+      return{done:true};
+    }
+    return{done:false,isIOS,isInAppBrowser};
+  };
+
+  return{installable,promptInstall,isIOS,isInAppBrowser,isStandalone};
+}
 // ── RAZORPAY ──────────────────────────────────────────────────────────────────
 function loadRazorpayScript(){
   return new Promise((resolve)=>{
@@ -1498,7 +1510,12 @@ function ProfilePanel({user,open,onClose,onLogout}){
   const[interests,setInterests]=useState(meta.interests||"");
   const[saving,setSaving]=useState(false);
   const[copied,setCopied]=useState(false);
-  const{installable,promptInstall}=useInstallPrompt();
+  const{installable,promptInstall,isIOS,isInAppBrowser,isStandalone}=useInstallPrompt();
+  const[showInstallHelp,setShowInstallHelp]=useState(false);
+  const handleInstallClick=async()=>{
+    const res=await promptInstall();
+    if(!res.done)setShowInstallHelp(true);
+  };
   const name=meta.full_name||"You";
   const initials=name.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
   const referLink=`${typeof window!=="undefined"?window.location.origin:""}?ref=${user?.id||""}`;
@@ -1551,8 +1568,8 @@ function ProfilePanel({user,open,onClose,onLogout}){
               <div style={{height:1,background:C.border,margin:"18px 0"}}/>
 
               <div style={{display:"flex",flexDirection:"column",width:"100%",gap:2}}>
-                {installable&&(
-                  <button onClick={promptInstall} style={{width:"100%",boxSizing:"border-box",textAlign:"left",padding:"12px 6px",background:"none",borderRadius:10,border:"none",color:C.ink,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+               {!isStandalone&&(
+                  <button onClick={handleInstallClick} style={{width:"100%",boxSizing:"border-box",textAlign:"left",padding:"12px 6px",background:"none",borderRadius:10,border:"none",color:C.ink,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
                     📲 Install App
                     <span style={{marginLeft:"auto",color:C.violet,fontSize:11,fontWeight:800}}>→</span>
                   </button>
@@ -1583,9 +1600,33 @@ function ProfilePanel({user,open,onClose,onLogout}){
                 <Btn v="violet" small loading={saving} onClick={save} style={{flex:1}}>Save</Btn>
               </div>
             </div>
-          )}
+         )}
         </div>
       </div>
+
+      {showInstallHelp&&(
+        <div onClick={()=>setShowInstallHelp(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:99999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:C.bgCard,borderRadius:18,padding:24,maxWidth:340,width:"100%"}}>
+            <div style={{fontWeight:800,fontSize:16,color:C.ink,marginBottom:10}}>📲 Install HireFlo</div>
+            {isIOS?(
+              <div style={{color:C.soft,fontSize:13.5,lineHeight:1.8}}>
+                1. Tap the <b>Share</b> icon at the bottom of Safari<br/>
+                2. Scroll down and tap <b>Add to Home Screen</b><br/>
+                3. Tap <b>Add</b> — done!
+              </div>
+            ):isInAppBrowser?(
+              <div style={{color:C.soft,fontSize:13.5,lineHeight:1.8}}>
+                This link opened inside an app browser. Tap the <b>⋮ menu</b> and choose <b>Open in Chrome</b>, then try Install App again.
+              </div>
+            ):(
+              <div style={{color:C.soft,fontSize:13.5,lineHeight:1.8}}>
+                Open the <b>⋮ menu</b> in Chrome and tap <b>Add to Home screen</b> or <b>Install app</b>.
+              </div>
+            )}
+            <button onClick={()=>setShowInstallHelp(false)} style={{width:"100%",marginTop:16,padding:"10px",borderRadius:10,border:"none",background:C.violetPale,color:C.violetD,fontWeight:700,fontSize:13,cursor:"pointer"}}>Got it</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
