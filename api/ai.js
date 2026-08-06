@@ -1,4 +1,3 @@
-
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -15,10 +14,12 @@ export default async function handler(req, res) {
         "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-       model: "openai/gpt-oss-120b",
+        model: "openai/gpt-oss-120b",
         max_tokens: Math.min(max_tokens || 1500, 8000),  // Groq max limit
         messages: messages,
         temperature: 0.7,
+        reasoning_effort: "low",
+        include_reasoning: false,
       }),
     });
     const data = await response.json();
