@@ -3891,8 +3891,15 @@ function ChatWidget({ user, context }) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [isMobile, setIsMobile] = useState(typeof window!=="undefined"?window.innerWidth<640:false);
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
+
+  useEffect(() => {
+    const onResize=()=>setIsMobile(window.innerWidth<640);
+    window.addEventListener("resize",onResize);
+    return()=>window.removeEventListener("resize",onResize);
+  }, []);
 
   useEffect(() => {
     if (open && scrollRef.current) {
@@ -3901,8 +3908,17 @@ function ChatWidget({ user, context }) {
   }, [messages, open, sending]);
 
   useEffect(() => {
-    if (open) { setUnread(0); setTimeout(() => inputRef.current?.focus(), 250); }
-  }, [open]);
+    if (open) {
+      setUnread(0);
+      setTimeout(() => inputRef.current?.focus(), 250);
+      // lock background scroll on mobile full-screen mode
+      if(isMobile){
+        const prevOverflow=document.body.style.overflow;
+        document.body.style.overflow="hidden";
+        return()=>{document.body.style.overflow=prevOverflow;};
+      }
+    }
+  }, [open, isMobile]);
 
   const send = async () => {
     const text = input.trim();
@@ -3913,21 +3929,13 @@ function ChatWidget({ user, context }) {
     setSending(true);
 
     try {
-      // Build a short system prompt so the assistant stays on-topic and knows
-      // who it's talking to. Adjust freely.
       const sys = `You are the HireFlo AI Assistant — a friendly, sharp career coach embedded inside the HireFlo app (an AI mock-interview and job-prep platform for Indian freshers). Help with: interview prep, resume advice, job search strategy, career questions, and using HireFlo's own features (mock interviews, ATS checker, job feed, company prep). Keep answers concise, practical, and encouraging. Use short paragraphs or bullet points. If asked something totally unrelated to careers/jobs/interviews, answer briefly and steer back.${user?.user_metadata?.full_name ? ` The user's name is ${user.user_metadata.full_name.split(" ")[0]}.` : ""}`;
 
-      // Send last ~10 messages of history for context, formatted as one prompt
-      // since callGroq takes a single user-turn prompt + system message.
       const history = nextMessages.slice(-10)
         .map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
         .join("\n");
 
-      const raw = await callGroq(
-        `${history}\nAssistant:`,
-        700,
-        sys
-      );
+      const raw = await callGroq(`${history}\nAssistant:`, 700, sys);
       const reply = (raw || "").trim() || "Sorry, I couldn't generate a response — try again.";
       setMessages(m => [...m, { role: "assistant", content: reply }]);
       if (!open) setUnread(u => u + 1);
@@ -3941,47 +3949,56 @@ function ChatWidget({ user, context }) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   };
 
+  // ── Mobile: full-screen takeover ──
+  // ── Desktop: floating 360x520 panel ──
+  const panelStyle = isMobile
+    ? { position:"fixed", inset:0, zIndex:9999, width:"100%", height:"100%", maxWidth:"100%", maxHeight:"100%", borderRadius:0 }
+    : { position:"fixed", bottom:92, right:24, zIndex:9998, width:360, maxWidth:"calc(100vw - 32px)", height:520, maxHeight:"calc(100vh - 140px)", borderRadius:20 };
+
   return (
     <>
-      {/* Floating launcher button */}
-      <button
-       onClick={() => setOpen(o => !o)}
-        aria-label="Open chat assistant"
-        className="chat-launcher"
-        style={{
-          position: "fixed", bottom: 24, right: 24, zIndex: 9998,
-          width: 58, height: 58, borderRadius: "50%", border: "none", cursor: "pointer",
-          background: `linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,
-          boxShadow: C.shVioletGlow, display: "flex", alignItems: "center", justifyContent: "center",
-          transition: "transform .18s cubic-bezier(.22,1,.36,1)",
-        }}
-        onMouseEnter={e => e.currentTarget.style.transform = "scale(1.06)"}
-        onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
-      >
-        <span style={{ fontSize: 24, lineHeight: 1, transform: open ? "rotate(90deg)" : "none", transition: "transform .2s" }}>
-          {open ? "✕" : "💬"}
-        </span>
-        {!open && unread > 0 && (
-          <span style={{
-            position: "absolute", top: -2, right: -2, background: C.red, color: "#fff",
-            fontSize: 10, fontWeight: 800, width: 18, height: 18, borderRadius: "50%",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            border: `2px solid ${C.white}`, fontFamily: "'Inter',sans-serif",
-          }}>{unread}</span>
-        )}
-      </button>
+      {/* Floating launcher button — hidden on mobile once chat is open */}
+      {!(isMobile && open) && (
+        <button
+          onClick={() => setOpen(o => !o)}
+          aria-label="Open chat assistant"
+          className="chat-launcher"
+          style={{
+            position: "fixed", bottom: 24, right: 24, zIndex: 9998,
+            width: 58, height: 58, borderRadius: "50%", border: "none", cursor: "pointer",
+            background: `linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,
+            boxShadow: C.shVioletGlow, display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "transform .18s cubic-bezier(.22,1,.36,1)",
+          }}
+          onMouseEnter={e => e.currentTarget.style.transform = "scale(1.06)"}
+          onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+        >
+          <span style={{ fontSize: 24, lineHeight: 1, transform: open ? "rotate(90deg)" : "none", transition: "transform .2s" }}>
+            {open ? "✕" : "💬"}
+          </span>
+          {!open && unread > 0 && (
+            <span style={{
+              position: "absolute", top: -2, right: -2, background: C.red, color: "#fff",
+              fontSize: 10, fontWeight: 800, width: 18, height: 18, borderRadius: "50%",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              border: `2px solid ${C.white}`, fontFamily: "'Inter',sans-serif",
+            }}>{unread}</span>
+          )}
+        </button>
+      )}
 
       {/* Chat panel */}
       {open && (
-       <div className="chat-panel fadein" style={{
-          position: "fixed", bottom: 92, right: 24, zIndex: 9998,
-          width: 360, maxWidth: "calc(100vw - 32px)", height: 520, maxHeight: "calc(100vh - 140px)",
-          background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 20,
-          boxShadow: C.shHover, display: "flex", flexDirection: "column", overflow: "hidden",
+        <div className="chat-panel fadein" style={{
+          ...panelStyle,
+          background: C.bgCard, border: isMobile?"none":`1px solid ${C.border}`,
+          boxShadow: isMobile?"none":C.shHover, display: "flex", flexDirection: "column", overflow: "hidden",
         }}>
           {/* Header */}
           <div style={{
-            background: `linear-gradient(135deg,${C.violetD},${C.violet})`, padding: "14px 18px",
+            background: `linear-gradient(135deg,${C.violetD},${C.violet})`,
+            padding: isMobile?"14px 16px":"14px 18px",
+            paddingTop: isMobile?"calc(14px + env(safe-area-inset-top,0px))":"14px",
             display: "flex", alignItems: "center", gap: 10, flexShrink: 0,
           }}>
             <div style={{
@@ -3989,27 +4006,34 @@ function ChatWidget({ user, context }) {
               display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0,
             }}>🤖</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: "#fff", fontWeight: 800, fontSize: 13.5, fontFamily: "'Inter',sans-serif" }}>HireFlo Assistant</div>
+              <div style={{ color: "#fff", fontWeight: 800, fontSize: isMobile?15:13.5, fontFamily: "'Inter',sans-serif" }}>HireFlo Assistant</div>
               <div style={{ color: "rgba(255,255,255,.75)", fontSize: 11, fontWeight: 600 }}>
                 {sending ? "Typing…" : "Online · Ask me anything"}
               </div>
             </div>
             <button
               onClick={() => setOpen(false)}
-              style={{ background: "none", border: "none", color: "rgba(255,255,255,.85)", fontSize: 16, cursor: "pointer", padding: 4 }}
+              style={{ background: "rgba(255,255,255,.15)", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", padding: 8, borderRadius: "50%", width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}
             >✕</button>
           </div>
 
           {/* Messages */}
-          <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 14px", display: "flex", flexDirection: "column", gap: 10, background: C.bgSubtle }}>
+          <div ref={scrollRef} style={{
+            flex: 1, overflowY: "auto",
+            padding: isMobile?"16px 14px 8px":"16px 14px",
+            display: "flex", flexDirection: "column", gap: 10, background: C.bgSubtle,
+            WebkitOverflowScrolling:"touch",
+          }}>
             {messages.map((m, i) => (
               <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
                 <div style={{
-                  maxWidth: "82%", padding: "10px 13px", borderRadius: m.role === "user" ? "14px 14px 3px 14px" : "14px 14px 14px 3px",
+                  maxWidth: isMobile?"88%":"82%",
+                  padding: isMobile?"11px 14px":"10px 13px",
+                  borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
                   background: m.role === "user" ? `linear-gradient(135deg,${C.violetD},${C.violet})` : C.white,
                   color: m.role === "user" ? "#fff" : C.ink,
                   border: m.role === "user" ? "none" : `1px solid ${C.border}`,
-                  fontSize: 13.5, lineHeight: 1.6, fontWeight: 500, whiteSpace: "pre-wrap", wordBreak: "break-word",
+                  fontSize: isMobile?15:13.5, lineHeight: 1.6, fontWeight: 500, whiteSpace: "pre-wrap", wordBreak: "break-word",
                   boxShadow: m.role === "user" ? "none" : C.shCard,
                 }}>
                   {m.content}
@@ -4019,7 +4043,7 @@ function ChatWidget({ user, context }) {
             {sending && (
               <div style={{ display: "flex", justifyContent: "flex-start" }}>
                 <div style={{
-                  padding: "10px 14px", borderRadius: "14px 14px 14px 3px", background: C.white,
+                  padding: "10px 14px", borderRadius: "16px 16px 16px 4px", background: C.white,
                   border: `1px solid ${C.border}`, display: "flex", gap: 4, alignItems: "center",
                 }}>
                   {[0, 1, 2].map(i => (
@@ -4034,7 +4058,12 @@ function ChatWidget({ user, context }) {
           </div>
 
           {/* Input */}
-          <div style={{ padding: 12, borderTop: `1px solid ${C.border}`, background: C.white, flexShrink: 0, display: "flex", gap: 8, alignItems: "flex-end" }}>
+          <div style={{
+            padding: isMobile?"10px 12px":12,
+            paddingBottom: isMobile?"calc(10px + env(safe-area-inset-bottom,0px))":12,
+            borderTop: `1px solid ${C.border}`, background: C.white, flexShrink: 0,
+            display: "flex", gap: 8, alignItems: "flex-end",
+          }}>
             <textarea
               ref={inputRef}
               value={input}
@@ -4043,22 +4072,24 @@ function ChatWidget({ user, context }) {
               placeholder="Ask about interviews, resumes, jobs…"
               rows={1}
               style={{
-                flex: 1, resize: "none", border: `1.5px solid ${C.border}`, borderRadius: 12,
-                padding: "10px 12px", fontSize: 13.5, fontFamily: "'Inter',sans-serif", color: C.ink,
-                outline: "none", maxHeight: 90, background: C.white, fontWeight: 500,
+                flex: 1, resize: "none", border: `1.5px solid ${C.border}`, borderRadius: 14,
+                padding: isMobile?"12px 14px":"10px 12px",
+                fontSize: isMobile?16:13.5,   // 16px prevents iOS auto-zoom on focus
+                fontFamily: "'Inter',sans-serif", color: C.ink,
+                outline: "none", maxHeight: 100, background: C.white, fontWeight: 500,
               }}
             />
             <button
               onClick={send}
               disabled={!input.trim() || sending}
               style={{
-                width: 40, height: 40, borderRadius: 12, border: "none", flexShrink: 0,
+                width: isMobile?44:40, height: isMobile?44:40, borderRadius: 14, border: "none", flexShrink: 0,
                 cursor: (!input.trim() || sending) ? "not-allowed" : "pointer",
                 opacity: (!input.trim() || sending) ? 0.5 : 1,
                 background: `linear-gradient(135deg,${C.violetD},${C.violet})`,
-                color: "#fff", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
+                color: "#fff", fontSize: 17, display: "flex", alignItems: "center", justifyContent: "center",
               }}
-            >{sending ? <Spin size={15} color="#fff" /> : "➤"}</button>
+            >{sending ? <Spin size={16} color="#fff" /> : "➤"}</button>
           </div>
         </div>
       )}
@@ -4119,7 +4150,7 @@ const TABS=[{icon:"🏠",label:"Home",id:0},{icon:"💼",label:"Jobs",id:1},{ico
     <style>{CSS}{`@media(min-width:640px){.bn{display:none!important;}.ttb{display:flex!important;}}@media(max-width:639px){.ttb{display:none!important;}.bn{display:flex!important;}.chat-launcher{bottom:88px!important;}.chat-panel{bottom:156px!important;}}`}</style>
 
      
-      <div style={{background:"rgba(8,12,20,.95)",backdropFilter:"blur(20px)",borderBottom:`1px solid ${C.border}`,padding:"0 20px",position:"sticky",top:0,zIndex:100}}>
+     <div style={{background:"rgba(8,12,20,.95)",backdropFilter:"blur(20px)",borderBottom:`1px solid ${C.border}`,padding:"0 20px",position:"sticky",top:0,zIndex:100}}>
         <div style={{maxWidth:900,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:58}}>
           <Logo size={30} textSize={20}/>
         
@@ -4138,9 +4169,9 @@ const TABS=[{icon:"🏠",label:"Home",id:0},{icon:"💼",label:"Jobs",id:1},{ico
               ?<img src={user.user_metadata.avatar_url} alt={name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
               :initials}
           </button>
-          <ProfilePanel user={user} open={menuOpen} onClose={()=>setMenuOpen(false)} onLogout={onLogout}/>
         </div>
       </div>
+      <ProfilePanel user={user} open={menuOpen} onClose={()=>setMenuOpen(false)} onLogout={onLogout}/>
 
       <div style={{maxWidth:900,margin:"0 auto",padding:"22px 16px"}}>
         {tab===0&&<FeedTab user={user}/>}
