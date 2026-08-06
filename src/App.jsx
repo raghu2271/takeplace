@@ -1503,24 +1503,25 @@ function ProfilePanel({user,open,onClose,onLogout}){
   if(!open)return null;
 
   return(
-    // justifyContent:"flex-start" pins the drawer to the LEFT edge of the screen
-    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:9999,display:"flex",justifyContent:"flex-start"}}>
-      <div onClick={e=>e.stopPropagation()} className="fade" style={{width:320,maxWidth:"85vw",height:"100%",background:C.bgCard,boxShadow:"4px 0 30px rgba(0,0,0,.2)",overflowY:"auto",padding:0,display:"flex",flexDirection:"column"}}>
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",justifyContent:"flex-start"}}>
+      <div onClick={e=>e.stopPropagation()} className="fade" style={{width:320,maxWidth:"85vw",height:"100%",background:C.bgCard,boxShadow:"4px 0 30px rgba(0,0,0,.25)",overflowY:"auto",padding:0,display:"flex",flexDirection:"column"}}>
 
-        <div style={{background:`linear-gradient(135deg,${C.violetD},${C.violet})`,height:70,position:"relative",flexShrink:0}}>
+        {/* Header — taller, avatar sits fully clear below it, no overlap */}
+        <div style={{background:`linear-gradient(135deg,${C.violetD},${C.violet})`,height:90,position:"relative",flexShrink:0,display:"flex",alignItems:"flex-end",padding:"0 20px 14px"}}>
           <button onClick={onClose} style={{position:"absolute",top:12,right:12,background:"rgba(255,255,255,.2)",border:"none",borderRadius:"50%",width:28,height:28,color:"#fff",cursor:"pointer",fontSize:14}}>✕</button>
+          <div style={{width:60,height:60,borderRadius:"50%",overflow:"hidden",border:"3px solid rgba(255,255,255,.9)",boxShadow:"0 4px 14px rgba(0,0,0,.25)",flexShrink:0,background:C.white}}>
+            {meta.avatar_url?(
+              <img src={meta.avatar_url} alt={name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+            ):(
+              <div style={{width:"100%",height:"100%",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:22}}>{initials}</div>
+            )}
+          </div>
         </div>
 
-        <div style={{padding:"0 20px 20px",marginTop:-36,flex:1,display:"flex",flexDirection:"column"}}>
-          {meta.avatar_url?(
-            <img src={meta.avatar_url} alt={name} style={{width:72,height:72,borderRadius:"50%",objectFit:"cover",border:`3px solid ${C.bgCard}`,display:"block"}}/>
-          ):(
-            <div style={{width:72,height:72,borderRadius:"50%",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:26,border:`3px solid ${C.bgCard}`}}>{initials}</div>
-          )}
-
+        <div style={{padding:"16px 20px 20px",flex:1,display:"flex",flexDirection:"column"}}>
           {!editing?(
             <>
-              <div style={{fontWeight:900,fontSize:18,color:C.ink,marginTop:12}}>{name}</div>
+              <div style={{fontWeight:900,fontSize:18,color:C.ink}}>{name}</div>
               <div style={{color:C.soft,fontSize:13,marginTop:2,fontWeight:500}}>{meta.headline||"Add a headline"}</div>
               {meta.education&&<div style={{marginTop:14,fontSize:13,color:C.ink2,display:"flex",alignItems:"center",gap:6}}>🎓 {meta.education}</div>}
               {meta.interests&&<div style={{marginTop:6,fontSize:13,color:C.ink2,display:"flex",alignItems:"center",gap:6}}>✨ {meta.interests}</div>}
@@ -1531,7 +1532,6 @@ function ProfilePanel({user,open,onClose,onLogout}){
 
               <div style={{height:1,background:C.border,margin:"18px 0"}}/>
 
-              {/* Menu order: Refer & Earn → Support → Logout */}
               <div style={{display:"flex",flexDirection:"column",gap:2}}>
                 <button onClick={copyReferLink} style={{width:"100%",textAlign:"left",padding:"12px 6px",background:copied?C.greenPale:"none",borderRadius:10,border:"none",color:C.ink,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10,transition:"background .2s"}}>
                   🎁 Refer &amp; Earn
@@ -1550,7 +1550,7 @@ function ProfilePanel({user,open,onClose,onLogout}){
               </div>
             </>
           ):(
-            <div style={{marginTop:16,display:"grid",gap:10}}>
+            <div style={{display:"grid",gap:10}}>
               <input style={{...inp,fontSize:13,padding:"9px 12px"}} placeholder="Headline" value={headline} onChange={e=>setHeadline(e.target.value)}/>
               <input style={{...inp,fontSize:13,padding:"9px 12px"}} placeholder="Education" value={education} onChange={e=>setEducation(e.target.value)}/>
               <input style={{...inp,fontSize:13,padding:"9px 12px"}} placeholder="Interests" value={interests} onChange={e=>setInterests(e.target.value)}/>
