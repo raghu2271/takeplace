@@ -1205,40 +1205,55 @@ function useSpeechEngine({phaseRef, onTimerEnd, QTIME=90}){
   },[]);
 
   // FIX Bug 3: only auto-restart mic when phase is "answering"
-  const startRec=useCallback((fresh=true)=>{
-    if(!speechOK)return;
-    manualStopRef.current=false;
-    try{recogRef.current?.stop();}catch{}
-    if(fresh){finalChunksRef.current=[];finalRef.current="";setLiveText("");setInterimText("");}
-    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    const rec=new SR();
-    rec.continuous=true; rec.interimResults=true; rec.lang="en-IN"; // en-IN for Indian accent support
-    rec.onresult=(e)=>{
-      let interim="";
-      for(let i=e.resultIndex;i<e.results.length;i++){
-        const t=e.results[i][0].transcript;
-        if(e.results[i].isFinal)finalChunksRef.current.push(t);
-        else interim+=t;
-      }
-      const full=correctSpeechText(finalChunksRef.current.join(" ").replace(/\s+/g," ").trim());
-      finalRef.current=full;
-      setLiveText(full); setInterimText(correctSpeechText(interim.trim()));
-    };
-    rec.onerror=(e)=>{
-      // "no-speech" is not a real error — just silence, keep going
-      if(e.error!=="no-speech")console.warn("SpeechRecognition error:",e.error);
-    };
-    rec.onend=()=>{
-      setListening(false);
-      // FIX Bug 3: only restart if we're still in answering phase
-      if(!manualStopRef.current && phaseRef.current==="answering"){
-        try{rec.start();setListening(true);}catch{}
-      }
-    };
-    recogRef.current=rec;
-    try{rec.start();setListening(true);}catch(e){console.warn("startRec failed:",e);}
-  },[speechOK, phaseRef]);
+ const isMobileUA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
+const startRec=useCallback((fresh=true)=>{
+  if(!speechOK)return;
+  manualStopRef.current=false;
+  try{recogRef.current?.stop();}catch{}
+  if(fresh){finalChunksRef.current=[];finalRef.current="";setLiveText("");setInterimText("");}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const rec=new SR();
+  // FIX: continuous mode is buggy on Android Chrome — it re-fires
+  // already-finalized results on internal restarts, causing repeated
+  // words. Use non-continuous on mobile and restart manually instead.
+  rec.continuous = !isMobileUA;
+  rec.interimResults=true; rec.lang="en-IN";
+
+  rec.onresult=(e)=>{
+    let interim="";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t=e.results[i][0].transcript.trim();
+      if(e.results[i].isFinal){
+        // FIX: dedupe — skip if this exact chunk was already the last one pushed
+        const last=finalChunksRef.current[finalChunksRef.current.length-1];
+        if(t && t!==last){
+          finalChunksRef.current.push(t);
+        }
+      } else {
+        interim+=t;
+      }
+    }
+    const full=correctSpeechText(finalChunksRef.current.join(" ").replace(/\s+/g," ").trim());
+    finalRef.current=full;
+    setLiveText(full); setInterimText(correctSpeechText(interim.trim()));
+  };
+
+  rec.onerror=(e)=>{
+    if(e.error!=="no-speech")console.warn("SpeechRecognition error:",e.error);
+  };
+
+  rec.onend=()=>{
+    setListening(false);
+    // On mobile (non-continuous), a result ending the utterance triggers
+    // onend even mid-answer — restart immediately if still answering.
+    if(!manualStopRef.current && phaseRef.current==="answering"){
+      try{rec.start();setListening(true);}catch{}
+    }
+  };
+  recogRef.current=rec;
+  try{rec.start();setListening(true);}catch(e){console.warn("startRec failed:",e);}
+},[speechOK, phaseRef]);
   const startTimer=useCallback(()=>{
     clearInterval(timerRef.current);
     timeLeftRef.current=QTIME;
