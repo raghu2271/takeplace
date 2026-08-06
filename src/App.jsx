@@ -3012,12 +3012,19 @@ async function downloadResumeAsPDF(d, filename){
   if(!window.html2pdf){
     await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});
   }
-  const wrap=document.createElement("div");
-  wrap.style.cssText=`
-    position:fixed; top:0; left:0; width:750px; z-index:-1;
-    opacity:0; pointer-events:none;
-    padding:36px 40px; background:#fff;
+
+  // IMPORTANT: html2canvas renders the ACTUAL computed style of the node,
+  // including opacity/visibility. Hiding via opacity:0 or visibility:hidden
+  // produces a blank capture — that was the bug. So instead we show it
+  // genuinely on-screen (as a full-page "Generating..." overlay) while
+  // capturing, then remove it immediately after.
+  const overlay=document.createElement("div");
+  overlay.style.cssText=`
+    position:fixed; inset:0; z-index:999999;
+    background:#fff; display:flex; align-items:flex-start; justify-content:center;
+    overflow:auto; padding:24px 0;
   `;
+
   const pageBreakCSS=document.createElement("style");
   pageBreakCSS.textContent=`
     .avoid-break { break-inside: avoid; page-break-inside: avoid; }
@@ -3025,15 +3032,28 @@ async function downloadResumeAsPDF(d, filename){
     ul, ol { break-inside: auto; page-break-inside: auto; }
     li { break-inside: avoid; page-break-inside: avoid; }
   `;
-  wrap.appendChild(pageBreakCSS);
+  overlay.appendChild(pageBreakCSS);
+
+  const loadingLabel=document.createElement("div");
+  loadingLabel.textContent="Generating PDF…";
+  loadingLabel.style.cssText=`
+    position:fixed; top:12px; left:50%; transform:translateX(-50%);
+    font-family:Arial,sans-serif; font-size:13px; color:#666;
+    background:#f4f4f4; padding:6px 14px; border-radius:20px; z-index:1000000;
+  `;
+  overlay.appendChild(loadingLabel);
+
   const contentDiv=document.createElement("div");
+  contentDiv.style.cssText="width:750px; padding:36px 40px; background:#fff;";
   contentDiv.innerHTML=buildResumeHTML(d);
-  wrap.appendChild(contentDiv);
-  document.body.appendChild(wrap);
+  overlay.appendChild(contentDiv);
+
+  document.body.appendChild(overlay);
+
   try{
     await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
     if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch{} }
-    if(wrap.scrollHeight < 50){ throw new Error("Resume content is empty — nothing to export."); }
+    if(contentDiv.scrollHeight < 50){ throw new Error("Resume content is empty — nothing to export."); }
     await window.html2pdf().set({
       margin:[36,40,36,40],
       filename,
@@ -3041,9 +3061,10 @@ async function downloadResumeAsPDF(d, filename){
       jsPDF:{unit:"pt",format:"a4",orientation:"portrait"},
       pagebreak:{mode:["css","legacy"]},
     }).from(contentDiv).save();
-  }finally{document.body.removeChild(wrap);}
+  }finally{
+    document.body.removeChild(overlay);
+  }
 }
-
 // ── ATS RESUME CHECKER ────────────────────────────────────────────────────────
 function ATSCheckTab(){
   const[step,setStep]=useState("setup");
@@ -3137,10 +3158,21 @@ const rewriteResume=async()=>{
   setRewriting(true);setRewriteErr("");
   try{
     const missing=[...new Set([...(report.missingKeywords||[]),...(report.keywordsToAdd||[])])];
-    const raw=await callGroq(
-      `You are an expert resume writer optimizing a resume for a specific job description.
 
-JOB DESCRIPTION:
+    // FIX: split into two smaller calls instead of one giant JSON blob.
+    // The old single-call approach asked for summary+skills+experience+
+    // projects+education+achievements all in ONE JSON object capped at
+    // 4500 tokens. Longer resumes exceeded that budget mid-generation,
+    // the model got cut off, and safeJSON's regex fallback silently
+    // grabbed only the JSON up to the last COMPLETE closing brace it could
+    // find — dropping whatever came after (usually Projects/Achievements).
+    // That's why it looked "cut off in the middle" and hit different
+    // users differently depending on resume length.
+    //
+    // Splitting into two focused calls keeps each well under its token
+    // budget, so nothing gets silently truncated.
+
+    const commonHeader=`JOB DESCRIPTION:
 ---
 ${jd.slice(0,3500)}
 ---
@@ -3153,12 +3185,17 @@ ${resumeText.slice(0,3500)}
 MISSING KEYWORDS FLAGGED BY ATS: ${missing.join(", ")}
 
 STRICT RULES:
-STRICT RULES:
 1. NEVER add a skill/tool/technology the candidate did not already mention or that isn't a direct, honest extension of their real projects. If a missing keyword has zero evidence in the resume, DROP it — do not add it anywhere.
 2. Only reword/strengthen EXISTING bullets — no invented claims, employers, or metrics.
-3. Preserve the exact same sections AND the same amount of detail as the original resume (Summary, Technical Skills, Experience, Projects, Education, Achievements — use only sections that exist in the original). Do not drop bullets, projects, or skill categories that exist in the original just to save space.
-4. Aim to fit on one page through tighter wording, not by deleting real accomplishments. If the honest content genuinely doesn't fit on one page, it's fine to run slightly long rather than cut real experience or projects.
-5. If genuinely nothing can be honestly added, just tighten wording.
+3. Preserve the same amount of detail as the original — do not drop bullets, projects, or skill categories that exist in the original just to save space.
+4. Aim to fit on one page through tighter wording, not by deleting real accomplishments.
+5. If genuinely nothing can be honestly added, just tighten wording.`;
+
+    const sysMsg="You are an expert resume writer. You never fabricate candidate skills or experience. Output valid JSON only, matching the schema exactly. Never truncate — if you are running low on space, shorten wording rather than cutting off mid-array or mid-string.";
+
+    // CALL 1: identity + summary + skills + experience
+    const raw1=await callGroq(
+      `${commonHeader}
 
 Return ONLY this JSON, no markdown, no commentary:
 {
@@ -3166,23 +3203,48 @@ Return ONLY this JSON, no markdown, no commentary:
   "contact": "<phone | email | linkedin | github, pipe-separated, from resume>",
   "summary": "<2-3 sentence professional summary, rewritten tight>",
   "skillGroups": [{"label":"<e.g. Languages>","items":"<comma-separated skills>"}],
-  "experience": [{"title":"<role>","org":"<company>","dates":"<date range>","location":"<city>","bullets":["<bullet>","..."]}],
+  "experience": [{"title":"<role>","org":"<company>","dates":"<date range>","location":"<city>","bullets":["<bullet>","..."]}]
+}`,
+      2200,
+      sysMsg
+    );
+    const data1=safeJSON(raw1,null);
+    if(!data1?.name)throw new Error("bad rewrite (part 1)");
+
+    // CALL 2: projects + education + achievements
+    const raw2=await callGroq(
+      `${commonHeader}
+
+Return ONLY this JSON, no markdown, no commentary:
+{
   "projects": [{"title":"<project name>","stack":"<tech stack line>","link":"<repo/link if any>","bullets":["<bullet>","..."]}],
   "education": [{"school":"<school>","degree":"<degree>","dates":"<dates>","location":"<city>"}],
   "achievements": ["<bullet>","..."]
 }`,
-      4500,
-      "You are an expert resume writer. You never fabricate candidate skills or experience. Output valid JSON only, matching the schema exactly."
+      2200,
+      sysMsg
     );
-    const data=safeJSON(raw,null);
-    if(!data?.name)throw new Error("bad rewrite");
-    setRewrittenData(data);
+    const data2=safeJSON(raw2,null);
+    if(!data2)throw new Error("bad rewrite (part 2)");
+
+    const merged={
+      name:data1.name,
+      contact:data1.contact,
+      summary:data1.summary,
+      skillGroups:data1.skillGroups||[],
+      experience:data1.experience||[],
+      projects:data2.projects||[],
+      education:data2.education||[],
+      achievements:data2.achievements||[],
+    };
+
+    setRewrittenData(merged);
   }catch(e){
+    console.error(e);
     setRewriteErr("⚠ Could not rewrite resume. Try again.");
   }
   setRewriting(false);
 };
-
   const sc=s=>s>=75?C.green:s>=50?C.gold:C.red;
   const statusColor=st=>st==="strong"||st==="match"?C.green:st==="weak"||st==="partial"?C.gold:C.red;
   const statusIcon=st=>st==="strong"||st==="match"?"✓":st==="weak"||st==="partial"?"~":"✕";
