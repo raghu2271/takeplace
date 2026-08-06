@@ -1,47 +1,4443 @@
-export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  
-  if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  try {
-    const { messages, max_tokens } = req.body;
+// ════════════════════════════════════════════════════════════════════════════
+// PASS 1 — FOUNDATION (CORRECTED, COMPLETE)
+// This replaces EVERYTHING from "import React..." down through the end of
+// the AIFace function in your file. Nothing is missing — all your original
+// helper functions (callGroq, extractPDF, useSubscription, etc.) are included
+// unchanged. Only the design system (C, CSS, Btn, Tag, Bar, ScoreRing,
+// SkillRadar, Sparkline, AIFace) was updated to the white theme.
+// ════════════════════════════════════════════════════════════════════════════
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        max_tokens: Math.min(max_tokens || 1500, 8000),  // Groq max limit
-        messages: messages,
-        temperature: 0.7,
-      }),
-    });
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
 
-    const data = await response.json();
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const SUPABASE_URL = "https://mdwxmiywtghznpwulwko.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kd3htaXl3dGdoem5wd3Vsd2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5OTkyOTIsImV4cCI6MjA5MzU3NTI5Mn0.b6yq6bIu0ntAbrrb2CP1H_alIcCTLc9sbix7tuERVAw";
+const ADZUNA_ID  = "845f6cff";
+const ADZUNA_KEY = "1255514b43792f219448b455d585c3ea";
+const supabase   = createClient(SUPABASE_URL, SUPABASE_KEY);
+const LOGO_URL = "/logo.png";
 
-    // Log error from Groq for debugging
-    if (!response.ok) {
-      console.error("Groq error:", data);
-      return res.status(response.status).json({ error: data.error?.message || "Groq error" });
-    }
+function Logo({ size = 32, withText = true, textSize = 20 }) {
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:8}}>
+      <img src={LOGO_URL} alt="HireFlo" style={{width:size,height:size,objectFit:"contain",flexShrink:0}}/>
+      {withText && (
+        <span style={{
+          fontWeight:900,fontSize:textSize,fontFamily:"'Plus Jakarta Sans',sans-serif",
+          background:`linear-gradient(135deg,${C.violetD},${C.teal})`,
+          WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"
+        }}>HireFlo</span>
+      )}
+    </div>
+  );
+}
 
-    // Convert to Anthropic format
-    const converted = {
-      content: [{
-        type: "text",
-        text: data.choices?.[0]?.message?.content || ""
-      }]
-    };
-    
-    res.status(200).json(converted);
-  } catch (err) {
-    console.error("Handler error:", err);
-    res.status(500).json({ error: err.message });
+// ── PAYWALL / SLOT CONFIG ──────────────────────────────────────────────────────
+const TOTAL_SLOTS = 15;
+const FREE_SLOTS  = 4;
+const FOCUS_BY_SLOT = [
+  "intro + resume walkthrough","core technical fundamentals","system design basics",
+  "behavioral / teamwork","debugging & problem solving","project deep-dive",
+  "company culture fit","edge cases & tradeoffs","communication under pressure",
+  "leadership & ownership","past failures & learning","technical depth follow-ups",
+  "ambiguous requirements","conflict resolution","closing & negotiation",
+];
+
+// ── DESIGN SYSTEM — PREMIUM PROFESSIONAL THEME ────────────────────────────────
+const C = {
+  bg:"#FFFFFF",bgSubtle:"#F8F9FC",bgCard:"#FFFFFF",bgSurf:"#F1F2F8",bgLight:"#FAFBFE",
+  white:"#FFFFFF",ink:"#0B0E1A",ink2:"#3F4459",ink3:"#7A8099",inkDark:"#0B0E1A",
+  violet:"#5B4FE8",violetL:"#7C72F0",violetD:"#4338CA",violetPale:"rgba(91,79,232,0.09)",
+  teal:"#0EA889",tealL:"#2DD4AE",tealD:"#0A8A70",tealPale:"rgba(14,168,137,0.09)",
+  gold:"#C2740A",goldL:"#E08E1F",goldPale:"rgba(194,116,10,0.09)",
+  green:"#15803D",greenL:"#22C55E",greenPale:"rgba(21,128,61,0.09)",
+  red:"#DC2626",redPale:"rgba(220,38,38,0.07)",
+  blue:"#2563EB",bluePale:"rgba(37,99,235,0.07)",
+  border:"#E4E6EF",borderHover:"#C9CCDC",
+  muted:"#7A8099",soft:"#5C6178",
+  lBg:"#F8F9FC",lCard:"#FFFFFF",lBorder:"#E4E6EF",lText:"#0B0E1A",lMuted:"#5C6178",
+  shCard:"0 1px 2px rgba(11,14,26,.05), 0 1px 4px rgba(11,14,26,.06)",
+  shElevated:"0 6px 20px rgba(11,14,26,.07), 0 1px 4px rgba(11,14,26,.05)",
+  shHover:"0 16px 40px rgba(11,14,26,.12), 0 2px 8px rgba(11,14,26,.05)",
+  shVioletGlow:"0 6px 24px rgba(91,79,232,.32)",
+};
+
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{font-family:'Inter',sans-serif;background:${C.bg};color:${C.ink};-webkit-font-smoothing:antialiased;}
+  ::-webkit-scrollbar{width:6px;} ::-webkit-scrollbar-thumb{background:${C.border};border-radius:4px;} ::-webkit-scrollbar-thumb:hover{background:${C.borderHover};}
+  ::selection{background:${C.violet}25;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+  @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+  @keyframes voiceBar{0%,100%{transform:scaleY(.15)}50%{transform:scaleY(1)}}
+  @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(91,79,232,.35)}70%{box-shadow:0 0 0 18px rgba(91,79,232,0)}100%{box-shadow:0 0 0 0 rgba(91,79,232,0)}}
+  @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+  @keyframes countUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes streakPop{0%{transform:scale(1)}50%{transform:scale(1.3)}100%{transform:scale(1)}}
+  @keyframes gradientShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+  @keyframes borderGlow{0%,100%{box-shadow:0 0 0 0 rgba(91,79,232,0)}50%{box-shadow:0 0 16px rgba(91,79,232,.2)}}
+  .fade{animation:fadeUp .45s cubic-bezier(.22,1,.36,1) forwards;}
+  .fadein{animation:fadeIn .3s ease forwards;}
+  .lift{transition:transform .18s cubic-bezier(.22,1,.36,1),box-shadow .18s,border-color .18s;cursor:pointer;}
+  .lift:hover{transform:translateY(-3px);box-shadow:${C.shHover};border-color:${C.borderHover};}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:${C.violet}!important;box-shadow:0 0 0 4px ${C.violetPale}!important;}
+  button:active{transform:scale(.97);}
+  .room-fixed{position:fixed;inset:0;z-index:9999;background:#070912;display:flex;flex-direction:column;overflow:hidden;}
+  .glass{background:rgba(255,255,255,.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid ${C.border};}
+  .glass-strong{background:rgba(255,255,255,.94);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid ${C.border};}
+  .vbar{width:3px;border-radius:2px;background:currentColor;display:inline-block;transform-origin:center bottom;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .gradient-text{background:linear-gradient(135deg,${C.violetD},${C.teal});-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  .skeleton{background:linear-gradient(90deg,${C.bgSubtle} 25%,${C.bgSurf} 50%,${C.bgSubtle} 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;}
+  @media(max-width:768px){
+    .feed-grid{grid-template-columns:1fr!important;}
+    .feed-sidebar{order:-1;}
   }
+`;
+const inp = {
+  width:"100%",background:C.white,border:`1.5px solid ${C.border}`,
+  borderRadius:12,padding:"13px 16px",color:C.ink,fontSize:14.5,
+  fontFamily:"'Inter',sans-serif",outline:"none",transition:"border-color .2s,box-shadow .2s",
+  boxShadow:C.shCard,fontWeight:500,
+};
+
+// ── ATOMS ─────────────────────────────────────────────────────────────────────
+const Spin = ({size=18,color=C.violet}) => (
+  <span style={{width:size,height:size,border:`2px solid ${color}20`,borderTopColor:color,borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite",flexShrink:0}}/>
+);
+
+function Btn({children,onClick,v="primary",style={},disabled=false,loading=false,small=false}){
+  const base={padding:small?"9px 18px":"14px 28px",fontSize:small?12.5:14.5,borderRadius:12,border:"none",cursor:disabled||loading?"not-allowed":"pointer",fontFamily:"'Inter',sans-serif",transition:"all .18s cubic-bezier(.22,1,.36,1)",opacity:disabled?.45:1,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:7,fontWeight:700,whiteSpace:"nowrap",letterSpacing:.1};
+  const vs={
+    primary:{background:`linear-gradient(135deg,${C.violetD},${C.violet})`,color:"#fff",boxShadow:C.shVioletGlow},
+    teal:{background:`linear-gradient(135deg,${C.tealD},${C.teal})`,color:"#fff",boxShadow:"0 6px 22px rgba(14,168,137,.3)"},
+    gold:{background:`linear-gradient(135deg,#9A5C08,${C.gold},${C.goldL})`,color:"#fff",boxShadow:"0 6px 22px rgba(194,116,10,.26)"},
+    green:{background:`linear-gradient(135deg,#0F5C2D,${C.green})`,color:"#fff",boxShadow:"0 6px 22px rgba(21,128,61,.24)"},
+    ghost:{background:C.bgSubtle,color:C.ink2,border:`1.5px solid ${C.border}`},
+    outline:{background:"transparent",color:C.ink,border:`1.5px solid ${C.border}`},
+    danger:{background:C.red,color:"#fff"},
+    light:{background:C.white,color:C.ink,fontWeight:700,border:`1.5px solid ${C.border}`,boxShadow:C.shCard},
+    violet:{background:`linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,color:"#fff",boxShadow:C.shVioletGlow},
+  };
+  return(
+    <button onClick={disabled||loading?undefined:onClick} disabled={disabled||loading} style={{...base,...vs[v],...style}}>
+      {loading?<><Spin size={13} color={v==="ghost"||v==="outline"||v==="light"?C.violet:"#fff"}/> Please wait…</>:children}
+    </button>
+  );
+}
+
+const Tag = ({children,color=C.violet,bg,size=11}) => (
+  <span style={{background:bg||`${color}14`,color,fontSize:size,padding:"4px 11px",borderRadius:20,fontWeight:700,border:`1px solid ${color}28`,whiteSpace:"nowrap"}}>{children}</span>
+);
+
+function Bar({pct,color,h=4}){
+  return(
+    <div style={{background:C.bgSurf,borderRadius:4,height:h,overflow:"hidden"}}>
+      <div style={{height:"100%",width:`${Math.min(100,pct||0)}%`,background:color||C.violet,borderRadius:4,transition:"width 1.2s cubic-bezier(.22,1,.36,1)"}}/>
+    </div>
+  );
+}
+
+function ScoreRing({score,size=80,color,label,delta}){
+  const r=28,circ=2*Math.PI*r;
+  const pct=Math.max(0,Math.min(100,score||0));
+  const col=color||(pct>=75?C.green:pct>=50?C.gold:C.red);
+  return(
+    <div style={{textAlign:"center"}}>
+      <svg width={size} height={size} viewBox="0 0 68 68" style={{overflow:"visible"}}>
+        <circle cx="34" cy="34" r={r} fill="none" stroke={C.bgSurf} strokeWidth="4"/>
+        <circle cx="34" cy="34" r={r} fill="none" stroke={col} strokeWidth="4"
+          strokeDasharray={circ} strokeDashoffset={circ*(1-pct/100)}
+          strokeLinecap="round" transform="rotate(-90 34 34)"
+          style={{transition:"stroke-dashoffset 1.4s cubic-bezier(.22,1,.36,1)"}}/>
+        <text x="34" y="37" textAnchor="middle" fill={col} fontSize="13" fontWeight="700" fontFamily="JetBrains Mono,monospace">{pct}</text>
+        <text x="34" y="47" textAnchor="middle" fill={C.muted} fontSize="7" fontFamily="Inter,sans-serif">score</text>
+      </svg>
+      {label&&<div style={{color:C.soft,fontSize:10,fontWeight:600,marginTop:3,textTransform:"uppercase",letterSpacing:.6}}>{label}</div>}
+      {delta!==undefined&&<div style={{fontSize:11,color:delta>=0?C.green:C.red,fontWeight:700,marginTop:2}}>{delta>=0?`↑ +${delta}`:` ↓ ${delta}`} pts</div>}
+    </div>
+  );
+}
+
+function SkillRadar({scores={},size=200}){
+  const skills=[
+    {key:"technical",label:"Technical"},{key:"communication",label:"Comms"},
+    {key:"confidence",label:"Confidence"},{key:"structure",label:"Structure"},{key:"resumeFit",label:"Resume Fit"},
+  ];
+  const cx=size/2,cy=size/2,r=(size/2)-30;
+  const n=skills.length;
+  const angle=(i)=>(Math.PI*2*i/n)-Math.PI/2;
+  const pt=(i,val)=>{const a=angle(i),d=(val/100)*r;return[cx+d*Math.cos(a),cy+d*Math.sin(a)];};
+  const gridLevels=[20,40,60,80,100];
+  return(
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {gridLevels.map(l=>(
+        <polygon key={l} fill="none" stroke={C.border} strokeWidth="1"
+          points={skills.map((_,i)=>{const[x,y]=pt(i,l);return`${x},${y}`;}).join(" ")}/>
+      ))}
+      {skills.map((_,i)=>{const[x,y]=pt(i,100);return<line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke={C.border} strokeWidth="1"/>;  })}
+      <polygon fill={`${C.violet}18`} stroke={C.violet} strokeWidth="1.5"
+        style={{transition:"all .8s cubic-bezier(.22,1,.36,1)"}}
+        points={skills.map((s,i)=>{const[x,y]=pt(i,scores[s.key]||0);return`${x},${y}`;}).join(" ")}/>
+      {skills.map((s,i)=>{const[x,y]=pt(i,scores[s.key]||0);return<circle key={i} cx={x} cy={y} r="3" fill={C.violet}/>;  })}
+      {skills.map((s,i)=>{
+        const a=angle(i),lx=cx+(r+20)*Math.cos(a),ly=cy+(r+20)*Math.sin(a);
+        return<text key={i} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fill={C.soft} fontSize="9" fontFamily="Inter,sans-serif" fontWeight="600" style={{textTransform:"uppercase",letterSpacing:.5}}>{s.label}</text>;
+      })}
+    </svg>
+  );
+}
+
+function Sparkline({data=[],width=120,height=32,color=C.violet}){
+  if(data.length<2)return null;
+  const max=Math.max(...data),min=Math.min(...data),range=max-min||1;
+  const pts=data.map((v,i)=>{const x=(i/(data.length-1))*(width-4)+2,y=height-2-((v-min)/range)*(height-4);return`${x},${y}`;}).join(" ");
+  return(
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      <polyline fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" points={pts}/>
+      {data.map((v,i)=>{const x=(i/(data.length-1))*(width-4)+2,y=height-2-((v-min)/range)*(height-4);return i===data.length-1?<circle key={i} cx={x} cy={y} r="3" fill={color}/>:null;})}
+    </svg>
+  );
+}
+
+function fmtTime(s){return`${Math.floor(s/60)}:${(s%60).toString().padStart(2,"0")}`;}
+function safeJSON(raw,fallback={}){
+  if(!raw)return fallback;
+  try{return JSON.parse(raw.replace(/```json\s*/gi,"").replace(/```\s*/gi,"").trim());}
+  catch{try{const m=raw.match(/\{[\s\S]*\}/);if(m)return JSON.parse(m[0]);}catch{}return fallback;}
+}
+
+// ── AI CALL ───────────────────────────────────────────────────────────────────
+async function callGroq(prompt,maxTokens=2000,systemMsg=""){
+  const sys=systemMsg||"You are an expert technical interviewer. Respond with valid JSON only. No markdown, no explanation.";
+  const res=await fetch("/api/ai",{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({messages:[{role:"system",content:sys},{role:"user",content:prompt}],max_tokens:maxTokens})
+  });
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error||"AI error "+res.status);}
+  const data=await res.json();
+  const text=data.content?.[0]?.text||data.choices?.[0]?.message?.content||data.text||"";
+  if(!text)console.error("AI response shape not recognized:",data);
+  return text;
+}
+
+// ── FILE EXTRACT ──────────────────────────────────────────────────────────────
+async function extractPDF(file){
+  if(!window.pdfjsLib){
+    await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+  const ab=await file.arrayBuffer();
+  const pdf=await window.pdfjsLib.getDocument({data:ab}).promise;
+  let text="";
+  for(let i=1;i<=Math.min(pdf.numPages,5);i++){const page=await pdf.getPage(i);const c=await page.getTextContent();text+=c.items.map(x=>x.str).join(" ")+"\n";}
+  return text.trim();
+}
+async function extractDOCX(file){
+  if(!window.mammoth){
+    await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+  }
+  const ab=await file.arrayBuffer();
+  const r=await window.mammoth.extractRawText({arrayBuffer:ab});
+  return r.value.trim();
+}
+
+// ── FILLER WORD DETECTOR ──────────────────────────────────────────────────────
+const FILLERS=["um","uh","like","basically","literally","actually","you know","i mean","sort of","kind of","right","okay so","so basically","i think","i guess","perhaps","maybe i"];
+function detectFillers(text){
+  const lower=text.toLowerCase();
+  const found={};let total=0;
+  FILLERS.forEach(f=>{const re=new RegExp("\\b"+f.replace(/ /g,"\\s+")+"\\b","gi");const matches=(lower.match(re)||[]).length;if(matches>0){found[f]=matches;total+=matches;}});
+  return{found,total};
+}
+
+// ── SUPABASE HELPERS ──────────────────────────────────────────────────────────
+async function saveInterviewResult(userId,data){
+  if(!userId)return;
+  try{
+    await supabase.from("interview_results").insert({user_id:userId,company:data.company||"",role:data.role||"",overall_score:data.overallScore||0,verdict:data.verdict||"",technical_score:data.technicalScore||0,communication_score:data.communicationScore||0,confidence_score:data.confidenceScore||0,structure_score:data.structureScore||0,resume_fit_score:data.resumeAlignmentScore||0,created_at:new Date().toISOString()});
+    await updateStreak(userId);
+  }catch(e){console.log("Supabase save error:",e.message);}
+}
+
+async function updateStreak(userId){
+  if(!userId)return;
+  try{
+    const today=new Date().toDateString();
+    const{data:existing}=await supabase.from("user_streaks").select("*").eq("user_id",userId).single();
+    if(!existing){await supabase.from("user_streaks").insert({user_id:userId,streak:1,last_practice:today,longest:1});}
+    else{
+      const last=new Date(existing.last_practice);
+      const diff=Math.floor((new Date()-last)/(1000*60*60*24));
+      if(diff===0)return;
+      const newStreak=diff===1?existing.streak+1:1;
+      await supabase.from("user_streaks").update({streak:newStreak,last_practice:today,longest:Math.max(existing.longest||0,newStreak)}).eq("user_id",userId);
+    }
+  }catch(e){console.log("Streak update error:",e.message);}
+}
+
+async function fetchUserStats(userId){
+  if(!userId)return null;
+  try{
+    const[{data:results},{data:streak}]=await Promise.all([
+      supabase.from("interview_results").select("*").eq("user_id",userId).order("created_at",{ascending:false}).limit(20),
+      supabase.from("user_streaks").select("*").eq("user_id",userId).single(),
+    ]);
+    return{results:results||[],streak:streak||{streak:0,longest:0}};
+  }catch{return{results:[],streak:{streak:0,longest:0}};}
+}
+
+// ── SUBSCRIPTION HELPERS ──────────────────────────────────────────────────────
+// ── SUBSCRIPTION HELPERS ──────────────────────────────────────────────────────
+async function fetchActiveSubscription(userId){
+  if(!userId)return null;
+  try{
+    const{data}=await supabase.from("user_subscriptions").select("*").eq("user_id",userId).eq("status","active").gte("expires_at",new Date().toISOString()).order("expires_at",{ascending:false}).limit(1).single();
+    return data||null;
+  }catch{return null;}
+}
+
+// ── COUPON REDEMPTION ─────────────────────────────────────────────────────────
+const COUPONS = {
+  hire360: { plan: "month", days: 30 },
+  hire240: { plan: "week",  days: 7  },
+};
+async function redeemCoupon(code, userId){
+  const c = COUPONS[code.trim().toLowerCase()];
+  if(!c) return { ok:false, error:"Invalid coupon code" };
+  try{
+    const expires_at = new Date(Date.now() + c.days*24*60*60*1000).toISOString();
+    const prepPlan = c.plan==="month" ? "prep_month" : "prep_week";
+    // Insert both rows in one go — coupon unlocks mock interviews AND interview prep together
+    const { error } = await supabase.from("user_subscriptions").insert([
+      { user_id: userId, plan: c.plan, status: "active", expires_at },
+      { user_id: userId, plan: prepPlan, status: "active", expires_at },
+    ]);
+    if(error) throw error;
+    return { ok:true, plan:c.plan };
+  }catch(e){ return { ok:false, error: e.message }; }
+}
+
+function useSubscription(userId){
+  const[sub,setSub]=useState(null);
+  const[loading,setLoading]=useState(true);
+  const refresh=useCallback(()=>{
+    if(!userId){setSub(null);setLoading(false);return;}
+    setLoading(true);
+    fetchActiveSubscription(userId).then(s=>{setSub(s);setLoading(false);});
+  },[userId]);
+  useEffect(()=>{refresh();},[refresh]);
+  return{isPro:!!sub,plan:sub?.plan||null,expiresAt:sub?.expires_at||null,loading,refresh};
+}
+function useInstallPrompt(){
+  const[deferredPrompt,setDeferredPrompt]=useState(null);
+  const[installable,setInstallable]=useState(false);
+  const[isStandalone,setIsStandalone]=useState(false);
+
+  useEffect(()=>{
+    const standalone=window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone===true;
+    setIsStandalone(standalone);
+    const handler=(e)=>{e.preventDefault();setDeferredPrompt(e);setInstallable(true);};
+    window.addEventListener("beforeinstallprompt",handler);
+    window.addEventListener("appinstalled",()=>{setInstallable(false);setIsStandalone(true);});
+    return()=>window.removeEventListener("beforeinstallprompt",handler);
+  },[]);
+
+  const ua=typeof navigator!=="undefined"?navigator.userAgent:"";
+  const isIOS=/iPhone|iPad|iPod/i.test(ua);
+  const isInAppBrowser=/FBAN|FBAV|Instagram|WhatsApp|Line\//i.test(ua);
+
+  const promptInstall=async()=>{
+    if(deferredPrompt){
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      setDeferredPrompt(null);setInstallable(false);
+      return{done:true};
+    }
+    return{done:false,isIOS,isInAppBrowser};
+  };
+
+  return{installable,promptInstall,isIOS,isInAppBrowser,isStandalone};
+}
+// ── RAZORPAY ──────────────────────────────────────────────────────────────────
+function loadRazorpayScript(){
+  return new Promise((resolve)=>{
+    if(window.Razorpay){resolve(true);return;}
+    const script=document.createElement("script");
+    script.src="https://checkout.razorpay.com/v1/checkout.js";
+    script.onload=()=>resolve(true);script.onerror=()=>resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
+async function startCheckout(plan,user,onSuccess){
+  if(!user){alert("Please sign in first.");return;}
+  const ok=await loadRazorpayScript();
+  if(!ok){alert("Could not load the payment gateway. Check your connection and try again.");return;}
+  try{
+    const res=await fetch("/api/create-order",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({plan,userId:user.id})});
+    if(!res.ok)throw new Error("Could not create order ("+res.status+")");
+    const order=await res.json();
+    const rzp=new window.Razorpay({
+      key:order.keyId||RAZORPAY_KEY_ID,amount:order.amount,currency:order.currency||"INR",order_id:order.id,
+      name:"HireFlo",description:plan==="week"?"HireFlo — 1 Week Pro":"HireFlo — 1 Month Pro",
+      prefill:{email:user.email||""},
+      handler:async(response)=>{
+        try{
+          const v=await fetch("/api/verify-payment",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...response,plan,userId:user.id})});
+          const vd=await v.json().catch(()=>({}));
+          if(vd.ok){onSuccess&&onSuccess();}
+          else{alert("Payment verification failed. If money was deducted, contact HireFlo.in@gmail.com");}
+        }catch(e){alert("Payment verification error: "+e.message);}
+      },
+      theme:{color:"#6D5BF6"},
+    });
+    rzp.open();
+  }catch(e){alert("Could not start checkout: "+e.message);}
+}
+
+// ── SHAREABLE SCORECARD ───────────────────────────────────────────────────────
+// Kept dark/premium-card style on purpose — this gets downloaded and posted to
+// LinkedIn/WhatsApp, where a dark "achievement card" reads better and stands
+// out more in a feed than a plain white card would.
+async function generateScorecard(data){
+  if(!window.html2canvas){
+    await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+  }
+  const div=document.createElement("div");
+  div.style.cssText=`position:fixed;left:-9999px;top:0;width:1200px;height:630px;background:linear-gradient(135deg,#0F1117,#1A1D2E 40%,#241B4D);font-family:'Inter',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;`;
+  div.innerHTML=`
+    <div style="width:100%;text-align:center;">
+      <div style="font-size:18px;color:rgba(255,255,255,.4);margin-bottom:8px;letter-spacing:3px;font-weight:600;text-transform:uppercase">Mock Interview Result</div>
+      <div style="font-size:72px;font-weight:900;font-family:'Plus Jakarta Sans',sans-serif;background:linear-gradient(135deg,#8B7DFA,#1FD1A8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1">${data.overallScore}%</div>
+      <div style="margin:16px auto;background:${data.overallScore>=75?"rgba(34,197,94,.2)":data.overallScore>=55?"rgba(245,158,11,.2)":"rgba(239,68,68,.2)"};color:${data.overallScore>=75?"#4ADE80":data.overallScore>=55?"#FBD072":"#F87171"};font-size:20px;font-weight:800;padding:10px 28px;border-radius:30px;border:1px solid ${data.overallScore>=75?"rgba(34,197,94,.4)":data.overallScore>=55?"rgba(245,158,11,.4)":"rgba(239,68,68,.4)"};display:inline-block">${data.verdict}</div>
+      <div style="font-size:24px;color:rgba(255,255,255,.7);margin:20px 0;">${data.company||""} ${data.role?`· ${data.role}`:""}</div>
+      <div style="display:flex;gap:24px;justify-content:center;margin:24px 0;">
+        ${[["Technical",data.technicalScore],["Communication",data.communicationScore],["Confidence",data.confidenceScore]].map(([l,v])=>`<div style="text-align:center;background:rgba(255,255,255,.05);border-radius:12px;padding:16px 24px;min-width:130px"><div style="font-size:28px;font-weight:700;color:#8B7DFA;font-family:'JetBrains Mono',monospace">${v}%</div><div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:1px">${l}</div></div>`).join("")}
+      </div>
+      <div style="font-size:14px;color:rgba(255,255,255,.3);margin-top:24px;font-weight:600">🎤 HireFlo · HireFlo.vercel.app</div>
+    </div>`;
+  document.body.appendChild(div);
+  try{
+    const canvas=await window.html2canvas(div,{scale:1,backgroundColor:null,logging:false});
+    const url=canvas.toDataURL("image/png");
+    const a=document.createElement("a");a.href=url;a.download=`HireFlo-score-${data.overallScore}.png`;a.click();
+    return url;
+  }finally{document.body.removeChild(div);}
+}
+
+// ── ROLES ─────────────────────────────────────────────────────────────────────
+const ROLES=[
+  {id:"sde",title:"Software Engineer",icon:"💻",cat:"Engineering",focus:"DSA, system design, problem solving",popular:true},
+  {id:"frontend",title:"Frontend Developer",icon:"🎨",cat:"Engineering",focus:"React, JS, CSS, performance"},
+  {id:"backend",title:"Backend Developer",icon:"🗄️",cat:"Engineering",focus:"APIs, databases, system design"},
+  {id:"fullstack",title:"Full Stack Developer",icon:"🧩",cat:"Engineering",focus:"End-to-end design, REST, deploy",popular:true},
+  {id:"devops",title:"DevOps Engineer",icon:"⚙️",cat:"Engineering",focus:"CI/CD, containers, monitoring"},
+  {id:"cloud",title:"Cloud Engineer",icon:"☁️",cat:"Engineering",focus:"AWS/GCP, networking, security"},
+  {id:"qa",title:"QA Engineer",icon:"🧪",cat:"Engineering",focus:"Test design, automation, triage"},
+  {id:"security",title:"Cybersecurity Analyst",icon:"🛡️",cat:"Engineering",focus:"Threats, vulnerabilities, SIEM"},
+  {id:"ds",title:"Data Scientist",icon:"📊",cat:"Data",focus:"Statistics, ML modeling, experiments",popular:true},
+  {id:"da",title:"Data Analyst",icon:"📈",cat:"Data",focus:"SQL, dashboards, business metrics"},
+  {id:"mle",title:"ML Engineer",icon:"🧠",cat:"Data",focus:"Pipelines, model deploy, evaluation"},
+  {id:"pm",title:"Product Manager",icon:"🧭",cat:"Business",focus:"Prioritization, metrics, roadmap"},
+  {id:"ba",title:"Business Analyst",icon:"🧾",cat:"Business",focus:"Requirements, process mapping"},
+  {id:"uiux",title:"UI/UX Designer",icon:"✏️",cat:"Design",focus:"User research, wireframes, critique"},
+];
+const CATS=["All","Engineering","Data","Business","Design"];
+
+const FALLBACK_QUESTIONS=[
+  {q:"Tell me a little about yourself.",type:"Intro"},
+  {q:"What's the hardest technical problem you've solved?",type:"Technical"},
+  {q:"Tell me about a conflict with a teammate and how you handled it.",type:"Behavioral"},
+  {q:"How would you debug a production issue with the system down?",type:"Situational"},
+  {q:"Any questions for me?",type:"Closing"},
+];
+
+const TARGET_COMPANIES=[
+  {name:"Google",color:"#4285F4"},{name:"Amazon",color:"#FF9900"},{name:"Microsoft",color:"#00a4ef"},
+  {name:"TCS",color:"#1e3a6e"},{name:"Infosys",color:"#007cc3"},{name:"Wipro",color:"#341660"},
+  {name:"Flipkart",color:"#F74D00"},{name:"Zomato",color:"#E23744"},{name:"Swiggy",color:"#FC8019"},
+  {name:"Deloitte",color:"#86BC25"},{name:"IBM",color:"#0043CE"},{name:"Accenture",color:"#A100FF"},
+];
+
+// ── AI FACE AVATAR ────────────────────────────────────────────────────────────
+function AIFace({speaking,size=200}){
+  return(
+    <div style={{position:"relative",width:size,height:size,borderRadius:"50%",overflow:"hidden",background:"linear-gradient(160deg,#2A2F4A,#1A1E33)"}}>
+      <svg viewBox="0 0 200 200" width="100%" height="100%">
+        <defs>
+          <radialGradient id="skinGrad" cx="50%" cy="40%" r="60%">
+            <stop offset="0%" stopColor="#F2C9A0"/><stop offset="100%" stopColor="#D9A879"/>
+          </radialGradient>
+        </defs>
+        <ellipse cx="100" cy="100" rx="62" ry="70" fill="#3B2A22"/>
+        <ellipse cx="100" cy="108" rx="46" ry="54" fill="url(#skinGrad)"/>
+        <path d="M54 90 Q100 40 146 90 Q146 60 100 52 Q54 60 54 90Z" fill="#3B2A22"/>
+        <ellipse cx="80" cy="105" rx="4.5" ry="6" fill="#2A1B12"/>
+        <ellipse cx="120" cy="105" rx="4.5" ry="6" fill="#2A1B12"/>
+        <path d="M72 94 Q80 90 88 94" stroke="#2A1B12" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+        <path d="M112 94 Q120 90 128 94" stroke="#2A1B12" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+        <path d="M100 110 Q97 122 100 126 Q103 122 100 110" stroke="#C99066" strokeWidth="1.5" fill="none"/>
+        <path d={speaking?"M84 138 Q100 152 116 138":"M84 140 Q100 144 116 140"}
+          stroke="#A85A4A" strokeWidth="3" fill={speaking?"#7A2F28":"none"} strokeLinecap="round"
+          style={{transition:"d .15s"}}/>
+        <path d="M40 200 Q100 168 160 200 L160 200 L40 200Z" fill={C.violetD}/>
+        <path d="M85 168 L100 184 L115 168" stroke="#fff" strokeWidth="2" fill="none"/>
+      </svg>
+      {speaking&&(
+        <div style={{position:"absolute",inset:0,borderRadius:"50%",background:"radial-gradient(circle at center,transparent 60%,rgba(109,91,246,.18) 100%)",animation:"breathe 1.4s ease-in-out infinite"}}/>
+      )}
+    </div>
+  );
+}
+
+// ── AI GLOBE AVATAR (replaces AIFace visual) ─────────────────────────────────
+function AIGlobe({speaking,size=200}){
+  const mountRef=useRef(null);
+  const speakingRef=useRef(speaking);
+  useEffect(()=>{speakingRef.current=speaking;},[speaking]);
+
+  useEffect(()=>{
+    let renderer,scene,camera,globeGroup,raf,disposed=false;
+
+    const init=async()=>{
+      if(!window.THREE){
+        await new Promise((res,rej)=>{
+          const s=document.createElement("script");
+          s.src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+          s.onload=res;s.onerror=rej;document.head.appendChild(s);
+        });
+      }
+      if(disposed||!mountRef.current)return;
+      const THREE=window.THREE;
+
+      scene=new THREE.Scene();
+      camera=new THREE.PerspectiveCamera(45,1,0.1,100);
+      camera.position.z=3.1;
+
+      renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+      renderer.setSize(size,size);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+      mountRef.current.innerHTML="";
+      mountRef.current.appendChild(renderer.domElement);
+
+      globeGroup=new THREE.Group();
+      scene.add(globeGroup);
+
+      globeGroup.add(new THREE.Mesh(
+        new THREE.SphereGeometry(1,26,20),
+        new THREE.MeshBasicMaterial({color:0x7C72F0,wireframe:true,transparent:true,opacity:0.35})
+      ));
+      globeGroup.add(new THREE.Mesh(
+        new THREE.SphereGeometry(0.985,28,20),
+        new THREE.MeshBasicMaterial({color:0x2DD4AE,transparent:true,opacity:0.05})
+      ));
+
+      const regionCoords=[
+        {lat:40,lon:-100,color:0x7C72F0},{lat:50,lon:10,color:0x2DD4AE},
+        {lat:20,lon:78,color:0xE08E1F},{lat:35,lon:105,color:0xFF8A5C},
+        {lat:2,lon:20,color:0x9B7BFF},{lat:-15,lon:-60,color:0x5B9CFF},
+      ];
+      const latLonToVec3=(lat,lon,r)=>{
+        const phi=(90-lat)*(Math.PI/180), theta=(lon+180)*(Math.PI/180);
+        return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(theta),r*Math.cos(phi),r*Math.sin(phi)*Math.sin(theta));
+      };
+      regionCoords.forEach(rc=>{
+        const pos=latLonToVec3(rc.lat,rc.lon,1.02);
+        const dot=new THREE.Mesh(new THREE.SphereGeometry(0.035,10,10),new THREE.MeshBasicMaterial({color:rc.color}));
+        dot.position.copy(pos); globeGroup.add(dot);
+        const ring=new THREE.Mesh(new THREE.RingGeometry(0.05,0.07,20),new THREE.MeshBasicMaterial({color:rc.color,transparent:true,opacity:0.55,side:THREE.DoubleSide}));
+        ring.position.copy(pos); ring.lookAt(pos.clone().multiplyScalar(2));
+        globeGroup.add(ring);
+      });
+
+      const scatterCount=160;
+      const positions=new Float32Array(scatterCount*3);
+      for(let i=0;i<scatterCount;i++){
+        const v=latLonToVec3((Math.random()*180)-90,(Math.random()*360)-180,1.001);
+        positions[i*3]=v.x;positions[i*3+1]=v.y;positions[i*3+2]=v.z;
+      }
+      const scatterGeo=new THREE.BufferGeometry();
+      scatterGeo.setAttribute("position",new THREE.BufferAttribute(positions,3));
+      globeGroup.add(new THREE.Points(scatterGeo,new THREE.PointsMaterial({color:0x4a4f66,size:0.012,transparent:true,opacity:0.6})));
+
+      const animate=()=>{
+        raf=requestAnimationFrame(animate);
+        globeGroup.rotation.y+=speakingRef.current?0.008:0.0025;
+        renderer.render(scene,camera);
+      };
+      animate();
+    };
+    init();
+
+    return()=>{disposed=true;cancelAnimationFrame(raf);renderer?.dispose();};
+  // eslint-disable-next-line
+  },[size]);
+
+  return(
+    <div style={{position:"relative",width:size,height:size,borderRadius:"50%",overflow:"hidden",background:"radial-gradient(circle,#1A1E33,#0B0E1A)"}}>
+      <div ref={mountRef} style={{width:"100%",height:"100%"}}/>
+      {speaking&&(
+        <div style={{position:"absolute",inset:0,borderRadius:"50%",background:"radial-gradient(circle at center,transparent 55%,rgba(124,114,240,.25) 100%)",animation:"breathe 1.4s ease-in-out infinite",pointerEvents:"none"}}/>
+      )}
+    </div>
+  );
+}
+
+// ── SLOT GRID & UPGRADE MODAL ─────────────────────────────────────────────────
+function SlotGrid({isPro,onSelectSlot,onUpgrade,completedSlots=[],loadingSlot=null}){
+  return(
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:10}}>
+      {Array.from({length:TOTAL_SLOTS},(_,i)=>{
+        const slot=i+1,unlocked=isPro||slot<=FREE_SLOTS,done=completedSlots.includes(slot),isLoading=loadingSlot===slot;
+        return(
+          <div key={slot} onClick={()=>unlocked?onSelectSlot(slot):onUpgrade()} className="lift"
+            style={{background:done?C.greenPale:unlocked?C.bgCard:"rgba(255,255,255,.02)",border:`1px solid ${done?C.green+"40":unlocked?C.violet+"30":C.border}`,borderRadius:14,padding:"16px 8px",textAlign:"center",position:"relative",cursor:"pointer"}}>
+            {isLoading?<Spin size={18}/>:(
+              <>{!unlocked&&<div style={{position:"absolute",top:6,right:6,fontSize:12}}>🔒</div>}
+              {done&&<div style={{position:"absolute",top:6,right:6,fontSize:12,color:C.green}}>✓</div>}
+              <div style={{fontSize:20,fontWeight:900,color:unlocked?C.violetL:C.muted,fontFamily:"'JetBrains Mono',monospace"}}>{slot}</div>
+              <div style={{fontSize:9,color:C.muted,marginTop:2}}>{unlocked?"Mock interview":"Locked"}</div></>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function UpgradeModal({onClose,onChoosePlan,checkingOut,user,onRedeemed}){
+  const[coupon,setCoupon]=useState("");
+  const[redeeming,setRedeeming]=useState(false);
+  const[couponErr,setCouponErr]=useState("");
+  const[couponOk,setCouponOk]=useState("");
+
+  const applyCoupon=async()=>{
+    if(!coupon.trim())return;
+    setRedeeming(true);setCouponErr("");setCouponOk("");
+    const res=await redeemCoupon(coupon,user?.id);   // ← CALLED HERE
+    setRedeeming(false);
+    if(res.ok){
+      setCouponOk(`✅ Unlocked ${res.plan==="month"?"1 Month":"1 Week"} Pro!`);
+      onRedeemed?.();               // refreshes isPro state
+      setTimeout(onClose,900);      // close modal shortly after
+    }else{
+      setCouponErr(res.error);
+    }
+  };
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:20,padding:28,maxWidth:380,width:"100%"}}>
+        <div style={{fontWeight:900,fontSize:20,color:C.ink,marginBottom:6,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🔒 Unlock all 15 mock interviews</div>
+        <div style={{color:C.soft,fontSize:13,marginBottom:20,lineHeight:1.7}}>You've used your 2 free mocks. Unlock all 15 with different questions every time.</div>
+
+        {[
+          {plan:"week",label:"1 Week",price:"₹49",desc:"All 15 slots, every role, 7 days"},
+          {plan:"month",label:"1 Month",price:"₹199",desc:"All 15 slots, every role, 30 days",popular:true},
+        ].map(p=>(
+          <button key={p.plan} disabled={checkingOut} onClick={()=>onChoosePlan(p.plan)}
+            style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 16px",borderRadius:12,border:`1.5px solid ${p.popular?C.violet:C.border}`,background:p.popular?C.violetPale:"transparent",marginBottom:10,cursor:checkingOut?"not-allowed":"pointer",opacity:checkingOut?.6:1,fontFamily:"'Inter',sans-serif"}}>
+            <div>
+              <div style={{fontWeight:700,color:C.ink,fontSize:14}}>{p.label} {p.popular&&<span style={{color:C.violetL,fontSize:10}}>★ BEST VALUE</span>}</div>
+              <div style={{color:C.soft,fontSize:11.5,marginTop:2}}>{p.desc}</div>
+            </div>
+            <div style={{fontWeight:900,fontSize:18,color:C.violetL,fontFamily:"'JetBrains Mono',monospace"}}>{p.price}</div>
+          </button>
+        ))}
+
+        <div style={{display:"flex",alignItems:"center",gap:10,margin:"14px 0"}}>
+          <div style={{flex:1,height:1,background:C.border}}/><span style={{color:C.muted,fontSize:11}}>or have a coupon?</span><div style={{flex:1,height:1,background:C.border}}/>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <input style={{...inp,padding:"9px 12px",fontSize:13}} placeholder="Enter coupon code"
+            value={coupon} onChange={e=>{setCoupon(e.target.value);setCouponErr("");setCouponOk("");}}
+            onKeyDown={e=>e.key==="Enter"&&applyCoupon()}/>
+          <Btn v="teal" small loading={redeeming} onClick={applyCoupon}>Apply</Btn>
+        </div>
+        {couponErr&&<div style={{color:C.red,fontSize:11.5,marginTop:6}}>{couponErr}</div>}
+        {couponOk&&<div style={{color:C.green,fontSize:11.5,marginTop:6,fontWeight:700}}>{couponOk}</div>}
+
+        <button onClick={onClose} style={{width:"100%",background:"none",border:"none",color:C.muted,fontSize:12,marginTop:14,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>Maybe later</button>
+      </div>
+    </div>
+  );
+}
+// ── PREP Q&A SUBSCRIPTION (separate from mock-interview slots) ───────────────
+async function fetchActivePrepSub(userId){
+  if(!userId)return null;
+  try{
+    const{data}=await supabase.from("user_subscriptions").select("*")
+      .eq("user_id",userId).eq("status","active").gte("expires_at",new Date().toISOString())
+      .in("plan",["prep_week","prep_month"]).order("expires_at",{ascending:false}).limit(1).single();
+    return data||null;
+  }catch{return null;}
+}
+function usePrepSubscription(userId){
+  const[sub,setSub]=useState(null);
+  const[loading,setLoading]=useState(true);
+  const refresh=useCallback(()=>{
+    if(!userId){setSub(null);setLoading(false);return;}
+    setLoading(true);
+    fetchActivePrepSub(userId).then(s=>{setSub(s);setLoading(false);});
+  },[userId]);
+  useEffect(()=>{refresh();},[refresh]);
+  return{isPrepPro:!!sub,plan:sub?.plan||null,expiresAt:sub?.expires_at||null,loading,refresh};
+}
+
+function PrepUpgradeModal({onClose,onChoosePlan,checkingOut,user,onRedeemed}){
+  const[coupon,setCoupon]=useState("");
+  const[redeeming,setRedeeming]=useState(false);
+  const[couponErr,setCouponErr]=useState("");
+  const[couponOk,setCouponOk]=useState("");
+
+  const applyCoupon=async()=>{
+    if(!coupon.trim())return;
+    setRedeeming(true);setCouponErr("");setCouponOk("");
+    const res=await redeemCoupon(coupon,user?.id);
+    setRedeeming(false);
+    if(res.ok){
+      setCouponOk(`✅ Unlocked ${res.plan==="month"?"1 Month":"1 Week"} Pro!`);
+      onRedeemed?.();
+      setTimeout(onClose,900);
+    }else{
+      setCouponErr(res.error);
+    }
+  };
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:20,padding:28,maxWidth:380,width:"100%"}}>
+        <div style={{fontWeight:900,fontSize:20,color:C.ink,marginBottom:6,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🔓 Unlock master-level Q&A</div>
+        <div style={{color:C.soft,fontSize:13,marginBottom:20,lineHeight:1.7}}>Exact questions companies ask + model answers + how-to-answer breakdowns. Unlimited companies, unlimited roles.</div>
+        {[
+          {plan:"prep_week",label:"1 Week",price:"₹59",desc:"All companies, all roles, 7 days"},
+          {plan:"prep_month",label:"1 Month",price:"₹199",desc:"All companies, all roles, 30 days",popular:true},
+        ].map(p=>(
+          <button key={p.plan} disabled={checkingOut} onClick={()=>onChoosePlan(p.plan)}
+            style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 16px",borderRadius:12,border:`1.5px solid ${p.popular?C.violet:C.border}`,background:p.popular?C.violetPale:"transparent",marginBottom:10,cursor:checkingOut?"not-allowed":"pointer",opacity:checkingOut?.6:1}}>
+            <div>
+              <div style={{fontWeight:700,color:C.ink,fontSize:14}}>{p.label} {p.popular&&<span style={{color:C.violetL,fontSize:10}}>★ BEST VALUE</span>}</div>
+              <div style={{color:C.soft,fontSize:11.5,marginTop:2}}>{p.desc}</div>
+            </div>
+            <div style={{fontWeight:900,fontSize:18,color:C.violetL,fontFamily:"'JetBrains Mono',monospace"}}>{p.price}</div>
+          </button>
+        ))}
+
+        <div style={{display:"flex",alignItems:"center",gap:10,margin:"14px 0"}}>
+          <div style={{flex:1,height:1,background:C.border}}/><span style={{color:C.muted,fontSize:11}}>or have a coupon?</span><div style={{flex:1,height:1,background:C.border}}/>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <input style={{...inp,padding:"9px 12px",fontSize:13}} placeholder="Enter coupon code"
+            value={coupon} onChange={e=>{setCoupon(e.target.value);setCouponErr("");setCouponOk("");}}
+            onKeyDown={e=>e.key==="Enter"&&applyCoupon()}/>
+          <Btn v="teal" small loading={redeeming} onClick={applyCoupon}>Apply</Btn>
+        </div>
+        {couponErr&&<div style={{color:C.red,fontSize:11.5,marginTop:6}}>{couponErr}</div>}
+        {couponOk&&<div style={{color:C.green,fontSize:11.5,marginTop:6,fontWeight:700}}>{couponOk}</div>}
+
+        <button onClick={onClose} style={{width:"100%",background:"none",border:"none",color:C.muted,fontSize:12,marginTop:14,cursor:"pointer"}}>Maybe later</button>
+      </div>
+    </div>
+  );
+}
+// ── COMPANY PREP (Free Roadmap + Paid Q&A) ───────────────────────────────────
+async function fetchCached(table,company,role){
+  try{const{data}=await supabase.from(table).select("*").eq("company",company.toLowerCase()).eq("role",role.toLowerCase()).single();return data?.data||null;}
+  catch{return null;}
+}
+async function saveCached(table,company,role,payload){
+  try{await supabase.from(table).upsert({company:company.toLowerCase(),role:role.toLowerCase(),data:payload,updated_at:new Date().toISOString()});}
+  catch(e){console.log("cache save error:",e.message);}
+}
+async function generatePrepQA(company,role){
+  const raw=await callGroq(
+    `You are a master-level interview coach with deep knowledge of ${company}'s actual interview questions for ${role}.
+Return ONLY: {"questions":[{"q":"<exact question ${company} is known to ask>","topic":"<DSA|System Design|Behavioral|HR|Technical>","difficulty":"Easy|Medium|Hard","answer":"<a strong, specific, master-level model answer, 4-6 sentences>","how_to_answer":"<2-3 sentence breakdown of the structure/approach to use when answering this>"}]}
+Give exactly 12 questions, ordered easiest to hardest, covering the realistic mix of round types for this company and role.`,3200);
+  return safeJSON(raw,null);
+}
+
+function CompanyPrepTab({user,onPracticeForCompany}){
+  const[step,setStep]=useState("pick");
+  const[company,setCompany]=useState("");
+  const[role,setRole]=useState("");
+  const[level,setLevel]=useState("Fresher");
+  const[resumeText,setResumeText]=useState("");
+  const[fileName,setFileName]=useState("");
+  const[slotLoading,setSlotLoading]=useState(null);
+  const[activeSlot,setActiveSlot]=useState(null);
+  const[slotData,setSlotData]=useState({});
+  const[expanded,setExpanded]=useState(null);
+  const[err,setErr]=useState("");
+  const[showUpgrade,setShowUpgrade]=useState(false);
+  const[checkingOut,setCheckingOut]=useState(false);
+  const fileRef=useRef();
+ 
+  const{isPrepPro,refresh:refreshPrepSub}=usePrepSubscription(user?.id);
+  const quickCompanies=TARGET_COMPANIES.map(c=>c.name);
+ 
+  const SLOTS=[
+    {id:1,label:"Slot 1",desc:"15 questions · Intro + Basics",questions:15,free:true,
+     focus:"self introduction, why this company, basic technical screening, core fundamentals for the role"},
+    {id:2,label:"Slot 2",desc:"30 questions · Technical",questions:30,free:false,
+     focus:"technical depth, coding problems, data structures, system design, role-specific tools and frameworks"},
+    {id:3,label:"Slot 3",desc:"30 questions · HR & Behavioral",questions:30,free:false,
+     focus:"behavioral STAR, conflict, leadership, teamwork, strengths weaknesses, culture fit, situational"},
+    {id:4,label:"Slot 4",desc:"30 questions · Final Round",questions:30,free:false,
+     focus:"hard architecture, scalability, trade-offs, edge cases, senior judgment, salary negotiation"},
+  ];
+ 
+  const handleFile=async(e)=>{
+    const f=e.target.files[0];if(!f)return;
+    setFileName(f.name);
+    try{
+      let text="";
+      if(f.name.endsWith(".pdf"))text=await extractPDF(f);
+      else if(f.name.endsWith(".docx"))text=await extractDOCX(f);
+      else{const r=new FileReader();r.onload=ev=>setResumeText(ev.target.result);r.readAsText(f);return;}
+      setResumeText(text);
+    }catch(e2){setErr("Could not read file: "+e2.message);}
+  };
+ 
+  const generateBatch=async(comp,rl,lvl,focus,count,resumeTxt)=>{
+    const hasResume=resumeTxt&&resumeTxt.trim().length>50;
+    const resumeSnip=hasResume?resumeTxt.slice(0,1200):"";
+ 
+    const prompt=`You are a real interviewer at ${comp} conducting a ${lvl}-level interview for ${rl}.
+ 
+${hasResume?`Candidate resume:\n---\n${resumeSnip}\n---\n`:""}
+Generate exactly ${count} interview questions that ${comp} ACTUALLY asks ${lvl}-level ${rl} candidates in real interviews.
+ 
+STRICT RULES:
+- Questions must be SHORT and CONVERSATIONAL — exactly how a real interviewer speaks
+- Maximum 15 words per question
+- NO long compound questions
+- Match the EXACT difficulty for ${lvl} level at ${comp}
+- If resume provided, reference candidate's actual projects/skills in at least 3 questions
+- Focus area: ${focus}
+ 
+Examples of GOOD short questions:
+"Tell me about yourself."
+"Why do you want to join ${comp}?"
+"What is a REST API?"
+"Explain polymorphism with an example."
+"Tell me about a time you failed."
+"How would you design a URL shortener?"
+ 
+Return ONLY this JSON (no markdown):
+{"questions":[{"q":"<short conversational question max 15 words>","topic":"<Technical|Behavioral|HR|DSA|System Design|Intro>","difficulty":"<Easy|Medium|Hard>","answer":"<2-3 sentence direct model answer, natural spoken tone>","how_to_answer":"<1-2 sentence tip on how to structure the answer>"}]}`;
+ 
+    const raw=await callGroq(prompt,count<=15?2200:3200);
+    const data=safeJSON(raw,null);
+    return data?.questions||[];
+  };
+ 
+  const handlePickSlot=async(slot)=>{
+    if(!company.trim()||!role.trim()){setErr("⚠ Enter company and role first");return;}
+    if(!slot.free&&!isPrepPro){setShowUpgrade(true);return;}
+ 
+    if(slotData[slot.id]){setActiveSlot(slot.id);setStep("questions");setExpanded(null);return;}
+ 
+    setSlotLoading(slot.id);setErr("");
+    try{
+      const cacheKey=`prep_slot_${slot.id}`;
+      if(!resumeText.trim()){
+        const cached=await fetchCached(cacheKey,company,role);
+        if(cached?.questions?.length>=slot.questions*0.7){
+          setSlotData(prev=>({...prev,[slot.id]:cached}));
+          setActiveSlot(slot.id);setStep("questions");setExpanded(null);
+          setSlotLoading(null);return;
+        }
+      }
+ 
+      let allQ=[];
+      if(slot.questions<=15){
+        allQ=await generateBatch(company,role,level,slot.focus,15,resumeText);
+      }else{
+        const b1=await generateBatch(company,role,level,slot.focus,15,resumeText);
+        const b2=await generateBatch(company,role,level,slot.focus,15,resumeText);
+        allQ=[...b1,...b2];
+      }
+ 
+      if(!allQ.length)throw new Error("empty");
+      const data={questions:allQ};
+      if(!resumeText.trim())await saveCached(cacheKey,company,role,data);
+      setSlotData(prev=>({...prev,[slot.id]:data}));
+      setActiveSlot(slot.id);setStep("questions");setExpanded(null);
+    }catch(e){
+      console.error(e);
+      setErr(`⚠ Could not load questions. Check /api/ai and try again.`);
+    }
+    setSlotLoading(null);
+  };
+ 
+  const handleChoosePlan=async(plan)=>{
+    setCheckingOut(true);
+    await startCheckout(plan,user,()=>{setShowUpgrade(false);setCheckingOut(false);refreshPrepSub();});
+    setCheckingOut(false);
+  };
+ 
+  const sc=d=>d==="Hard"?C.red:d==="Medium"?C.gold:C.green;
+  const currentSlot=SLOTS.find(s=>s.id===activeSlot);
+  const currentQa=slotData[activeSlot];
+ 
+  // ── PICK SCREEN ──
+  if(step==="pick")return(
+    <div className="fade">
+      <div style={{marginBottom:22}}>
+        <div style={{fontWeight:900,fontSize:23,color:C.ink,marginBottom:5,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🏢 Interview Prep</div>
+        <div style={{color:C.soft,fontSize:14,lineHeight:1.7,fontWeight:500}}>Upload your resume + pick company → get the <strong style={{color:C.ink,fontWeight:800}}>exact short questions</strong> that company asks at your level.</div>
+      </div>
+ 
+      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:14,boxShadow:C.shCard}}>
+ 
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+          <div>
+            <div style={{fontSize:11.5,fontWeight:800,color:C.soft,marginBottom:6,textTransform:"uppercase",letterSpacing:.7}}>Target Company</div>
+            <input style={inp} placeholder="e.g. Google, TCS, Wipro…" value={company}
+              onChange={e=>{setCompany(e.target.value);setErr("");setSlotData({});}}/>
+          </div>
+          <div>
+            <div style={{fontSize:11.5,fontWeight:800,color:C.soft,marginBottom:6,textTransform:"uppercase",letterSpacing:.7}}>Role</div>
+            <input style={inp} placeholder="e.g. SDE-1, Data Analyst…" value={role}
+              onChange={e=>{setRole(e.target.value);setErr("");setSlotData({});}}/>
+          </div>
+        </div>
+ 
+        <div style={{marginBottom:14}}>
+          <div style={{fontSize:11.5,fontWeight:800,color:C.soft,marginBottom:8,textTransform:"uppercase",letterSpacing:.7}}>Your Level</div>
+          <div style={{display:"flex",gap:8}}>
+            {["Fresher","1-2 years","3-5 years"].map(l=>(
+              <button key={l} onClick={()=>{setLevel(l);setSlotData({});}}
+                style={{flex:1,padding:"10px 6px",borderRadius:10,border:`1.5px solid ${level===l?C.violet:C.border}`,background:level===l?C.violetPale:C.white,color:level===l?C.violetD:C.ink2,fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{l}</button>
+            ))}
+          </div>
+        </div>
+ 
+        <div style={{marginBottom:4}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+            <div style={{fontSize:11.5,fontWeight:800,color:C.soft,textTransform:"uppercase",letterSpacing:.7}}>Resume <span style={{color:C.muted,fontWeight:500,textTransform:"none",letterSpacing:0}}>(optional — for personalized questions)</span></div>
+            <button onClick={()=>fileRef.current.click()}
+              style={{padding:"7px 14px",borderRadius:8,border:`1.5px solid ${C.violet}40`,background:C.violetPale,color:C.violetD,fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:800}}>
+              📎 Upload PDF / DOCX
+            </button>
+            <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" onChange={handleFile} style={{display:"none"}}/>
+          </div>
+          {fileName&&(
+            <div style={{background:C.greenPale,border:`1px solid ${C.green}30`,borderRadius:8,padding:"7px 12px",marginBottom:8,fontSize:12.5,color:C.green,display:"flex",alignItems:"center",gap:8,fontWeight:700}}>
+              ✅ {fileName} loaded
+              <button onClick={()=>{setFileName("");setResumeText("");setSlotData({});}} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:11.5,marginLeft:"auto",fontFamily:"'Inter',sans-serif",fontWeight:700}}>✕ Remove</button>
+            </div>
+          )}
+          {!fileName&&(
+            <textarea style={{...inp,minHeight:80,resize:"vertical",fontSize:13,fontFamily:"'JetBrains Mono',monospace",lineHeight:1.6}}
+              placeholder="Or paste resume text here (optional)…"
+              value={resumeText} onChange={e=>{setResumeText(e.target.value);setSlotData({});}}/>
+          )}
+        </div>
+      </div>
+ 
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:11.5,fontWeight:800,color:C.soft,marginBottom:8,textTransform:"uppercase",letterSpacing:.7}}>Quick select</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {quickCompanies.map(c=>(
+            <button key={c} onClick={()=>{setCompany(c);setErr("");setSlotData({});}}
+              style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${company===c?C.violet:C.border}`,background:company===c?C.violetPale:C.white,color:company===c?C.violetD:C.ink2,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{c}</button>
+          ))}
+        </div>
+      </div>
+ 
+      {err&&<div style={{color:C.red,fontSize:13,marginBottom:14,background:C.redPale,padding:"10px 14px",borderRadius:10,fontWeight:600}}>{err}</div>}
+ 
+      {company&&role&&(
+        <div style={{background:`${C.violet}0C`,border:`1px solid ${C.violet}28`,borderRadius:10,padding:"10px 16px",marginBottom:14,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+          <span style={{fontSize:16}}>🎯</span>
+          <span style={{color:C.violetD,fontWeight:800,fontSize:13.5}}>{company}</span>
+          <span style={{color:C.muted}}>·</span>
+          <span style={{color:C.ink2,fontSize:13.5,fontWeight:600}}>{role}</span>
+          <span style={{color:C.muted}}>·</span>
+          <span style={{color:C.soft,fontSize:12.5,fontWeight:600}}>{level}</span>
+          {resumeText&&<><span style={{color:C.muted}}>·</span><span style={{color:C.green,fontSize:12.5,fontWeight:800}}>📄 Resume added</span></>}
+          <span style={{color:C.soft,fontSize:11.5,marginLeft:"auto",fontWeight:600}}>Pick a slot ↓</span>
+        </div>
+      )}
+ 
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+        {SLOTS.map(slot=>{
+          const isLoading=slotLoading===slot.id;
+          const isDone=!!slotData[slot.id];
+          const locked=!slot.free&&!isPrepPro;
+          return(
+            <div key={slot.id} onClick={()=>handlePickSlot(slot)} className="lift"
+              style={{
+                background:locked?C.bgSubtle:isDone?C.greenPale:slot.free?`linear-gradient(135deg,${C.violet}14,${C.teal}0A)`:C.bgCard,
+                border:`1.5px solid ${isDone?C.green+"50":slot.free?C.violet+"50":locked?C.border:C.violet+"30"}`,
+                borderRadius:16,padding:20,cursor:isLoading?"wait":"pointer",
+                position:"relative",overflow:"hidden",transition:"all .2s",boxShadow:C.shCard
+              }}>
+              <div style={{position:"absolute",top:10,right:10}}>
+                {isDone&&!locked?<Tag color={C.green} size={9}>✓ Loaded</Tag>
+                  :slot.free?<Tag color={C.green} size={9}>FREE</Tag>
+                  :locked?<Tag color={C.gold} size={9}>LOCKED</Tag>
+                  :<Tag color={C.violet} size={9}>UNLOCKED</Tag>}
+              </div>
+              <div style={{fontSize:28,marginBottom:10,lineHeight:1}}>
+                {isLoading?<Spin size={24} color={slot.free?C.violet:C.gold}/>:slot.free?"🟢":locked?"🔒":"📖"}
+              </div>
+              <div style={{fontWeight:800,fontSize:14.5,color:locked?C.muted:C.ink,marginBottom:3}}>{slot.label}</div>
+              <div style={{color:locked?C.muted:C.soft,fontSize:12.5,fontWeight:700,marginBottom:6}}>{slot.desc}</div>
+              <div style={{fontSize:11,color:locked?C.muted:C.soft,lineHeight:1.6,fontStyle:"italic",fontWeight:500}}>{slot.focus}</div>
+              {isLoading&&<div style={{marginTop:8,fontSize:11.5,color:C.violet,fontWeight:700}}>Loading {slot.questions} questions…</div>}
+              {locked&&<div style={{marginTop:10,background:C.goldPale,border:`1px solid ${C.gold}30`,borderRadius:8,padding:"4px 10px",fontSize:11.5,color:C.gold,fontWeight:800,display:"inline-block"}}>₹59/week →</div>}
+            </div>
+          );
+        })}
+      </div>
+ 
+      {!isPrepPro&&(
+        <div style={{background:`linear-gradient(135deg,${C.gold}10,${C.violet}08)`,border:`1px solid ${C.gold}30`,borderRadius:14,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          <div>
+            <div style={{fontWeight:800,fontSize:13.5,color:C.ink}}>🔓 Unlock Slots 2, 3 & 4 — 90 more questions</div>
+            <div style={{color:C.soft,fontSize:12.5,marginTop:2,fontWeight:500}}>All companies · All roles · Personalized with resume</div>
+          </div>
+          <Btn v="gold" small onClick={()=>setShowUpgrade(true)}>Upgrade ₹59/week →</Btn>
+        </div>
+      )}
+ 
+     {showUpgrade&&<PrepUpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut} user={user} onRedeemed={refreshPrepSub}/>}
+    </div>
+  );
+ 
+  // ── QUESTIONS SCREEN ──
+  if(step==="questions"&&currentQa){
+    return(
+      <div className="fade">
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+          <button onClick={()=>{setStep("pick");setExpanded(null);}}
+            style={{background:C.white,border:`1.5px solid ${C.border}`,color:C.ink2,fontSize:12.5,cursor:"pointer",padding:"7px 14px",borderRadius:8,fontFamily:"'Inter',sans-serif",fontWeight:700}}>← Back</button>
+          <div>
+            <div style={{fontWeight:800,fontSize:15.5,color:C.ink}}>{company} · {role} · {level}</div>
+            <div style={{color:C.soft,fontSize:12,marginTop:1,fontWeight:600}}>{currentSlot?.label} — {currentSlot?.desc}{resumeText?" · 📄 Personalized from resume":""}</div>
+          </div>
+        </div>
+ 
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:16,marginBottom:14,boxShadow:C.shCard}}>
+          {currentQa.questions?.map((q,i)=>{
+            const isExp=expanded===i;
+            return(
+              <div key={i} style={{border:`1.5px solid ${isExp?C.violet+"50":C.border}`,borderRadius:12,padding:14,marginBottom:9,background:isExp?`${C.violet}06`:C.white,transition:"all .2s"}}>
+                <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                  <div style={{width:26,height:26,borderRadius:7,background:C.violetPale,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:11,color:C.violetD,flexShrink:0,fontFamily:"JetBrains Mono,monospace"}}>{i+1}</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:700,fontSize:14.5,color:C.ink,lineHeight:1.5,marginBottom:7}}>{q.q}</div>
+                    <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
+                      <Tag color={C.teal} size={10}>{q.topic}</Tag>
+                      <Tag color={sc(q.difficulty)} size={10}>{q.difficulty}</Tag>
+                    </div>
+                    <button onClick={()=>setExpanded(isExp?null:i)}
+                      style={{display:"inline-flex",alignItems:"center",gap:5,background:isExp?C.violetPale:C.bgSubtle,border:`1.5px solid ${isExp?C.violet+"40":C.border}`,borderRadius:7,color:isExp?C.violetD:C.ink2,fontSize:11.5,fontWeight:800,cursor:"pointer",padding:"5px 11px",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>
+                      {isExp?"▲ Hide":"▼ See answer"}
+                    </button>
+ 
+                    {isExp&&(
+                      <div style={{marginTop:10}}>
+                        <div style={{background:C.violetPale,borderRadius:10,padding:"11px 13px",marginBottom:8,border:`1px solid ${C.violet}20`}}>
+                          <div style={{fontSize:9.5,fontWeight:800,color:C.violetD,letterSpacing:1.2,textTransform:"uppercase",marginBottom:5}}>✦ Model Answer</div>
+                          <div style={{fontSize:13.5,color:C.ink2,lineHeight:1.8,fontWeight:500}}>{q.answer}</div>
+                        </div>
+                        <div style={{background:C.tealPale,borderRadius:10,padding:"11px 13px",border:`1px solid ${C.teal}20`}}>
+                          <div style={{fontSize:9.5,fontWeight:800,color:C.tealD,letterSpacing:1.2,textTransform:"uppercase",marginBottom:5}}>💡 How To Answer</div>
+                          <div style={{fontSize:13.5,color:C.ink2,lineHeight:1.8,fontWeight:500}}>{q.how_to_answer}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+ 
+        <Btn v="violet" onClick={()=>onPracticeForCompany?.(company,role)} style={{width:"100%",padding:14,fontSize:14.5}}>
+          🎙️ Practice live mock interview for {company} →
+        </Btn>
+ 
+       {showUpgrade&&<PrepUpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut} user={user} onRedeemed={refreshPrepSub}/>}
+      </div>
+    );
+  }
+ 
+  return null;
+}
+// ── TECH TERM CORRECTION ──────────────────────────────────────────────────────
+// Web Speech API frequently mishears technical vocabulary (e.g. "rest api" -> "rast
+// practice"). This runs a post-pass correction over common tech terms so
+// transcripts read correctly without needing a paid speech API.
+const TECH_CORRECTIONS = [
+  [/\brast\s*(api|practice)?\b/gi, "REST API"],
+  [/\brest\s*api\b/gi, "REST API"],
+  [/\bjava\s*script\b/gi, "JavaScript"],
+  [/\btype\s*script\b/gi, "TypeScript"],
+  [/\bnode\s*(js|dot\s*js)\b/gi, "Node.js"],
+  [/\breact\s*(js|dot\s*js)\b/gi, "React.js"],
+  [/\bmy\s*sequel\b/gi, "MySQL"],
+  [/\bpost\s*gre?y?\s*sequel\b/gi, "PostgreSQL"],
+  [/\bmongo\s*db\b/gi, "MongoDB"],
+  [/\bsequel\b/gi, "SQL"],
+  [/\bget\s*hub\b/gi, "GitHub"],
+  [/\bdock\s*er\b/gi, "Docker"],
+  [/\bcuber\s*net\s*ease\b/gi, "Kubernetes"],
+  [/\bo\s*auth\b/gi, "OAuth"],
+  [/\bdot\s*net\b/gi, ".NET"],
+  [/\bc\s*plus\s*plus\b/gi, "C++"],
+  [/\bc\s*sharp\b/gi, "C#"],
+  [/\bhtml\s*5\b/gi, "HTML5"],
+  [/\bcss\s*3\b/gi, "CSS3"],
+  [/\bci\s*cd\b/gi, "CI/CD"],
+  [/\bui\s*ux\b/gi, "UI/UX"],
+  [/\ba\s*p\s*i\b/gi, "API"],
+];
+function correctSpeechText(text){
+  if(!text)return text;
+  let out=text;
+  TECH_CORRECTIONS.forEach(([pattern,replacement])=>{ out=out.replace(pattern,replacement); });
+  return out;
+}
+
+// ── SPEECH ENGINE HOOK ────────────────────────────────────────────────────────
+// FIX: All speech bugs consolidated into one reusable hook so both
+// ResumeInterviewTab and QuickMockTab use identical, correct behaviour.
+//
+// Bug 1 fixed: speak() now returns a Promise that resolves ONLY after TTS ends,
+//   and beginQ awaits it fully before calling startRec — so mic never opens
+//   while AI is still speaking.
+//
+// Bug 2 fixed: speak() calls speechSynthesis.getVoices() inside the function
+//   itself (not once on mount), because the voices list populates async and
+//   may be empty on first call. We use the voiceschanged event as a fallback.
+//
+// Bug 3 fixed: startRec() checks phaseRef before auto-restarting on rec.onend,
+//   so if phase is "speaking" or "idle" the mic never restarts.
+//
+// Bug 4 fixed: finishQ is passed the current question text directly, not read
+//   from a stale closure over the questions array.
+//
+// Bug 5 fixed (new): the 90-second timer now uses a ref for the countdown
+//   value so the onend callback in the timer always has the current value,
+//   preventing the timer firing finishQ prematurely on stale state.
+function useSpeechEngine({phaseRef, onTimerEnd, QTIME=90}){
+  const recogRef=useRef(null);
+  const finalRef=useRef("");
+  const finalChunksRef=useRef([]);
+  const manualStopRef=useRef(false);
+  const timerRef=useRef(null);
+  const timeLeftRef=useRef(QTIME); // authoritative countdown, no stale closure
+  const[listening,setListening]=useState(false);
+  const[liveText,setLiveText]=useState("");
+  const[interimText,setInterimText]=useState("");
+  const[timeLeft,setTimeLeft]=useState(QTIME);
+  const[aiSpeaking,setAiSpeaking]=useState(false);
+
+  const speechOK=typeof window!=="undefined"&&!!(window.SpeechRecognition||window.webkitSpeechRecognition);
+  const ttsOK=typeof window!=="undefined"&&!!window.speechSynthesis;
+
+  // FIX Bug 2: resolve voices properly, including async population
+  const getBestVoice=useCallback((preferFemale=true)=>{
+    const voices=window.speechSynthesis.getVoices();
+    if(!voices.length)return null;
+    const femalePattern=/Female|Samantha|Karen|Moira|Veena|Raveena|Google UK English Female/i;
+    const malePattern=/Male|David|Daniel|Google/i;
+    const pattern=preferFemale?femalePattern:malePattern;
+    return(
+      voices.find(v=>/en-(US|GB|IN)/i.test(v.lang)&&pattern.test(v.name))||
+      voices.find(v=>/en/i.test(v.lang))||
+      voices[0]
+    );
+  },[]);
+
+  // FIX Bug 1 + Bug 2: speak() is a proper async function that guarantees
+  // the Promise resolves only after onend fires.
+  const speak=useCallback((text, preferFemale=true)=>new Promise(resolve=>{
+    if(!ttsOK){resolve();return;}
+    window.speechSynthesis.cancel(); // cancel any previous utterance first
+
+    const doSpeak=()=>{
+      const u=new SpeechSynthesisUtterance(text);
+      u.rate=0.95; u.pitch=1.05;
+      const v=getBestVoice(preferFemale);
+      if(v)u.voice=v;
+      setAiSpeaking(true);
+      u.onend=()=>{setAiSpeaking(false);resolve();};
+      u.onerror=()=>{setAiSpeaking(false);resolve();};
+      window.speechSynthesis.speak(u);
+    };
+
+    // voices may not be loaded yet — wait for them
+    const voices=window.speechSynthesis.getVoices();
+    if(voices.length>0){doSpeak();}
+    else{
+      window.speechSynthesis.onvoiceschanged=()=>{
+        window.speechSynthesis.onvoiceschanged=null;
+        doSpeak();
+      };
+      // Safety fallback: if event never fires, speak anyway after 400ms
+      setTimeout(()=>{
+        if(!window.speechSynthesis.speaking){doSpeak();}
+      },400);
+    }
+  }),[ttsOK,getBestVoice]);
+
+  const stopRec=useCallback(()=>{
+    manualStopRef.current=true;
+    try{recogRef.current?.stop();}catch{}
+    setListening(false);setInterimText("");
+  },[]);
+
+  // FIX Bug 3: only auto-restart mic when phase is "answering"
+  const startRec=useCallback((fresh=true)=>{
+    if(!speechOK)return;
+    manualStopRef.current=false;
+    try{recogRef.current?.stop();}catch{}
+    if(fresh){finalChunksRef.current=[];finalRef.current="";setLiveText("");setInterimText("");}
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    const rec=new SR();
+    rec.continuous=true; rec.interimResults=true; rec.lang="en-IN"; // en-IN for Indian accent support
+    rec.onresult=(e)=>{
+      let interim="";
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const t=e.results[i][0].transcript;
+        if(e.results[i].isFinal)finalChunksRef.current.push(t);
+        else interim+=t;
+      }
+      const full=correctSpeechText(finalChunksRef.current.join(" ").replace(/\s+/g," ").trim());
+      finalRef.current=full;
+      setLiveText(full); setInterimText(correctSpeechText(interim.trim()));
+    };
+    rec.onerror=(e)=>{
+      // "no-speech" is not a real error — just silence, keep going
+      if(e.error!=="no-speech")console.warn("SpeechRecognition error:",e.error);
+    };
+    rec.onend=()=>{
+      setListening(false);
+      // FIX Bug 3: only restart if we're still in answering phase
+      if(!manualStopRef.current && phaseRef.current==="answering"){
+        try{rec.start();setListening(true);}catch{}
+      }
+    };
+    recogRef.current=rec;
+    try{rec.start();setListening(true);}catch(e){console.warn("startRec failed:",e);}
+  },[speechOK, phaseRef]);
+
+  const startTimer=useCallback(()=>{
+    clearInterval(timerRef.current);
+    timeLeftRef.current=QTIME;
+    setTimeLeft(QTIME);
+    timerRef.current=setInterval(()=>{
+      timeLeftRef.current-=1;
+      setTimeLeft(timeLeftRef.current);
+      if(timeLeftRef.current<=0){
+        clearInterval(timerRef.current);
+        onTimerEnd(); // FIX Bug 4: caller receives callback, reads its own current state
+      }
+    },1000);
+  },[QTIME, onTimerEnd]);
+
+  const stopTimer=useCallback(()=>{clearInterval(timerRef.current);},[]);
+
+  const reset=useCallback(()=>{
+    stopTimer(); stopRec();
+    finalRef.current=""; finalChunksRef.current=[];
+    setLiveText(""); setInterimText(""); setTimeLeft(QTIME); setListening(false); setAiSpeaking(false);
+  },[stopTimer, stopRec, QTIME]);
+
+  const getAnswer=useCallback(()=>finalRef.current||liveText||"",[liveText]);
+
+  useEffect(()=>()=>{
+    clearInterval(timerRef.current);
+    stopRec();
+    window.speechSynthesis?.cancel();
+  },[stopRec]);
+
+  return{
+    speak, startRec, stopRec, startTimer, stopTimer, reset, getAnswer,
+    listening, liveText, interimText, timeLeft, aiSpeaking, speechOK,
+  };
+}
+// ── FEED (replaces Dashboard as Home) ──────────────────────────────────────
+function timeAgo(dateStr){
+  const s=Math.floor((new Date()-new Date(dateStr))/1000);
+  if(s<60)return"now";
+  if(s<3600)return`${Math.floor(s/60)}m`;
+  if(s<86400)return`${Math.floor(s/3600)}h`;
+  if(s<604800)return`${Math.floor(s/86400)}d`;
+  return new Date(dateStr).toLocaleDateString("en-IN",{day:"numeric",month:"short"});
+}
+
+async function uploadMedia(file){
+  const ext=file.name.split(".").pop();
+  const path=`${crypto.randomUUID()}.${ext}`;
+  const{error}=await supabase.storage.from("post-media").upload(path,file);
+  if(error)throw error;
+  const{data}=supabase.storage.from("post-media").getPublicUrl(path);
+  return{url:data.publicUrl,type:file.type.startsWith("video")?"video":"image"};
+}
+
+function PostComposer({user,profile,onPosted}){
+  const[open,setOpen]=useState(false);
+  const[type,setType]=useState("post");
+  const[content,setContent]=useState("");
+  const[jobTitle,setJobTitle]=useState(""),[jobCompany,setJobCompany]=useState(""),[jobLocation,setJobLocation]=useState(""),[jobLink,setJobLink]=useState("");
+  const[eventTitle,setEventTitle]=useState(""),[eventDetails,setEventDetails]=useState(""),[eventDate,setEventDate]=useState(""),[eventTime,setEventTime]=useState("");
+  const[file,setFile]=useState(null);
+  const[posting,setPosting]=useState(false);
+  const[err,setErr]=useState("");
+  const fileRef=useRef();
+  const name=user?.user_metadata?.full_name||"You";
+  const initials=name.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
+
+  const reset=()=>{setType("post");setContent("");setJobTitle("");setJobCompany("");setJobLocation("");setJobLink("");setEventTitle("");setEventDetails("");setEventDate("");setEventTime("");setFile(null);setErr("");};
+
+  const submit=async()=>{
+    if(type==="post"&&!content.trim())return;
+    if(type==="job"&&!jobTitle.trim())return;
+    if(type==="event"&&!eventTitle.trim())return;
+    setPosting(true);setErr("");
+    try{
+      let media_url=null,media_type=null;
+      if(file){const up=await uploadMedia(file);media_url=up.url;media_type=up.type;}
+      const row={
+        user_id:user.id,author_name:name,author_headline:profile?.headline||"",author_initials:initials,
+        type,content:content.trim()||null,media_url,media_type,
+        job_title:jobTitle||null,job_company:jobCompany||null,job_location:jobLocation||null,job_link:jobLink||null,
+        event_title:eventTitle||null,event_details:eventDetails||null,event_date:eventDate||null,event_time:eventTime||null,
+      };
+      const{error}=await supabase.from("posts").insert(row);
+      if(error)throw error;
+      reset();setOpen(false);onPosted&&onPosted();
+    }catch(e){setErr(e.message||"Could not post");}
+    setPosting(false);
+  };
+
+  return(
+    <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:16,marginBottom:16,boxShadow:C.shCard}}>
+      {!open?(
+        <div onClick={()=>setOpen(true)} style={{display:"flex",alignItems:"center",gap:12,cursor:"pointer"}}>
+          <div style={{width:40,height:40,borderRadius:"50%",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:13,flexShrink:0}}>{initials}</div>
+          <div style={{flex:1,background:C.bgSubtle,border:`1px solid ${C.border}`,borderRadius:24,padding:"11px 18px",color:C.muted,fontSize:13.5,fontWeight:500}}>Share a post, job, or event…</div>
+        </div>
+      ):(
+        <div>
+          <div style={{display:"flex",gap:8,marginBottom:12}}>
+            {[["post","📝 Post"],["job","💼 Job"],["event","📅 Event"]].map(([v,l])=>(
+              <button key={v} onClick={()=>setType(v)} style={{padding:"7px 14px",borderRadius:20,border:`1.5px solid ${type===v?C.violet:C.border}`,background:type===v?C.violetPale:C.white,color:type===v?C.violetD:C.ink2,fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>{l}</button>
+            ))}
+          </div>
+
+          {type==="post"&&(
+            <textarea style={{...inp,minHeight:90,resize:"vertical"}} placeholder="What do you want to share?" value={content} onChange={e=>setContent(e.target.value)}/>
+          )}
+
+          {type==="job"&&(
+            <div style={{display:"grid",gap:8}}>
+              <input style={inp} placeholder="Job title *" value={jobTitle} onChange={e=>setJobTitle(e.target.value)}/>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <input style={inp} placeholder="Company" value={jobCompany} onChange={e=>setJobCompany(e.target.value)}/>
+                <input style={inp} placeholder="Location" value={jobLocation} onChange={e=>setJobLocation(e.target.value)}/>
+              </div>
+              <input style={inp} placeholder="Apply link (optional)" value={jobLink} onChange={e=>setJobLink(e.target.value)}/>
+              <textarea style={{...inp,minHeight:70,resize:"vertical"}} placeholder="Job details" value={content} onChange={e=>setContent(e.target.value)}/>
+            </div>
+          )}
+
+          {type==="event"&&(
+            <div style={{display:"grid",gap:8}}>
+              <input style={inp} placeholder="Event name *" value={eventTitle} onChange={e=>setEventTitle(e.target.value)}/>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <input style={inp} type="date" value={eventDate} onChange={e=>setEventDate(e.target.value)}/>
+                <input style={inp} type="time" value={eventTime} onChange={e=>setEventTime(e.target.value)}/>
+              </div>
+              <textarea style={{...inp,minHeight:70,resize:"vertical"}} placeholder="Event details" value={eventDetails} onChange={e=>setEventDetails(e.target.value)}/>
+            </div>
+          )}
+
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:12}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <button onClick={()=>fileRef.current.click()} style={{padding:"7px 13px",borderRadius:8,border:`1.5px solid ${C.border}`,background:C.white,color:C.ink2,fontSize:12,cursor:"pointer",fontWeight:700}}>📎 Photo/Video</button>
+              <input ref={fileRef} type="file" accept="image/*,video/*" style={{display:"none"}} onChange={e=>setFile(e.target.files[0]||null)}/>
+              {file&&<Tag color={C.teal} size={11}>{file.name}</Tag>}
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <Btn v="ghost" small onClick={()=>{reset();setOpen(false);}}>Cancel</Btn>
+              <Btn v="violet" small loading={posting} onClick={submit}>Post</Btn>
+            </div>
+          </div>
+          {err&&<div style={{color:C.red,fontSize:12,marginTop:8}}>{err}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PostCard({post,user,onChanged}){
+  const[liked,setLiked]=useState(false);
+  const[likes,setLikes]=useState(post.likes_count||0);
+  const[showComments,setShowComments]=useState(false);
+  const[comments,setComments]=useState([]);
+  const[commentText,setCommentText]=useState("");
+  const[loadingComments,setLoadingComments]=useState(false);
+
+  useEffect(()=>{
+    supabase.from("post_likes").select("id").eq("post_id",post.id).eq("user_id",user.id).maybeSingle()
+      .then(({data})=>setLiked(!!data));
+  },[post.id,user.id]);
+
+  const toggleLike=async()=>{
+    if(liked){
+      setLiked(false);setLikes(l=>Math.max(0,l-1));
+      await supabase.from("post_likes").delete().eq("post_id",post.id).eq("user_id",user.id);
+      await supabase.from("posts").update({likes_count:Math.max(0,likes-1)}).eq("id",post.id);
+    }else{
+      setLiked(true);setLikes(l=>l+1);
+      await supabase.from("post_likes").insert({post_id:post.id,user_id:user.id});
+      await supabase.from("posts").update({likes_count:likes+1}).eq("id",post.id);
+    }
+  };
+
+  const loadComments=async()=>{
+    setShowComments(s=>!s);
+    if(!comments.length){
+      setLoadingComments(true);
+      const{data}=await supabase.from("post_comments").select("*").eq("post_id",post.id).order("created_at",{ascending:true});
+      setComments(data||[]);setLoadingComments(false);
+    }
+  };
+
+  const submitComment=async()=>{
+    if(!commentText.trim())return;
+    const name=user?.user_metadata?.full_name||"You";
+    const row={post_id:post.id,user_id:user.id,author_name:name,content:commentText.trim()};
+    const{data}=await supabase.from("post_comments").insert(row).select().single();
+    if(data)setComments(c=>[...c,data]);
+    await supabase.from("posts").update({comments_count:(post.comments_count||0)+1}).eq("id",post.id);
+    setCommentText("");
+  };
+
+  const share=async()=>{
+    const url=`${window.location.origin}${window.location.pathname}?post=${post.id}`;
+    try{if(navigator.share)await navigator.share({title:"HireFlo",url});else{await navigator.clipboard.writeText(url);alert("🔗 Link copied!");}}catch{}
+  };
+
+  const badge=post.type==="job"?["💼 Job",C.blue]:post.type==="event"?["📅 Event",C.gold]:null;
+
+  return(
+    <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:16,marginBottom:14,boxShadow:C.shCard}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+        <div style={{width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:13,flexShrink:0}}>{post.author_initials||"U"}</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:800,fontSize:13.5,color:C.ink}}>{post.author_name}</div>
+          <div style={{color:C.muted,fontSize:11.5,fontWeight:500}}>{post.author_headline?`${post.author_headline} · `:""}{timeAgo(post.created_at)}</div>
+        </div>
+        {badge&&<Tag color={badge[1]} size={11}>{badge[0]}</Tag>}
+      </div>
+
+      {post.type==="job"&&(
+        <div style={{background:C.bluePale,border:`1px solid ${C.blue}25`,borderRadius:12,padding:14,marginBottom:10}}>
+          <div style={{fontWeight:800,fontSize:15,color:C.ink}}>{post.job_title}</div>
+          <div style={{color:C.soft,fontSize:12.5,marginTop:2,fontWeight:600}}>{post.job_company}{post.job_location?` · ${post.job_location}`:""}</div>
+          {post.job_link&&<a href={post.job_link} target="_blank" rel="noreferrer" style={{display:"inline-block",marginTop:8,color:C.blue,fontSize:12.5,fontWeight:700,textDecoration:"none"}}>Apply link →</a>}
+        </div>
+      )}
+      {post.type==="event"&&(
+        <div style={{background:C.goldPale,border:`1px solid ${C.gold}25`,borderRadius:12,padding:14,marginBottom:10}}>
+          <div style={{fontWeight:800,fontSize:15,color:C.ink}}>{post.event_title}</div>
+          <div style={{color:C.gold,fontSize:12.5,marginTop:2,fontWeight:700}}>{post.event_date&&new Date(post.event_date).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}{post.event_time?` · ${post.event_time}`:""}</div>
+        </div>
+      )}
+      {post.content&&<div style={{fontSize:13.5,color:C.ink2,lineHeight:1.7,marginBottom:post.media_url?10:0,whiteSpace:"pre-wrap"}}>{post.type==="event"?post.event_details:post.content}</div>}
+
+      {post.media_url&&(post.media_type==="video"
+        ?<video src={post.media_url} controls style={{width:"100%",borderRadius:12,marginBottom:10}}/>
+        :<img src={post.media_url} alt="" style={{width:"100%",borderRadius:12,marginBottom:10,display:"block"}}/>
+      )}
+
+      <div style={{display:"flex",gap:6,color:C.muted,fontSize:11.5,marginBottom:8,fontWeight:600}}>
+        {likes>0&&<span>{likes} like{likes>1?"s":""}</span>}
+        {post.comments_count>0&&<span style={{marginLeft:"auto"}}>{post.comments_count} comment{post.comments_count>1?"s":""}</span>}
+      </div>
+      <div style={{display:"flex",borderTop:`1px solid ${C.border}`,paddingTop:8,gap:4}}>
+        <button onClick={toggleLike} style={{flex:1,background:"none",border:"none",cursor:"pointer",padding:"8px",borderRadius:8,fontSize:12.5,fontWeight:700,color:liked?C.violet:C.ink2,fontFamily:"'Inter',sans-serif"}}>{liked?"❤️":"🤍"} Like</button>
+        <button onClick={loadComments} style={{flex:1,background:"none",border:"none",cursor:"pointer",padding:"8px",borderRadius:8,fontSize:12.5,fontWeight:700,color:C.ink2,fontFamily:"'Inter',sans-serif"}}>💬 Comment</button>
+        <button onClick={share} style={{flex:1,background:"none",border:"none",cursor:"pointer",padding:"8px",borderRadius:8,fontSize:12.5,fontWeight:700,color:C.ink2,fontFamily:"'Inter',sans-serif"}}>↗ Share</button>
+      </div>
+
+      {showComments&&(
+        <div style={{marginTop:10,borderTop:`1px solid ${C.border}`,paddingTop:10}}>
+          {loadingComments&&<Spin size={16}/>}
+          {comments.map(c=>(
+            <div key={c.id} style={{display:"flex",gap:8,marginBottom:8}}>
+              <div style={{width:26,height:26,borderRadius:"50%",background:C.bgSurf,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:C.ink2,flexShrink:0}}>{(c.author_name||"U")[0]}</div>
+              <div style={{background:C.bgSubtle,borderRadius:10,padding:"7px 11px",fontSize:12.5}}>
+                <span style={{fontWeight:800,color:C.ink}}>{c.author_name}</span><br/>
+                <span style={{color:C.ink2}}>{c.content}</span>
+              </div>
+            </div>
+          ))}
+          <div style={{display:"flex",gap:8,marginTop:6}}>
+            <input style={{...inp,padding:"8px 12px",fontSize:12.5}} placeholder="Write a comment…" value={commentText} onChange={e=>setCommentText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submitComment()}/>
+            <Btn v="violet" small onClick={submitComment}>Send</Btn>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+function ProfilePanel({user,open,onClose,onLogout}){
+  const[editing,setEditing]=useState(false);
+  const meta=user?.user_metadata||{};
+  const[headline,setHeadline]=useState(meta.headline||"");
+  const[education,setEducation]=useState(meta.education||"");
+  const[interests,setInterests]=useState(meta.interests||"");
+  const[saving,setSaving]=useState(false);
+  const[copied,setCopied]=useState(false);
+  const{installable,promptInstall,isIOS,isInAppBrowser,isStandalone}=useInstallPrompt();
+  const[showInstallHelp,setShowInstallHelp]=useState(false);
+  const handleInstallClick=async()=>{
+    const res=await promptInstall();
+    if(!res.done)setShowInstallHelp(true);
+  };
+  const name=meta.full_name||"You";
+  const initials=name.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
+  const referLink=`${typeof window!=="undefined"?window.location.origin:""}?ref=${user?.id||""}`;
+
+  useEffect(()=>{
+    if(open){setHeadline(meta.headline||"");setEducation(meta.education||"");setInterests(meta.interests||"");setEditing(false);}
+  // eslint-disable-next-line
+  },[open]);
+
+  const save=async()=>{
+    setSaving(true);
+    await supabase.auth.updateUser({data:{headline,education,interests}});
+    setSaving(false);setEditing(false);
+  };
+
+  const copyReferLink=async()=>{
+    try{await navigator.clipboard.writeText(referLink);setCopied(true);setTimeout(()=>setCopied(false),2500);}catch{}
+  };
+
+  if(!open)return null;
+
+  return(
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",justifyContent:"flex-start"}}>
+      <div onClick={e=>e.stopPropagation()} className="fade" style={{width:320,maxWidth:"85vw",height:"100%",background:C.bgCard,boxShadow:"4px 0 30px rgba(0,0,0,.25)",overflowY:"auto",padding:0,display:"flex",flexDirection:"column"}}>
+
+        {/* Header — taller, avatar sits fully clear below it, no overlap */}
+        <div style={{background:`linear-gradient(135deg,${C.violetD},${C.violet})`,height:90,position:"relative",flexShrink:0,display:"flex",alignItems:"flex-end",padding:"0 20px 14px"}}>
+          <button onClick={onClose} style={{position:"absolute",top:12,right:12,background:"rgba(255,255,255,.2)",border:"none",borderRadius:"50%",width:28,height:28,color:"#fff",cursor:"pointer",fontSize:14}}>✕</button>
+          <div style={{width:60,height:60,borderRadius:"50%",overflow:"hidden",border:"3px solid rgba(255,255,255,.9)",boxShadow:"0 4px 14px rgba(0,0,0,.25)",flexShrink:0,background:C.white}}>
+            {meta.avatar_url?(
+              <img src={meta.avatar_url} alt={name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+            ):(
+              <div style={{width:"100%",height:"100%",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:22}}>{initials}</div>
+            )}
+          </div>
+        </div>
+
+        <div style={{padding:"16px 20px 20px",flex:1,display:"flex",flexDirection:"column"}}>
+          {!editing?(
+            <>
+              <div style={{fontWeight:900,fontSize:18,color:C.ink}}>{name}</div>
+              <div style={{color:C.soft,fontSize:13,marginTop:2,fontWeight:500}}>{meta.headline||"Add a headline"}</div>
+              {meta.education&&<div style={{marginTop:14,fontSize:13,color:C.ink2,display:"flex",alignItems:"center",gap:6}}>🎓 {meta.education}</div>}
+              {meta.interests&&<div style={{marginTop:6,fontSize:13,color:C.ink2,display:"flex",alignItems:"center",gap:6}}>✨ {meta.interests}</div>}
+
+              <button onClick={()=>setEditing(true)} style={{width:"100%",marginTop:16,padding:"9px",borderRadius:20,border:`1.5px solid ${C.violet}50`,background:C.violetPale,color:C.violetD,fontSize:13,fontWeight:800,cursor:"pointer"}}>
+                ✏️ Edit profile
+              </button>
+
+              <div style={{height:1,background:C.border,margin:"18px 0"}}/>
+
+              <div style={{display:"flex",flexDirection:"column",width:"100%",gap:2}}>
+               {!isStandalone&&(
+                  <button onClick={handleInstallClick} style={{width:"100%",boxSizing:"border-box",textAlign:"left",padding:"12px 6px",background:"none",borderRadius:10,border:"none",color:C.ink,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+                    📲 Install App
+                    <span style={{marginLeft:"auto",color:C.violet,fontSize:11,fontWeight:800}}>→</span>
+                  </button>
+                )}
+                <button onClick={copyReferLink} style={{width:"100%",boxSizing:"border-box",textAlign:"left",padding:"12px 6px",background:copied?C.greenPale:"none",borderRadius:10,border:"none",color:C.ink,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10,transition:"background .2s"}}>
+                  🎁 Refer &amp; Earn
+                  <span style={{marginLeft:"auto",color:copied?C.green:C.muted,fontSize:11,fontWeight:800}}>
+                    {copied?"Link copied!":"→"}
+                  </span>
+                </button>
+
+                <a href="mailto:HireFlo.in@gmail.com" style={{width:"100%",textAlign:"left",padding:"12px 6px",color:C.ink,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10,textDecoration:"none"}}>
+                  🛟 Support
+                </a>
+
+                <button onClick={onLogout} style={{width:"100%",textAlign:"left",padding:"12px 6px",background:"none",border:"none",color:C.red,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+                  🚪 Sign Out
+                </button>
+              </div>
+            </>
+          ):(
+            <div style={{display:"grid",gap:10}}>
+              <input style={{...inp,fontSize:13,padding:"9px 12px"}} placeholder="Headline" value={headline} onChange={e=>setHeadline(e.target.value)}/>
+              <input style={{...inp,fontSize:13,padding:"9px 12px"}} placeholder="Education" value={education} onChange={e=>setEducation(e.target.value)}/>
+              <input style={{...inp,fontSize:13,padding:"9px 12px"}} placeholder="Interests" value={interests} onChange={e=>setInterests(e.target.value)}/>
+              <div style={{display:"flex",gap:8}}>
+                <Btn v="ghost" small onClick={()=>setEditing(false)} style={{flex:1}}>Cancel</Btn>
+                <Btn v="violet" small loading={saving} onClick={save} style={{flex:1}}>Save</Btn>
+              </div>
+            </div>
+         )}
+        </div>
+      </div>
+
+      {showInstallHelp&&(
+        <div onClick={()=>setShowInstallHelp(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:99999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:C.bgCard,borderRadius:18,padding:24,maxWidth:340,width:"100%"}}>
+            <div style={{fontWeight:800,fontSize:16,color:C.ink,marginBottom:10}}>📲 Install HireFlo</div>
+            {isIOS?(
+              <div style={{color:C.soft,fontSize:13.5,lineHeight:1.8}}>
+                1. Tap the <b>Share</b> icon at the bottom of Safari<br/>
+                2. Scroll down and tap <b>Add to Home Screen</b><br/>
+                3. Tap <b>Add</b> — done!
+              </div>
+            ):isInAppBrowser?(
+              <div style={{color:C.soft,fontSize:13.5,lineHeight:1.8}}>
+                This link opened inside an app browser. Tap the <b>⋮ menu</b> and choose <b>Open in Chrome</b>, then try Install App again.
+              </div>
+            ):(
+              <div style={{color:C.soft,fontSize:13.5,lineHeight:1.8}}>
+                Open the <b>⋮ menu</b> in Chrome and tap <b>Add to Home screen</b> or <b>Install app</b>.
+              </div>
+            )}
+            <button onClick={()=>setShowInstallHelp(false)} style={{width:"100%",marginTop:16,padding:"10px",borderRadius:10,border:"none",background:C.violetPale,color:C.violetD,fontWeight:700,fontSize:13,cursor:"pointer"}}>Got it</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FeedTab({user}){
+  const[posts,setPosts]=useState([]);
+  const[loading,setLoading]=useState(true);
+
+  const load=async()=>{
+    setLoading(true);
+    const{data}=await supabase.from("posts").select("*").order("created_at",{ascending:false}).limit(40);
+    setPosts(data||[]);setLoading(false);
+  };
+  useEffect(()=>{load();},[]);
+
+  return(
+    <div className="fade" style={{maxWidth:640,margin:"0 auto"}}>
+      <PostComposer user={user} profile={user?.user_metadata} onPosted={load}/>
+      {loading&&<div style={{textAlign:"center",padding:40}}><Spin size={30}/></div>}
+      {!loading&&posts.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>No posts yet — be the first to share something.</div>}
+      {posts.map(p=><PostCard key={p.id} post={p} user={user} onChanged={load}/>)}
+    </div>
+  );
+}
+
+// ── INTERVIEW ROOM ────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// PASS 3a — INTERVIEW ROOM (CONTRAST FIX) + DASHBOARD
+// Replace your "function InterviewRoom(...)" block AND your "function Dashboard(...)"
+// block with these two. Everything else in your file stays as-is.
+//
+// WHAT WAS BROKEN (from your screenshot):
+// The Interview Room used to be written assuming a dark page background, so it
+// used pure white text (#fff) and translucent-white panels (rgba(255,255,255,..))
+// directly in inline styles instead of the C tokens. That's fine on a dark page,
+// but once your global theme became white, the ROOM ITSELF is still intentionally
+// dark (a "studio" look — explained in earlier passes), so white text on its own
+// dark background should actually still be visible... EXCEPT several elements
+// were using near-invisible low-opacity whites (e.g. "rgba(255,255,255,.2)" for
+// placeholder text) which read as washed-out/invisible especially the question
+// text, transcript box, and live metrics. I've increased every text contrast
+// level here, added explicit font-weights, and made the mic/transcript/question
+// areas much bolder so nothing is unreadable again.
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── INTERVIEW ROOM ────────────────────────────────────────────────────────────
+function InterviewRoom({role,company,questions,qIndex,phase,aiSpeaking,listening,liveText,interimText,timeLeft,feedback,loadingFeedback,onFinish,onNext,onEnd,onToggleMic,micMuted,fillerCount,liveMetrics}){
+  const videoRef=useRef(null);
+  const streamRef=useRef(null);
+  const[camStream,setCamStream]=useState(null);
+  const[camErr,setCamErr]=useState(false);
+  const camReady=!!camStream;
+  const QTIME=90;
+  const pct=(timeLeft/QTIME)*100;
+  const tcol=pct>50?C.green:pct>20?C.gold:C.red;
+  const q=questions[qIndex];
+  const isLast=qIndex+1>=questions.length;
+
+  useEffect(()=>{
+    let active=true;
+    navigator.mediaDevices?.getUserMedia({video:{facingMode:"user"},audio:false})
+      .then(stream=>{
+        if(!active){stream.getTracks().forEach(t=>t.stop());return;}
+        streamRef.current=stream; setCamStream(stream);
+      }).catch(()=>setCamErr(true));
+    return()=>{active=false;streamRef.current?.getTracks().forEach(t=>t.stop());};
+  },[]);
+
+  useEffect(()=>{
+    if(camStream&&videoRef.current){
+      const v=videoRef.current;
+      v.srcObject=camStream;
+      const tryPlay=()=>v.play().catch(()=>{});
+      v.onloadedmetadata=tryPlay; tryPlay();
+    }
+  },[camStream]);
+
+  return(
+    <div className="room-fixed">
+      <style>{`
+        @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+        @keyframes voiceBar{0%,100%{transform:scaleY(.15)}50%{transform:scaleY(1)}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+        @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(124,114,240,.55)}70%{box-shadow:0 0 0 28px rgba(124,114,240,0)}100%{box-shadow:0 0 0 0 rgba(124,114,240,0)}}
+        @keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        .vbar{width:3px;border-radius:2px;background:currentColor;display:inline-block;transform-origin:center bottom;}
+        .metric-bar{height:3px;border-radius:2px;transition:width .8s cubic-bezier(.22,1,.36,1);}
+      `}</style>
+
+      <div style={{flex:1,background:"linear-gradient(180deg,#070912 0%,#0B0E1A 100%)",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:"20%",left:"50%",transform:"translateX(-50%)",width:400,height:400,borderRadius:"50%",background:"radial-gradient(circle,rgba(124,114,240,.10),transparent 70%)",pointerEvents:"none"}}/>
+
+        {/* Top bar */}
+        <div style={{position:"absolute",top:0,left:0,right:0,padding:"16px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",background:"linear-gradient(to bottom,rgba(7,9,18,.92),transparent)",zIndex:20}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:7,height:7,borderRadius:"50%",background:"#EF4444",animation:"pulse .9s infinite",boxShadow:"0 0 8px #EF4444"}}/>
+            <span style={{color:"rgba(255,255,255,.85)",fontWeight:800,fontSize:11,letterSpacing:1.5}}>LIVE</span>
+            {company&&<div style={{background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.16)",borderRadius:20,padding:"4px 14px",color:"#fff",fontSize:12,fontWeight:700}}>{company}</div>}
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{display:"flex",gap:5,alignItems:"center"}}>
+              {questions.map((_,i)=>(
+                <div key={i} style={{width:i===qIndex?28:20,height:3,borderRadius:2,background:i<qIndex?"#22C55E":i===qIndex?"#7C72F0":"rgba(255,255,255,.18)",transition:"all .3s"}}/>
+              ))}
+            </div>
+            <div style={{background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.16)",borderRadius:20,padding:"4px 14px",color:"#fff",fontSize:11,fontWeight:800,fontFamily:"JetBrains Mono,monospace"}}>
+              {qIndex+1}/{questions.length}
+            </div>
+          </div>
+        </div>
+
+        {/* AI Avatar */}
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:16,zIndex:5}}>
+          <div style={{borderRadius:"50%",padding:6,border:`2px solid ${aiSpeaking?"#7C72F0":"rgba(255,255,255,.14)"}`,boxShadow:aiSpeaking?"0 0 40px rgba(124,114,240,.35)":"none",animation:aiSpeaking?"ringPulse 1.8s infinite":"none",transition:"all .4s"}}>
+            <AIGlobe speaking={aiSpeaking} size={160}/>
+          </div>
+          <div style={{textAlign:"center"}}>
+            <div style={{color:"#fff",fontWeight:800,fontSize:17}}>HireFlo AI</div>
+            <div style={{color:"rgba(255,255,255,.55)",fontSize:12.5,marginTop:2,fontWeight:500}}>Interview Intelligence{company?` · ${company}`:role?` · ${role}`:""}</div>
+            {aiSpeaking&&(
+              <div style={{display:"flex",justifyContent:"center",gap:3,alignItems:"flex-end",marginTop:8,height:16}}>
+                {[.35,.55,.8,.55,.35].map((d,i)=>(
+                  <span key={i} className="vbar" style={{height:16,color:"#7C72F0",animation:`voiceBar ${d}s ease-in-out ${i*.07}s infinite`}}/>
+                ))}
+              </div>
+            )}
+            {!aiSpeaking&&phase==="answering"&&(
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginTop:8,background:listening?"rgba(45,212,174,.15)":"rgba(255,255,255,.08)",borderRadius:20,padding:"5px 14px",border:`1px solid ${listening?"rgba(45,212,174,.4)":"rgba(255,255,255,.14)"}`}}>
+                {listening
+                  ?<><div style={{width:5,height:5,borderRadius:"50%",background:"#2DD4AE",animation:"pulse 1s infinite"}}/><span style={{color:"#2DD4AE",fontSize:11.5,fontWeight:800}}>Your mic is live — speak now</span></>
+                  :<span style={{color:"rgba(255,255,255,.6)",fontSize:11.5,fontWeight:600}}>Mic starting…</span>
+                }
+              </div>
+            )}
+            {phase==="speaking"&&(
+              <div style={{marginTop:8,color:"rgba(255,255,255,.55)",fontSize:11.5,fontWeight:500}}>Priya is asking your question…</div>
+            )}
+          </div>
+        </div>
+
+        {/* Live metrics panel */}
+        {phase==="answering"&&(
+          <div style={{position:"absolute",right:20,top:"50%",transform:"translateY(-50%)",background:"rgba(20,22,34,.92)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,.12)",borderRadius:14,padding:"16px",width:134,zIndex:20}}>
+            <div style={{fontSize:9.5,color:"rgba(255,255,255,.55)",fontWeight:800,letterSpacing:1.2,textTransform:"uppercase",marginBottom:12}}>Live analysis</div>
+            {[
+              {label:"Pace",val:liveMetrics?.pace||0,color:"#2DD4AE"},
+              {label:"Clarity",val:liveMetrics?.clarity||0,color:"#7C72F0"},
+              {label:"Fillers",val:Math.max(0,100-((fillerCount||0)*8)),color:fillerCount>3?"#EF4444":fillerCount>1?"#E08E1F":"#22C55E"},
+            ].map(({label,val,color})=>(
+              <div key={label} style={{marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <span style={{fontSize:10,color:"rgba(255,255,255,.7)",fontWeight:700}}>{label}</span>
+                  <span style={{fontSize:10,color,fontFamily:"JetBrains Mono,monospace",fontWeight:800}}>{val}%</span>
+                </div>
+                <div style={{background:"rgba(255,255,255,.1)",borderRadius:2,height:3}}>
+                  <div className="metric-bar" style={{width:`${val}%`,background:color}}/>
+                </div>
+              </div>
+            ))}
+            {fillerCount>0&&(
+              <div style={{marginTop:8,padding:"6px 8px",background:"rgba(224,142,31,.14)",borderRadius:8,border:"1px solid rgba(224,142,31,.28)"}}>
+                <div style={{fontSize:10,color:"#E08E1F",fontWeight:800}}>{fillerCount} filler{fillerCount>1?"s":""}</div>
+                <div style={{fontSize:9,color:"rgba(255,255,255,.5)",marginTop:1}}>detected</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Question card + transcript */}
+        <div style={{position:"absolute",bottom:72,left:0,right:0,padding:"0 16px",zIndex:20}}>
+          <div style={{background:"rgba(20,22,34,.94)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,.12)",borderRadius:14,padding:"14px 18px",marginBottom:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <span style={{background:"rgba(124,114,240,.2)",color:"#B7AEFA",fontSize:11,padding:"3px 10px",borderRadius:20,fontWeight:800,border:"1px solid rgba(124,114,240,.35)"}}>{q?.type}</span>
+              {phase==="answering"&&(
+                <span style={{fontFamily:"JetBrains Mono,monospace",color:tcol,fontWeight:800,fontSize:15}}>
+                  ⏱ {fmtTime(timeLeft)}
+                </span>
+              )}
+            </div>
+            <div style={{color:"#fff",fontSize:16,lineHeight:1.7,fontWeight:600}}>{q?.q}</div>
+            {phase==="answering"&&(
+              <div style={{height:2,background:"rgba(255,255,255,.12)",borderRadius:2,marginTop:12,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${pct}%`,background:tcol,borderRadius:2,transition:"width 1s linear",boxShadow:`0 0 8px ${tcol}80`}}/>
+              </div>
+            )}
+          </div>
+
+          {/* Live transcript box */}
+          {phase==="answering"&&(
+            <div style={{background:"rgba(20,22,34,.85)",backdropFilter:"blur(16px)",borderRadius:12,padding:"12px 16px",border:`1px solid ${listening?"rgba(45,212,174,.4)":"rgba(255,255,255,.12)"}`,minHeight:56,marginBottom:8,transition:"border-color .3s"}}>
+              <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:5}}>
+                {listening&&<div style={{width:5,height:5,borderRadius:"50%",background:"#2DD4AE",animation:"pulse 1s infinite",boxShadow:"0 0 6px #2DD4AE"}}/>}
+                <span style={{color:listening?"#2DD4AE":"rgba(255,255,255,.5)",fontSize:9.5,fontWeight:800,letterSpacing:1.5,textTransform:"uppercase"}}>
+                  {listening?"Mic active — keep going":"Mic standby"}
+                </span>
+              </div>
+              <div style={{color:"#fff",fontSize:14,lineHeight:1.7,fontWeight:500}}>
+                {liveText&&<span>{liveText}</span>}
+                {interimText&&!liveText.endsWith(interimText)&&<span style={{color:"rgba(255,255,255,.55)",fontStyle:"italic"}}> {interimText}</span>}
+                {!liveText&&!interimText&&<span style={{color:"rgba(255,255,255,.4)",fontStyle:"italic",fontWeight:400}}>Your words appear here as you speak…</span>}
+              </div>
+            </div>
+          )}
+
+          {/* Feedback card */}
+          {phase==="done-q"&&loadingFeedback&&(
+            <div style={{background:"rgba(20,22,34,.85)",backdropFilter:"blur(16px)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,padding:"12px 16px",display:"flex",alignItems:"center",gap:10,color:"rgba(255,255,255,.8)",fontSize:13.5,fontWeight:600}}>
+              <Spin size={14} color="#7C72F0"/> Scoring your answer…
+            </div>
+          )}
+          {phase==="done-q"&&!loadingFeedback&&feedback&&(
+            <div style={{background:"rgba(20,22,34,.95)",backdropFilter:"blur(20px)",borderRadius:14,padding:"14px 18px",border:`1px solid ${feedback.score>=75?"rgba(34,197,94,.45)":feedback.score>=50?"rgba(124,114,240,.45)":"rgba(239,68,68,.45)"}`,animation:"slideIn .3s ease forwards"}}>
+              <div style={{display:"flex",alignItems:"flex-start",gap:14}}>
+                <div style={{width:46,height:46,borderRadius:12,background:feedback.score>=75?"rgba(34,197,94,.18)":feedback.score>=50?"rgba(124,114,240,.18)":"rgba(239,68,68,.18)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:16,flexShrink:0,color:feedback.score>=75?"#4ADE80":feedback.score>=50?"#B7AEFA":"#F87171",fontFamily:"JetBrains Mono,monospace"}}>
+                  {feedback.score}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{color:"#fff",fontWeight:800,fontSize:14,marginBottom:3}}>
+                    {feedback.score>=75?"Strong answer ✓":feedback.score>=50?"Solid attempt":"Needs work"}
+                  </div>
+                  {feedback.tip&&<div style={{color:"rgba(255,255,255,.78)",fontSize:12.5,lineHeight:1.65,fontWeight:500}}>{feedback.tip}</div>}
+                  {feedback.what_was_good&&<div style={{color:"#4ADE80",fontSize:11.5,marginTop:4,fontWeight:600}}>✓ {feedback.what_was_good}</div>}
+                  {feedback.missing&&<div style={{color:"#E08E1F",fontSize:11.5,marginTop:2,fontWeight:600}}>Missing: {feedback.missing}</div>}
+                </div>
+                <button onClick={()=>onNext(qIndex)}
+                  style={{padding:"10px 20px",borderRadius:10,border:"none",cursor:"pointer",background:isLast?"linear-gradient(135deg,#4338CA,#5B4FE8)":"linear-gradient(135deg,#0A8A70,#0EA889)",color:"#fff",fontWeight:800,fontSize:12.5,fontFamily:"'Inter',sans-serif",flexShrink:0}}>
+                  {isLast?"Report →":"Next →"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* PiP camera */}
+        <div style={{position:"absolute",top:80,right:20,width:152,height:108,borderRadius:12,overflow:"hidden",border:"1px solid rgba(255,255,255,.16)",background:"#14161F",zIndex:15,boxShadow:"0 12px 36px rgba(0,0,0,.5)"}}>
+          <video ref={videoRef} muted playsInline autoPlay style={{width:"100%",height:"100%",objectFit:"cover",transform:"scaleX(-1)",display:camReady?"block":"none"}}/>
+          {!camReady&&(
+            <div style={{width:"100%",height:"100%",background:"#14161F",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:5}}>
+              <span style={{fontSize:24}}>🧑</span>
+              <span style={{color:"rgba(255,255,255,.5)",fontSize:9.5,textAlign:"center",padding:"0 8px",fontWeight:600}}>{camErr?"Camera blocked":"Loading…"}</span>
+            </div>
+          )}
+          {micMuted&&<div style={{position:"absolute",top:6,right:6,background:"#DC2626",borderRadius:"50%",width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9}}>🔇</div>}
+          <div style={{position:"absolute",bottom:5,left:7,background:"rgba(0,0,0,.65)",borderRadius:5,padding:"2px 6px",fontSize:9.5,color:"rgba(255,255,255,.85)",fontWeight:800}}>You</div>
+        </div>
+      </div>
+
+      {/* Bottom controls */}
+      <div style={{background:"rgba(7,9,18,.98)",padding:"12px 20px",display:"flex",alignItems:"center",justifyContent:"center",gap:14,flexShrink:0,borderTop:"1px solid rgba(255,255,255,.08)"}}>
+        {phase==="answering"&&(
+          <>
+            <button onClick={onToggleMic} style={{width:46,height:46,borderRadius:"50%",border:`1px solid ${micMuted?"rgba(220,38,38,.6)":"rgba(255,255,255,.16)"}`,cursor:"pointer",background:micMuted?"rgba(220,38,38,.18)":"rgba(255,255,255,.08)",color:"#fff",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s",fontFamily:"'Inter',sans-serif"}}>
+              {micMuted?"🔇":"🎙️"}
+            </button>
+            <button onClick={()=>onFinish(qIndex)} style={{padding:"12px 36px",borderRadius:24,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#4338CA,#5B4FE8,#7C72F0)",color:"#fff",fontWeight:800,fontSize:14.5,fontFamily:"'Inter',sans-serif",boxShadow:"0 6px 24px rgba(91,79,232,.5)",letterSpacing:.3}}>
+              Done ✓
+            </button>
+            <button onClick={onEnd} style={{width:46,height:46,borderRadius:"50%",border:"1px solid rgba(239,68,68,.35)",cursor:"pointer",background:"rgba(239,68,68,.14)",color:"#F87171",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Inter',sans-serif"}}>
+              📵
+            </button>
+          </>
+        )}
+        {phase==="speaking"&&<div style={{color:"rgba(255,255,255,.7)",fontSize:13.5,fontWeight:600,display:"flex",alignItems:"center",gap:8}}><Spin size={14} color="#7C72F0"/>Priya is speaking — your mic opens when she's done…</div>}
+        {phase==="done-q"&&!feedback&&!loadingFeedback&&<div style={{color:"rgba(255,255,255,.5)",fontSize:13.5,fontWeight:500}}>Analyzing…</div>}
+      </div>
+    </div>
+  );
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+// ── DASHBOARD (product-level redesign) ─────────────────────────────────────
+// Drop-in replacement for your existing `function Dashboard({...}){...}`.
+// Same props, same data shape (user, onStartInterview, onGoToJobs, onGoToTab, stats).
+// Nothing else in your file needs to change.
+
+function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
+  const name=user?.user_metadata?.full_name?.split(" ")[0]||"there";
+  const results=stats?.results||[];
+  const streak=stats?.streak||{streak:0,longest:0};
+  const scores=results.map(r=>r.overall_score);
+  const latestScore=scores[0]||0;
+  const prevScore=scores[1]||0;
+  const delta=latestScore-prevScore;
+  const avgScore=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):0;
+  const{isPro}=useSubscription(user?.id);
+  const[showUpgrade,setShowUpgrade]=useState(false);
+  const[checkingOut,setCheckingOut]=useState(false);
+
+  const skillAvg={
+    technical:results.length?Math.round(results.reduce((a,r)=>a+(r.technical_score||0),0)/results.length):0,
+    communication:results.length?Math.round(results.reduce((a,r)=>a+(r.communication_score||0),0)/results.length):0,
+    confidence:results.length?Math.round(results.reduce((a,r)=>a+(r.confidence_score||0),0)/results.length):0,
+    structure:results.length?Math.round(results.reduce((a,r)=>a+(r.structure_score||0),0)/results.length):0,
+    resumeFit:results.length?Math.round(results.reduce((a,r)=>a+(r.resume_fit_score||0),0)/results.length):0,
+  };
+
+  const weakest=Object.entries(skillAvg).sort((a,b)=>a[1]-b[1])[0];
+  const skillNames={technical:"Technical",communication:"Communication",confidence:"Confidence",structure:"Structure",resumeFit:"Resume Fit"};
+  const hour=new Date().getHours();
+  const greeting=hour<12?"Good morning":hour<17?"Good afternoon":"Good evening";
+
+  // "Readiness" — a single at-a-glance number, product dashboards love these
+  const readiness=results.length?avgScore:0;
+  const readinessLabel=readiness===0?"Not started":readiness>=75?"Interview ready":readiness>=55?"Getting there":"Needs work";
+  const readinessColor=readiness===0?C.muted:readiness>=75?C.green:readiness>=55?C.gold:C.red;
+
+  const handleChoosePlan=async(plan)=>{
+    setCheckingOut(true);
+    await startCheckout(plan,user,()=>{setShowUpgrade(false);setCheckingOut(false);window.location.reload();});
+    setCheckingOut(false);
+  };
+
+  const quickActions=[
+    {icon:"🎯",title:"AI Mock Interview",desc:"Personalized interview based on your resume and target role.",action:onStartInterview,color:C.violet,badge:results.length===0?"Start here":null},
+    {icon:"🔥",title:"Live Job Feed",desc:"Fresher openings, updated daily",action:onGoToJobs,color:C.teal},
+    {icon:"🏢",title:"Interview Prep",desc:"Company-exact Q&A + answers",action:()=>onGoToTab(3),color:C.gold},
+    {icon:"📋",title:"ATS Resume Check",desc:"Score your resume vs a JD",action:()=>onGoToTab(4),color:C.blue},
+  ];
+
+  return(
+    <div className="fade" style={{paddingBottom:20}}>
+
+      {/* ── HERO ── */}
+      <div style={{
+        background:`linear-gradient(135deg,${C.violetD} 0%,${C.violet} 55%,${C.violetL} 100%)`,
+        borderRadius:24,padding:"30px 28px",marginBottom:16,position:"relative",overflow:"hidden",
+        boxShadow:"0 20px 50px rgba(91,79,232,.28)"
+      }}>
+        {/* decorative mesh */}
+        <div style={{position:"absolute",top:-80,right:-60,width:280,height:280,borderRadius:"50%",background:"radial-gradient(circle,rgba(255,255,255,.16),transparent 70%)",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",bottom:-100,left:"30%",width:260,height:260,borderRadius:"50%",background:"radial-gradient(circle,rgba(14,168,137,.25),transparent 70%)",pointerEvents:"none"}}/>
+
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:24,position:"relative"}}>
+          <div style={{flex:"1 1 320px",minWidth:0}}>
+            <div style={{color:"rgba(255,255,255,.75)",fontSize:13,fontWeight:600,marginBottom:8}}>{greeting}, {name} 👋</div>
+
+            {streak.streak>0?(
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                <span style={{fontSize:26,animation:"streakPop 2s ease infinite"}}>🔥</span>
+                <div>
+                  <div style={{fontWeight:900,fontSize:26,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"#fff",lineHeight:1.1}}>{streak.streak}-day streak</div>
+                  <div style={{color:"rgba(255,255,255,.65)",fontSize:12.5,fontWeight:500}}>Best: {streak.longest} days</div>
+                </div>
+              </div>
+            ):(
+              <div style={{fontWeight:900,fontSize:26,color:"#fff",marginBottom:14,fontFamily:"'Plus Jakarta Sans',sans-serif",lineHeight:1.2}}>
+                Let's get you interview-ready
+              </div>
+            )}
+
+            {weakest&&weakest[1]>0&&(
+              <div style={{background:"rgba(255,255,255,.14)",border:"1px solid rgba(255,255,255,.2)",borderRadius:10,padding:"7px 14px",display:"inline-block",marginBottom:18}}>
+                <span style={{color:"#fff",fontSize:12.5,fontWeight:600}}>💡 Focus area: {skillNames[weakest[0]]} ({weakest[1]}%)</span>
+              </div>
+            )}
+
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+              <button onClick={onStartInterview} style={{
+                padding:"13px 24px",borderRadius:12,border:"none",cursor:"pointer",
+                background:"#fff",color:C.violetD,fontWeight:800,fontSize:14,
+                fontFamily:"'Inter',sans-serif",display:"inline-flex",alignItems:"center",gap:8,
+                boxShadow:"0 8px 20px rgba(0,0,0,.15)"
+              }}>🎙️ Start Interview</button>
+              <button onClick={onGoToJobs} style={{
+                padding:"13px 20px",borderRadius:12,cursor:"pointer",
+                background:"rgba(255,255,255,.12)",border:"1.5px solid rgba(255,255,255,.3)",
+                color:"#fff",fontWeight:700,fontSize:14,fontFamily:"'Inter',sans-serif"
+              }}>Browse jobs →</button>
+            </div>
+          </div>
+
+          {/* Readiness ring — the single "product-level" glanceable metric */}
+          <div style={{
+            background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.18)",
+            borderRadius:18,padding:"18px 22px",textAlign:"center",minWidth:150,backdropFilter:"blur(6px)"
+          }}>
+            <div style={{position:"relative",width:88,height:88,margin:"0 auto 8px"}}>
+              <svg width={88} height={88} viewBox="0 0 88 88">
+                <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(255,255,255,.18)" strokeWidth="7"/>
+                <circle cx="44" cy="44" r="36" fill="none" stroke="#fff" strokeWidth="7"
+                  strokeDasharray={2*Math.PI*36} strokeDashoffset={2*Math.PI*36*(1-readiness/100)}
+                  strokeLinecap="round" transform="rotate(-90 44 44)"
+                  style={{transition:"stroke-dashoffset 1.2s cubic-bezier(.22,1,.36,1)"}}/>
+              </svg>
+              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column"}}>
+                <span style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:800,fontSize:22,color:"#fff",lineHeight:1}}>{readiness}</span>
+              </div>
+            </div>
+            <div style={{color:"#fff",fontSize:12,fontWeight:800,letterSpacing:.3}}>{readinessLabel}</div>
+            <div style={{color:"rgba(255,255,255,.6)",fontSize:10.5,fontWeight:600,marginTop:2,textTransform:"uppercase",letterSpacing:.6}}>Readiness score</div>
+          </div>
+        </div>
+      </div>
+
+      {!isPro&&(
+        <div onClick={()=>setShowUpgrade(true)} className="lift" style={{background:`linear-gradient(135deg,${C.gold}12,${C.violet}0A)`,border:`1px solid ${C.gold}30`,borderRadius:14,padding:"14px 18px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",cursor:"pointer",boxShadow:C.shCard}}>
+          <div>
+            <div style={{fontWeight:800,fontSize:13.5,color:C.ink}}>🔓 Unlock unlimited AI interviews</div>
+            <div style={{color:C.soft,fontSize:12,marginTop:2,fontWeight:500}}>Free plan includes 2 · ₹49/week or ₹199/month for all 15</div>
+          </div>
+          <Tag color={C.gold} size={11}>Upgrade →</Tag>
+        </div>
+      )}
+      {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut} user={user} onRedeemed={()=>window.location.reload()}/>}
+
+      {/* ── STAT ROW ── */}
+
+      {/* ── STAT ROW ── */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12,marginBottom:16}}>
+        {[
+          {label:"Interviews",value:results.length,icon:"🎯",color:C.violet},
+          {label:"Avg score",value:`${avgScore}%`,icon:"📊",color:C.teal},
+          {label:"Last score",value:`${latestScore}%`,icon:"⚡",color:scores.length?C.green:C.muted,delta:scores.length>1?delta:null},
+          {label:"Best streak",value:`${streak.longest}d`,icon:"🔥",color:C.gold},
+        ].map(({label,value,icon,color,delta})=>(
+          <div key={label} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"16px 18px",boxShadow:C.shCard,display:"flex",alignItems:"center",gap:14}}>
+            <div style={{width:40,height:40,borderRadius:11,background:`${color}14`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{icon}</div>
+            <div style={{minWidth:0}}>
+              <div style={{color:C.muted,fontSize:10.5,fontWeight:800,textTransform:"uppercase",letterSpacing:.6,marginBottom:2}}>{label}</div>
+              <div className="mono" style={{fontWeight:800,fontSize:20,color,lineHeight:1}}>{value}
+                {delta!==null&&delta!==undefined&&(
+                  <span style={{fontSize:11,fontFamily:"'Inter',sans-serif",fontWeight:700,color:delta>=0?C.green:C.red,marginLeft:6}}>{delta>=0?`↑${delta}`:`↓${Math.abs(delta)}`}</span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── QUICK ACTIONS (list style, product-app feel) ── */}
+      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,marginBottom:16,boxShadow:C.shCard,overflow:"hidden"}}>
+        {quickActions.map((a,i)=>(
+          <div key={a.title} onClick={a.action} className="lift" style={{
+            display:"flex",alignItems:"center",gap:14,padding:"16px 18px",cursor:"pointer",
+            borderBottom:i<quickActions.length-1?`1px solid ${C.border}`:"none",transition:"background .15s"
+          }}
+          onMouseEnter={e=>e.currentTarget.style.background=C.bgSubtle}
+          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+            <div style={{width:44,height:44,borderRadius:12,background:`${a.color}14`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{a.icon}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <div style={{fontWeight:800,fontSize:14.5,color:C.ink}}>{a.title}</div>
+                {a.badge&&<Tag color={a.color} size={10}>{a.badge}</Tag>}
+              </div>
+              <div style={{color:C.soft,fontSize:12.5,fontWeight:500,marginTop:1}}>{a.desc}</div>
+            </div>
+            <span style={{color:C.muted,fontSize:18,flexShrink:0}}>→</span>
+          </div>
+        ))}
+      </div>
+
+      {/* ── SKILL PROFILE + TRAJECTORY ── */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",boxShadow:C.shCard}}>
+          <div style={{fontWeight:800,color:C.ink,fontSize:14.5,marginBottom:4}}>Skill profile</div>
+          <div style={{color:C.soft,fontSize:12.5,marginBottom:16,fontWeight:500}}>{results.length?`Based on ${results.length} interview${results.length>1?"s":""}`:''}</div>
+          {results.length>0?(
+            <div style={{display:"flex",justifyContent:"center"}}><SkillRadar scores={skillAvg} size={190}/></div>
+          ):(
+            <div style={{textAlign:"center",padding:"30px 0",color:C.muted,fontSize:13.5,fontWeight:500}}>
+              <div style={{fontSize:32,marginBottom:8}}>📊</div>Complete your first interview to see your skill radar
+            </div>
+          )}
+        </div>
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",boxShadow:C.shCard}}>
+          <div style={{fontWeight:800,color:C.ink,fontSize:14.5,marginBottom:4}}>Score trajectory</div>
+          <div style={{color:C.soft,fontSize:12.5,marginBottom:16,fontWeight:500}}>{scores.length>1?"Improving over time":scores.length===1?"1 done — keep going":"No data yet"}</div>
+          {scores.length>1?(
+            <>
+              <Sparkline data={[...scores].reverse()} width={230} height={60} color={C.violet}/>
+              <div style={{display:"flex",justifyContent:"space-between",marginTop:12}}>
+                <div style={{textAlign:"center"}}><div className="mono" style={{fontSize:20,fontWeight:800,color:C.soft}}>{scores[scores.length-1]}%</div><div style={{fontSize:10,color:C.muted,marginTop:2,fontWeight:600}}>First</div></div>
+                <div style={{textAlign:"center"}}><div className="mono" style={{fontSize:20,fontWeight:800,color:C.violet}}>{scores[0]}%</div><div style={{fontSize:10,color:C.muted,marginTop:2,fontWeight:600}}>Latest</div></div>
+              </div>
+            </>
+          ):(
+            <div style={{textAlign:"center",padding:"30px 0",color:C.muted,fontSize:13.5,fontWeight:500}}>
+              <div style={{fontSize:32,marginBottom:8}}>📈</div>Practice 2+ interviews to unlock
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── RECENT INTERVIEWS ── */}
+      {results.length>0&&(
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:16,boxShadow:C.shCard}}>
+          <div style={{fontWeight:800,color:C.ink,fontSize:14.5,marginBottom:14}}>Recent interviews</div>
+          {results.slice(0,5).map((r,i)=>{
+            const sc=r.overall_score>=75?C.green:r.overall_score>=55?C.gold:C.red;
+            const verdict=r.overall_score>=85?"Strong Hire":r.overall_score>=70?"Hire":r.overall_score>=55?"Borderline":"No Hire";
+            return(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 0",borderBottom:i<Math.min(results.length,5)-1?`1px solid ${C.border}`:"none"}}>
+                <div style={{width:42,height:42,borderRadius:10,background:`${sc}15`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"JetBrains Mono,monospace",fontWeight:800,fontSize:14,color:sc,flexShrink:0}}>{r.overall_score}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:700,fontSize:13.5,color:C.ink}}>{r.role||"Interview"}{r.company?` · ${r.company}`:""}</div>
+                  <div style={{color:C.soft,fontSize:12,marginTop:1,fontWeight:500}}>{new Date(r.created_at).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</div>
+                </div>
+                <Tag color={sc} size={11}>{verdict}</Tag>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── DAILY TIP ── */}
+      {(()=>{
+        const tips=[
+          {icon:"💡",tip:"Answer behavioral questions using STAR: Situation, Task, Action, Result.",color:C.violet},
+          {icon:"⚡",tip:"Google interviewers want to see HOW you think, not just the answer.",color:C.teal},
+          {icon:"🎯",tip:"For TCS/Infosys: prepare HR questions as seriously as technical ones.",color:C.gold},
+          {icon:"🗣️",tip:"Avoid filler words. 'Um' and 'basically' lower your confidence score.",color:C.green},
+          {icon:"📊",tip:"Always quantify your impact: 'improved performance by 40%' beats 'made it faster'.",color:C.violet},
+        ];
+        const tip=tips[new Date().getDay()%tips.length];
+        return(
+          <div style={{background:`${tip.color}0C`,border:`1px solid ${tip.color}28`,borderRadius:14,padding:"14px 18px",marginBottom:16,display:"flex",alignItems:"flex-start",gap:12}}>
+            <span style={{fontSize:22,flexShrink:0}}>{tip.icon}</span>
+            <div>
+              <div style={{fontSize:10,fontWeight:800,color:tip.color,letterSpacing:1.2,textTransform:"uppercase",marginBottom:4}}>Daily Interview Tip</div>
+              <div style={{fontSize:13.5,color:C.ink2,lineHeight:1.7,fontWeight:500}}>{tip.tip}</div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── PROGRESS CHECKLIST ── */}
+      {(()=>{
+        const done=results.length;
+        const checks=[
+          {label:"Complete your first mock interview",done:done>=1,icon:"🎯"},
+          {label:"Upload your resume for personalized questions",done:!!user?.user_metadata?.onboarded,icon:"📄"},
+          {label:"Practice 3 interviews in a row",done:done>=3,icon:"🔥"},
+          {label:"Score 75+ on any interview",done:results.some(r=>r.overall_score>=75),icon:"⭐"},
+          {label:"Try Interview Prep for your target company",done:false,icon:"🏢"},
+        ];
+        const doneCount=checks.filter(c=>c.done).length;
+        return(
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:16,boxShadow:C.shCard}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div style={{fontWeight:800,color:C.ink,fontSize:14.5}}>🚀 Your Progress</div>
+              <div style={{fontSize:11,color:C.soft,fontWeight:700}}>{doneCount}/{checks.length} complete</div>
+            </div>
+            <div style={{background:C.bgSurf,borderRadius:6,height:6,marginBottom:14,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${(doneCount/checks.length)*100}%`,background:`linear-gradient(90deg,${C.violet},${C.teal})`,borderRadius:6,transition:"width 1s ease"}}/>
+            </div>
+            {checks.map((c,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:i<checks.length-1?`1px solid ${C.border}`:"none"}}>
+                <div style={{width:22,height:22,borderRadius:"50%",background:c.done?C.greenPale:C.bgSurf,border:`1px solid ${c.done?C.green+"50":C.border}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:11}}>
+                  {c.done?"✓":"○"}
+                </div>
+                <span style={{fontSize:13,color:c.done?C.ink2:C.muted,fontWeight:c.done?600:500,textDecoration:c.done?"line-through":"none"}}>{c.icon} {c.label}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+function QuestionFeedbackCard({p,i,sc}){
+  return(
+    <div style={{background:"rgba(255,255,255,.02)",borderRadius:10,padding:"12px 14px",marginBottom:9,border:`1px solid ${C.border}`}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,gap:8}}>
+        <div style={{fontWeight:600,color:C.ink,fontSize:12.5}}>Q{i+1}. {p.question}</div>
+        <div className="mono" style={{fontWeight:700,fontSize:13,color:sc(p.score),flexShrink:0}}>{p.score}%</div>
+      </div>
+      <div style={{color:C.soft,fontSize:12.5,lineHeight:1.7,marginBottom:p.idealAnswer?8:0}}>{p.feedback}</div>
+      {p.idealAnswer&&(
+        <div style={{background:C.violetPale,borderRadius:8,padding:"9px 12px",marginTop:6,marginBottom:8,border:`1px solid ${C.violet}20`}}>
+          <div style={{fontSize:9,fontWeight:800,color:C.violetD,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Ideal Answer</div>
+          <div style={{fontSize:12.5,color:C.ink2,lineHeight:1.7}}>{p.idealAnswer}</div>
+        </div>
+      )}
+      <Bar pct={p.score} color={sc(p.score)}/>
+    </div>
+  );
+}
+
+// ── RESUME INTERVIEW TAB ──────────────────────────────────────────────────────
+function ResumeInterviewTab({user,onInterviewComplete,prefillCompany,prefillRole}){
+  const[step,setStep]=useState("setup");
+  const[resumeText,setResumeText]=useState("");
+  const[company,setCompany]=useState(prefillCompany||"");
+  const[jobTitle,setJobTitle]=useState(prefillRole||"");
+  const[difficulty,setDifficulty]=useState("Fresher");
+  const[fileName,setFileName]=useState("");
+  const[profile,setProfile]=useState(null);
+  const[questions,setQuestions]=useState([]);
+  const[questionsBySlot,setQuestionsBySlot]=useState({});
+  const[activeSlot,setActiveSlot]=useState(null);
+  const[completedSlots,setCompletedSlots]=useState([]);
+  const[slotLoading,setSlotLoading]=useState(null);
+  const[genErr,setGenErr]=useState("");
+  const[qIndex,setQIndex]=useState(0);
+  const[answers,setAnswers]=useState([]);
+  const[phase,setPhase]=useState("idle");
+  const[feedback,setFeedback]=useState(null);
+  const[loadingFeedback,setLoadingFeedback]=useState(false);
+  const[micMuted,setMicMuted]=useState(false);
+  const[report,setReport]=useState(null);
+  const[fillerCount,setFillerCount]=useState(0);
+  const[liveMetrics,setLiveMetrics]=useState({pace:50,clarity:60});
+  const[sharingCard,setSharingCard]=useState(false);
+  const[showUpgrade,setShowUpgrade]=useState(false);
+  const[checkingOut,setCheckingOut]=useState(false);
+
+  const{isPro,refresh:refreshSub}=useSubscription(user?.id);
+
+  const phaseRef=useRef("idle");
+  useEffect(()=>{phaseRef.current=phase;},[phase]);
+
+  // FIX: currentQIndexRef lets the timer callback always see the live qIndex
+  const currentQIndexRef=useRef(0);
+  useEffect(()=>{currentQIndexRef.current=qIndex;},[qIndex]);
+
+  const questionsRef=useRef([]);
+  useEffect(()=>{questionsRef.current=questions;},[questions]);
+  const answersRef=useRef([]);
+  useEffect(()=>{answersRef.current=answers;},[answers]);
+
+  const metricsTimerRef=useRef(null);
+  const fileRef=useRef();
+  const QTIME=90;
+
+  // FIX: onTimerEnd uses refs to avoid stale closures
+  const onTimerEnd=useCallback(()=>{
+    finishQ(currentQIndexRef.current);
+  // eslint-disable-next-line
+  },[]);
+
+  const{speak,startRec,stopRec,startTimer,stopTimer,reset:resetSpeech,getAnswer,listening,liveText,interimText,timeLeft,aiSpeaking}=useSpeechEngine({phaseRef,onTimerEnd,QTIME});
+
+  useEffect(()=>()=>{clearInterval(metricsTimerRef.current);resetSpeech();},[resetSpeech]);
+
+  useEffect(()=>{
+    if(phase==="answering"){
+      metricsTimerRef.current=setInterval(()=>{
+        const ans=getAnswer();
+        const words=ans.trim().split(/\s+/).filter(Boolean).length;
+        const elapsed=QTIME-timeLeft;
+        const wpm=elapsed>0?Math.round((words/(elapsed/60))):0;
+        const pace=Math.min(100,Math.max(10,Math.round((wpm/160)*100)));
+        const clarity=Math.min(100,Math.max(20,60+Math.random()*20));
+        const fd=detectFillers(ans);
+        setFillerCount(fd.total);
+        setLiveMetrics({pace,clarity});
+      },3000);
+    }else{clearInterval(metricsTimerRef.current);}
+    return()=>clearInterval(metricsTimerRef.current);
+  },[phase,timeLeft,getAnswer]);
+
+  const handleFile=async(e)=>{
+    const f=e.target.files[0];if(!f)return;
+    setFileName(f.name);
+    try{
+      let text="";
+      if(f.name.endsWith(".pdf"))text=await extractPDF(f);
+      else if(f.name.endsWith(".docx"))text=await extractDOCX(f);
+      else{const r=new FileReader();r.onload=ev=>setResumeText(ev.target.result);r.readAsText(f);return;}
+      setResumeText(text);
+    }catch(e2){setGenErr("Could not read file: "+e2.message);}
+  };
+
+  const analyze=async()=>{
+    if(!resumeText.trim())return;
+    setStep("analyzing");setGenErr("");
+    try{
+      const raw=await callGroq(
+        `You are a senior ${jobTitle||"tech"} interviewer${company?` at ${company}`:""}.
+Read this resume carefully and extract a candidate profile.
+Resume:
+---
+${resumeText.slice(0,3500)}
+---
+Return ONLY:
+{"profile":{"name":"<from resume or Candidate>","topSkills":["s1","s2","s3","s4"],"keyProjects":["p1","p2","p3"],"experienceLevel":"<Fresher|Junior|Mid>","university":"<if found>"}}`,900);
+      const data=safeJSON(raw,null);
+      const prof=data?.profile||{name:"Candidate",topSkills:[],keyProjects:[],experienceLevel:difficulty};
+      setProfile(prof);setStep("slots");
+    }catch(e){
+      console.error(e);
+      setGenErr("⚠ AI unavailable — profile extraction skipped.");
+      setProfile({name:"Candidate",topSkills:[],keyProjects:[],experienceLevel:difficulty});
+      setStep("slots");
+    }
+  };
+
+  const generateSlotQuestions=async(slot)=>{
+    const focus=FOCUS_BY_SLOT[(slot-1)%FOCUS_BY_SLOT.length];
+    const raw=await callGroq(
+      `You are a senior ${jobTitle||"tech"} interviewer${company?` at ${company}`:""}.
+Experience level: ${difficulty}. This mock session's focus: ${focus}.
+Candidate skills: ${profile?.topSkills?.join(", ")||"N/A"}; projects: ${profile?.keyProjects?.join(", ")||"N/A"}.
+Resume:
+---
+${resumeText.slice(0,2500)}
+---
+Generate exactly 8 personalized interview questions for this mock, themed around: ${focus}.
+Rules:
+- Reference specific projects, companies, technologies from the resume where relevant
+- Mix: 1 intro, 4 technical, 2 behavioral, 1 closing — all themed around "${focus}"
+${company?`- Ask what drew them to ${company} specifically at least once`:""}
+- CRITICAL: each question must be ONE short natural spoken sentence (max 18 words)
+Return ONLY:
+{"questions":[{"q":"<short spoken question, max 18 words>","type":"Intro|Technical|Behavioral|Closing","keywords":["k1","k2"]}]}`,1800);
+    const data=safeJSON(raw,null);
+    return data?.questions?.length?data.questions:FALLBACK_QUESTIONS.map(q=>({...q,keywords:[]}));
+  };
+
+  const reactionLine=(score)=>{
+    const s=["Nice, that was a strong answer.","Great, that's exactly what I was looking for.","Good, I like that example."];
+    const m=["Okay, noted.","Alright, that works.","Got it, thanks."];
+    const w=["Hmm, let's move on.","Okay, that one was a bit thin.","Noted — let's continue."];
+    const pool=score>=75?s:score>=50?m:w;
+    return pool[Math.floor(Math.random()*pool.length)];
+  };
+
+  // FIX: beginQ fully awaits speak() before opening mic
+  // Takes the question text directly to avoid stale closure on questions state
+  const beginQ=useCallback(async(idx,qs)=>{
+    const qList=qs||questionsRef.current;
+    const qText=qList[idx]?.q;
+    if(!qText){console.error("beginQ: no question at index",idx,qList);return;}
+
+    setPhase("speaking");setFeedback(null);setFillerCount(0);
+    phaseRef.current="speaking";
+    resetSpeech();
+
+    const intro=idx===0?`Hello! I'm Priya Sharma, Senior Hiring Manager${company?` at ${company}`:""}. Thanks for joining. `:"";
+
+    // FIX: await TTS fully — mic only opens after Priya stops speaking
+    await speak(intro+qText, true);
+
+    setPhase("answering");
+    phaseRef.current="answering";
+    startRec(true);
+    startTimer();
+  },[speak,startRec,startTimer,resetSpeech,company]);
+
+  const finishQ=useCallback(async(idx)=>{
+    stopTimer();stopRec();
+    setPhase("done-q");
+    phaseRef.current="done-q";
+
+    const ans=getAnswer().trim()||"(no answer captured)";
+    const qList=questionsRef.current;
+    const qText=qList[idx]?.q||"";
+    const qType=qList[idx]?.type||"";
+    const fd=detectFillers(ans);
+
+    setAnswers(prev=>{const n=[...prev];n[idx]={question:qText,type:qType,answer:ans,fillerCount:fd.total,fillerWords:fd.found};return n;});
+    setLoadingFeedback(true);
+
+    let fb;
+    try{
+      const raw=await callGroq(
+        `You are a strict senior interviewer${company?` at ${company}`:""} for ${jobTitle||"the role"} (${difficulty}).
+Question (${qType}): ${qText}
+Answer: ${ans.slice(0,900)}
+Filler words: ${fd.total} (${Object.keys(fd.found).join(", ")||"none"})
+${profile?"Candidate skills: "+profile.topSkills?.join(", "):""}
+Score harshly if vague or off-topic.
+Return ONLY: {"score":<0-100>,"tip":"<2-3 sentence specific actionable feedback>","what_was_good":"<1 sentence or null>","missing":"<what was missing>","fillerNote":"<1 sentence or null>"}`,500);
+      fb=safeJSON(raw,{score:55,tip:"Keep practicing with more structured answers.",what_was_good:null,missing:"Specific examples and metrics"});
+    }catch{fb={score:55,tip:"AI feedback unavailable.",what_was_good:null};}
+
+    setFeedback(fb);setLoadingFeedback(false);
+    // Reaction line spoken without blocking next UI interaction
+    speak(reactionLine(fb.score), true);
+  },[stopTimer,stopRec,getAnswer,speak,company,jobTitle,difficulty,profile]);
+
+  const nextQ=useCallback((idx)=>{
+    setFeedback(null);
+    const qList=questionsRef.current;
+    if(idx+1<qList.length){
+      setQIndex(idx+1);
+      currentQIndexRef.current=idx+1;
+      beginQ(idx+1,qList);
+    }else{wrapUp();}
+  },[beginQ]);
+
+  const selectSlot=async(slot)=>{
+    if(!isPro&&slot>FREE_SLOTS){setShowUpgrade(true);return;}
+    setActiveSlot(slot);
+    if(questionsBySlot[slot]){
+      const qs=questionsBySlot[slot];
+      setQuestions(qs);questionsRef.current=qs;
+      setStep("room");setAnswers([]);setQIndex(0);currentQIndexRef.current=0;setFeedback(null);
+      // FIX: pass qs directly to avoid stale state
+      setTimeout(()=>beginQ(0,qs),400);
+      return;
+    }
+    setSlotLoading(slot);setGenErr("");
+    try{
+      const qs=await generateSlotQuestions(slot);
+      setQuestionsBySlot(prev=>({...prev,[slot]:qs}));
+      setQuestions(qs);questionsRef.current=qs;
+      setSlotLoading(null);
+      setStep("room");setAnswers([]);setQIndex(0);currentQIndexRef.current=0;setFeedback(null);
+      // FIX: pass qs directly
+      setTimeout(()=>beginQ(0,qs),400);
+    }catch(e){
+      setSlotLoading(null);
+      setGenErr("⚠ Could not generate questions. Try again.");
+    }
+  };
+
+  const handleChoosePlan=async(plan)=>{
+    setCheckingOut(true);
+    await startCheckout(plan,user,()=>{setShowUpgrade(false);setCheckingOut(false);refreshSub();});
+    setCheckingOut(false);
+  };
+
+  const wrapUp=async()=>{
+    setPhase("idle");phaseRef.current="idle";
+    window.speechSynthesis?.cancel();setStep("genreport");
+    try{
+      const answersSnap=[...answersRef.current];
+      const transcript=answersSnap.map((a,i)=>`Q${i+1} (${a.type}): ${a.question}\nAnswer: ${a.answer}\nFiller words: ${a.fillerCount||0}`).join("\n\n");
+      const raw=await callGroq(
+        `You are a strict senior hiring panel${company?` at ${company}`:""} evaluating ${profile?.name||"the candidate"} for ${jobTitle||"a role"} (${difficulty}).
+Full interview transcript:
+${transcript.slice(0,4500)}
+Resume skills: ${profile?.topSkills?.join(", ")||"N/A"}
+Projects: ${profile?.keyProjects?.join(", ")||"N/A"}
+Score honestly. Verdicts: Strong Hire (85+), Hire (70-84), Borderline (55-69), No Hire (<55).
+Return ONLY:
+{"overallScore":<0-100>,"verdict":"<Strong Hire|Hire|Borderline|No Hire>","communicationScore":<0-100>,"technicalScore":<0-100>,"confidenceScore":<0-100>,"structureScore":<0-100>,"resumeAlignmentScore":<0-100>,"summary":"<4-5 sentence honest assessment>","companyFitNote":"<2 sentence>","perQuestion":[{"question":"<short>","score":<0-100>,"feedback":"<2 sentence>","idealAnswer":"<2-3 sentence STAR answer>"}],"strengths":["<s1>","<s2>","<s3>"],"improvements":["<i1>","<i2>","<i3>","<i4>"],"nextSteps":["<step1>","<step2>","<step3>"]}`,2800);
+      const data=safeJSON(raw,null);
+      if(!data?.overallScore)throw new Error("bad report");
+      setReport(data);
+      if(activeSlot)setCompletedSlots(prev=>[...new Set([...prev,activeSlot])]);
+      await saveInterviewResult(user?.id,{...data,company,role:jobTitle});
+      onInterviewComplete&&onInterviewComplete();
+    }catch(e){
+      setReport({overallScore:0,verdict:"—",communicationScore:0,technicalScore:0,confidenceScore:0,structureScore:0,resumeAlignmentScore:0,summary:"⚠ Couldn't generate report — check /api/ai.",companyFitNote:"",perQuestion:[],strengths:[],improvements:[],nextSteps:[]});
+    }
+    setStep("report");
+  };
+
+  const endInterview=()=>{
+    window.speechSynthesis?.cancel();stopRec();stopTimer();
+    if(answers.length>0)wrapUp();
+    else{setStep("slots");setPhase("idle");phaseRef.current="idle";}
+  };
+
+  const shareCard=async()=>{
+    if(!report)return;setSharingCard(true);
+    try{await generateScorecard({...report,company,role:jobTitle});}
+    catch(e){alert("Could not generate card: "+e.message);}
+    setSharingCard(false);
+  };
+
+  const sc=s=>s>=75?C.green:s>=50?C.gold:C.red;
+
+  if(step==="setup")return(
+    <div className="fade">
+      <div style={{marginBottom:22}}>
+        <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:5,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🎯 Resume-Powered Interview</div>
+        <div style={{color:C.soft,fontSize:13.5,lineHeight:1.75,maxWidth:580}}>Upload your resume. Tell us the company and role. AI reads your actual experience and asks exactly what a real interviewer would ask <strong style={{color:C.ink}}>you specifically</strong> — on camera, on mic, on the clock.</div>
+      </div>
+      {genErr&&<div style={{background:C.goldPale,border:`1px solid ${C.gold}30`,borderRadius:10,padding:"10px 14px",marginBottom:14,color:C.gold,fontSize:12.5}}>⚠ {genErr}</div>}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+        <div>
+          <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:5,textTransform:"uppercase",letterSpacing:.7}}>Target Company</div>
+          <input style={inp} placeholder="e.g. Google, Amazon, TCS…" value={company} onChange={e=>setCompany(e.target.value)} onFocus={e=>e.target.style.borderColor=C.violet} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.08)"}/>
+        </div>
+        <div>
+          <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:5,textTransform:"uppercase",letterSpacing:.7}}>Role Applying For</div>
+          <input style={inp} placeholder="e.g. Software Engineer…" value={jobTitle} onChange={e=>setJobTitle(e.target.value)} onFocus={e=>e.target.style.borderColor=C.violet} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.08)"}/>
+        </div>
+      </div>
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:11,fontWeight:700,color:C.soft,marginBottom:7,textTransform:"uppercase",letterSpacing:.7}}>Experience Level</div>
+        <div style={{display:"flex",gap:8}}>
+          {["Fresher","1–2 years","3–5 years"].map(d=>(
+            <button key={d} onClick={()=>setDifficulty(d)} style={{flex:1,padding:"10px",borderRadius:10,border:`1px solid ${difficulty===d?C.violet:C.border}`,background:difficulty===d?C.violetPale:"transparent",color:difficulty===d?C.violetL:C.soft,fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{d}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{marginBottom:20}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:7}}>
+          <div style={{fontSize:11,fontWeight:700,color:C.soft,textTransform:"uppercase",letterSpacing:.7}}>Your Resume</div>
+          <button onClick={()=>fileRef.current.click()} style={{padding:"6px 14px",borderRadius:8,border:`1px solid ${C.violet}30`,background:C.violetPale,color:C.violetL,fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:700}}>📎 Upload PDF / DOCX</button>
+          <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" onChange={handleFile} style={{display:"none"}}/>
+        </div>
+        {fileName&&<div style={{background:C.greenPale,border:`1px solid ${C.green}30`,borderRadius:8,padding:"6px 12px",marginBottom:8,fontSize:12,color:C.green}}>✅ {fileName} loaded</div>}
+        <textarea style={{...inp,minHeight:160,resize:"vertical",fontFamily:"'JetBrains Mono',monospace",fontSize:12,lineHeight:1.7}} placeholder="Paste your resume text here or upload above…" value={resumeText} onChange={e=>setResumeText(e.target.value)} onFocus={e=>e.target.style.borderColor=C.violet} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.08)"}/>
+      </div>
+      <Btn v="violet" onClick={analyze} disabled={!resumeText.trim()} style={{width:"100%",padding:"15px",fontSize:15,borderRadius:12}}>
+        🎙️ Analyze Resume & Continue →
+      </Btn>
+    </div>
+  );
+
+  if(step==="analyzing")return(
+    <div style={{textAlign:"center",padding:"80px 20px"}}>
+      <div style={{fontSize:52,marginBottom:16,animation:"float 2s ease-in-out infinite"}}>🔍</div>
+      <div style={{fontWeight:800,fontSize:20,color:C.ink,marginBottom:8,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Reading your resume…</div>
+      <div style={{color:C.soft,fontSize:14,maxWidth:340,margin:"0 auto 24px",lineHeight:1.7}}>Extracting your projects, skills, and experience.</div>
+      <Spin size={36}/>
+    </div>
+  );
+
+  if(step==="slots")return(
+    <div className="fade" style={{maxWidth:640,margin:"0 auto"}}>
+      <button onClick={()=>setStep("setup")} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginBottom:16,fontFamily:"'Inter',sans-serif"}}>← Edit resume / company</button>
+      {profile&&(
+        <div style={{background:`linear-gradient(160deg,${C.bgCard},${C.bgSurf})`,border:`1px solid ${C.border}`,borderRadius:18,padding:"22px 24px",marginBottom:18}}>
+          <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
+            <div style={{width:52,height:52,borderRadius:14,background:C.violetPale,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>📄</div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:800,fontSize:18,color:C.ink}}>{profile.name}</div>
+              <div style={{color:C.soft,fontSize:12,marginTop:2}}>{jobTitle||"Applied Role"} · {profile.experienceLevel||difficulty}</div>
+            </div>
+            {company&&<Tag color={C.violet}>{company}</Tag>}
+          </div>
+          {profile.topSkills?.length>0&&(
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:9,color:C.muted,marginBottom:6,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>Detected Skills</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{profile.topSkills.map((s,i)=><Tag key={i} color={C.teal} size={12}>{s}</Tag>)}</div>
+            </div>
+          )}
+          {profile.keyProjects?.length>0&&(
+            <div>
+              <div style={{fontSize:9,color:C.muted,marginBottom:6,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>Key Projects</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{profile.keyProjects.map((p,i)=><Tag key={i} color={C.gold} size={12}>{p}</Tag>)}</div>
+            </div>
+          )}
+        </div>
+      )}
+      {genErr&&<div style={{background:C.goldPale,border:`1px solid ${C.gold}25`,borderRadius:8,padding:"8px 12px",fontSize:12,color:C.gold,marginBottom:14}}>{genErr}</div>}
+      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:22,marginBottom:18}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
+          <div style={{fontWeight:700,fontSize:14,color:C.ink}}>Choose a mock interview</div>
+          {!isPro&&<span style={{fontSize:11,color:C.muted}}>{FREE_SLOTS} free · {TOTAL_SLOTS-FREE_SLOTS} locked</span>}
+          {isPro&&<span style={{fontSize:11,color:C.green,fontWeight:700}}>✓ All unlocked</span>}
+        </div>
+        <div style={{color:C.soft,fontSize:12,marginBottom:16}}>Each slot has different questions themed around a different focus area, personalized to your resume.</div>
+        <SlotGrid isPro={isPro} completedSlots={completedSlots} loadingSlot={slotLoading} onSelectSlot={selectSlot} onUpgrade={()=>setShowUpgrade(true)}/>
+      </div>
+      {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut} user={user} onRedeemed={refreshSub}/>}
+    </div>
+  );
+
+  if(step==="room")return(
+    <InterviewRoom
+      role={jobTitle||"the role"} company={company} questions={questions} qIndex={qIndex}
+      phase={phase} aiSpeaking={aiSpeaking} listening={listening}
+      liveText={liveText} interimText={interimText} timeLeft={timeLeft}
+      feedback={feedback} loadingFeedback={loadingFeedback}
+      onFinish={finishQ} onNext={nextQ} onEnd={endInterview}
+      onToggleMic={()=>setMicMuted(m=>!m)} micMuted={micMuted}
+      fillerCount={fillerCount} liveMetrics={liveMetrics}
+    />
+  );
+
+  if(step==="genreport")return(
+    <div style={{textAlign:"center",padding:"80px 20px"}}>
+      <div style={{fontSize:52,marginBottom:16,animation:"float 2s ease-in-out infinite"}}>📋</div>
+      <div style={{fontWeight:800,fontSize:20,color:C.ink,marginBottom:8,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Building your report…</div>
+      <div style={{color:C.soft,fontSize:14,maxWidth:340,margin:"0 auto 24px",lineHeight:1.7}}>Reviewing all {answers.length} answers{company?` against ${company}'s hiring bar`:""}.</div>
+      <Spin size={36}/>
+    </div>
+  );
+
+  if(step==="report"&&report)return(
+    <div className="fade">
+      <div style={{background:`linear-gradient(160deg,${C.bgCard},${C.bgSurf})`,border:`1px solid ${C.border}`,borderRadius:20,padding:"28px 22px",marginBottom:16,position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:-60,right:-60,width:240,height:240,borderRadius:"50%",background:`radial-gradient(circle,${C.violet}10,transparent 70%)`,pointerEvents:"none"}}/>
+        <div style={{textAlign:"center",marginBottom:20}}>
+          <div style={{fontSize:10,color:C.muted,marginBottom:6,letterSpacing:1.5,textTransform:"uppercase",fontWeight:700}}>
+            {jobTitle||"Interview"}{company?` · ${company}`:""} · {difficulty}{activeSlot?` · Mock #${activeSlot}`:""}
+          </div>
+          <div className="mono" style={{fontSize:60,fontWeight:700,lineHeight:1,color:sc(report.overallScore),textShadow:`0 0 30px ${sc(report.overallScore)}50`}}>{report.overallScore}</div>
+          <div style={{fontSize:13,color:C.muted,marginBottom:10}}>/ 100</div>
+          <div><span style={{background:`${sc(report.overallScore)}15`,color:sc(report.overallScore),padding:"6px 20px",borderRadius:20,fontWeight:800,fontSize:13,border:`1px solid ${sc(report.overallScore)}30`}}>{report.verdict}</span></div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:18}}>
+          {[["Comm.",report.communicationScore],["Technical",report.technicalScore],["Confidence",report.confidenceScore],["Structure",report.structureScore],["Resume",report.resumeAlignmentScore]].map(([l,v],i)=>(
+            <div key={i} style={{textAlign:"center",background:"rgba(255,255,255,.04)",borderRadius:10,padding:"10px 4px"}}>
+              <div className="mono" style={{fontWeight:700,fontSize:16,color:sc(v)}}>{v}</div>
+              <div style={{fontSize:9,color:C.muted,marginTop:3,fontWeight:600,letterSpacing:.4}}>{l}</div>
+              <Bar pct={v} color={sc(v)} h={2}/>
+            </div>
+          ))}
+        </div>
+        <div style={{fontSize:13.5,lineHeight:1.8,color:C.ink2,marginBottom:report.companyFitNote?12:0}}>{report.summary}</div>
+        {report.companyFitNote&&<div style={{background:C.violetPale,border:`1px solid ${C.violet}20`,borderRadius:10,padding:"10px 14px",fontSize:13,color:C.violetL}}>🏢 {report.companyFitNote}</div>}
+      </div>
+
+      <div style={{background:`linear-gradient(135deg,${C.violet}12,${C.teal}08)`,border:`1px solid ${C.violet}25`,borderRadius:14,padding:"16px 20px",marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+        <div>
+          <div style={{fontWeight:700,fontSize:13,color:C.ink}}>📤 Share your result</div>
+          <div style={{color:C.soft,fontSize:12,marginTop:2}}>Download a LinkedIn-ready scorecard image</div>
+        </div>
+        <Btn v="violet" onClick={shareCard} loading={sharingCard} small style={{padding:"9px 18px"}}>{sharingCard?"Generating…":"Download Scorecard"}</Btn>
+      </div>
+
+      {report.strengths?.length>0&&(
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}>
+          <div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:12}}>✅ What worked well</div>
+          {report.strengths.map((s,i)=>(
+            <div key={i} style={{background:C.greenPale,borderRadius:8,padding:"10px 13px",marginBottom:8,fontSize:13,color:C.ink2,border:`1px solid ${C.green}20`,display:"flex",gap:8}}><span style={{color:C.green,flexShrink:0}}>✓</span><span>{s}</span></div>
+          ))}
+        </div>
+      )}
+      {report.improvements?.length>0&&(
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}>
+          <div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:12}}>🎯 Areas to improve</div>
+          {report.improvements.map((s,i)=>(
+            <div key={i} style={{background:"rgba(255,255,255,.02)",borderRadius:8,padding:"10px 13px",marginBottom:8,border:`1px solid ${C.border}`,display:"flex",gap:9}}><span style={{color:C.gold,fontWeight:800,flexShrink:0}}>→</span><span style={{color:C.ink2,fontSize:13}}>{s}</span></div>
+          ))}
+        </div>
+      )}
+      {report.nextSteps?.length>0&&(
+        <div style={{background:C.tealPale,border:`1px solid ${C.teal}20`,borderRadius:14,padding:18,marginBottom:12}}>
+          <div style={{fontWeight:700,color:C.teal,fontSize:14,marginBottom:12}}>🚀 Your next steps</div>
+          {report.nextSteps.map((s,i)=>(
+            <div key={i} style={{display:"flex",gap:9,alignItems:"flex-start",marginBottom:8,fontSize:13,color:C.ink2}}><span style={{color:C.teal,fontWeight:800,flexShrink:0}}>{i+1}.</span>{s}</div>
+          ))}
+        </div>
+      )}
+      {report.perQuestion?.length>0&&(
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:16}}>
+          <div style={{fontWeight:700,color:C.ink,fontSize:14,marginBottom:12}}>🔍 Question by question</div>
+          {report.perQuestion.map((p,i)=><QuestionFeedbackCard key={i} p={p} i={i} sc={sc}/>)}
+        </div>
+      )}
+      <div style={{display:"flex",gap:10,marginBottom:16}}>
+        <Btn v="violet" onClick={()=>{setStep("slots");setAnswers([]);setQIndex(0);setReport(null);}} style={{flex:1,padding:"13px"}}>🔁 Pick Another Slot</Btn>
+        <Btn v="ghost" onClick={()=>{setStep("setup");setAnswers([]);setQIndex(0);setReport(null);setQuestions([]);questionsRef.current=[];setQuestionsBySlot({});setCompletedSlots([]);setProfile(null);setResumeText("");setFileName("");}} style={{flex:1,padding:"13px"}}>📄 New Resume</Btn>
+      </div>
+    </div>
+  );
+
+  return null;
+}
+
+
+
+
+// ── JOBS TAB ──────────────────────────────────────────────────────────────────
+function JobsTab({onPracticeForJob}){
+  const[jobs,setJobs]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[search,setSearch]=useState(()=>sessionStorage.getItem("tp_s")||"fresher");
+  const[location,setLocation]=useState(()=>sessionStorage.getItem("tp_l")||"india");
+  const[expanded,setExpanded]=useState(null);
+  const[saved,setSaved]=useState([]);
+  const quickRoles=["Fresher","React","Node.js","Python","Java","Data Analyst","Full Stack","DevOps","AI ML","UI UX"];
+
+  // ── Resume matching state ──
+  const[resumeFileName,setResumeFileName]=useState("");
+  const[resumeSkills,setResumeSkills]=useState([]);
+  const[matchingResume,setMatchingResume]=useState(false);
+  const[matchErr,setMatchErr]=useState("");
+  const resumeFileRef=useRef();
+
+  useEffect(()=>{fetchJobs();},[]);// eslint-disable-line
+
+  const fetchJobs=async(q=search,loc=location)=>{
+    setLoading(true);sessionStorage.setItem("tp_s",q);sessionStorage.setItem("tp_l",loc);
+    try{
+      const url=`https://api.adzuna.com/v1/api/jobs/in/search/1?app_id=${ADZUNA_ID}&app_key=${ADZUNA_KEY}&results_per_page=20&what=${encodeURIComponent(q)}&where=${encodeURIComponent(loc)}&sort_by=date&content-type=application/json`;
+      const res=await fetch(url);
+      const data=await res.json();
+      setJobs(data.results?.length?data.results.map(j=>({
+        id:j.id,title:j.title,company:j.company?.display_name||"Company",
+        location:j.location?.display_name||loc,
+        salary:j.salary_min?`₹${Math.round(j.salary_min/100000)}–${Math.round((j.salary_max||j.salary_min*1.4)/100000)} LPA`:"Competitive",
+        description:j.description||"",desc200:(j.description||"").slice(0,200),
+        url:j.redirect_url,
+        posted:new Date(j.created).toLocaleDateString("en-IN",{day:"numeric",month:"short"}),
+        postedRaw:new Date(j.created),category:j.category?.label||"Technology",
+      })):[]);
+    }catch(e){console.error(e);}
+    setLoading(false);
+  };
+
+  const getFreshness=(date)=>{
+    const hours=Math.floor((new Date()-date)/3600000);
+    if(hours<24)return{label:"New",color:C.green};
+    if(hours<72)return{label:"Recent",color:C.teal};
+    return null;
+  };
+
+  const buildShareUrl=(job)=>{
+    const params=new URLSearchParams({cmp:job.company||"",role:job.title||"",jurl:job.url||"",jid:String(job.id||"")});
+    return`${window.location.origin}${window.location.pathname}?${params.toString()}`;
+  };
+
+  const shareJob=async(job)=>{
+    const url=buildShareUrl(job);
+    const text=`${job.title} at ${job.company} — practice the interview + apply on HireFlo`;
+    try{
+      if(navigator.share){await navigator.share({title:"HireFlo",text,url});}
+      else{await navigator.clipboard.writeText(url);alert("🔗 Link copied!");}
+    }catch{}
+  };
+
+  // ── Resume → skills extraction (one AI call, not per-job) ──
+ const extractResumeSkills=async(text)=>{
+    const raw=await callGroq(
+      `Extract the candidate's core hire-relevant skills, tools, and best-fit job title from this resume.
+Resume:
+---
+${text.slice(0,3000)}
+---
+Return ONLY: {"skills":["skill1","skill2","..."],"role":"<best-fit job title, e.g. 'Backend Developer' or 'Java Developer'>"}
+Give 12-20 specific, searchable keywords (e.g. "react","node.js","sql","java","spring boot"). No vague words like "hardworking" or "team player".`,600);
+    const data=safeJSON(raw,null);
+    return{skills:data?.skills?.length?data.skills:[],role:data?.role||""};
+  };
+
+ const handleResumeFile=async(e)=>{
+    const f=e.target.files[0];if(!f)return;
+    setResumeFileName(f.name);setMatchErr("");setMatchingResume(true);setResumeSkills([]);
+    try{
+      let text="";
+      if(f.name.endsWith(".pdf"))text=await extractPDF(f);
+      else if(f.name.endsWith(".docx"))text=await extractDOCX(f);
+      else{text=await new Promise((res,rej)=>{const r=new FileReader();r.onload=ev=>res(ev.target.result);r.onerror=rej;r.readAsText(f);});}
+      const{skills,role}=await extractResumeSkills(text);
+      if(!skills.length)throw new Error("no skills detected");
+      setResumeSkills(skills);
+      if(role){setSearch(role);fetchJobs(role,location);}
+    }catch(e2){
+      console.error(e2);
+      setMatchErr("⚠ Could not analyze that resume — try a different file.");
+      setResumeFileName("");
+    }
+    setMatchingResume(false);
+  };
+
+  const clearResumeMatch=()=>{setResumeFileName("");setResumeSkills([]);setMatchErr("");};
+
+  // Client-side keyword match — instant, no per-job API call needed
+  // Client-side keyword match, tiered instead of percentage-based
+  const computeMatch=(job)=>{
+    if(!resumeSkills.length)return null;
+    const hay=`${job.title} ${job.description}`.toLowerCase();
+    const titleLower=job.title.toLowerCase();
+    const matched=resumeSkills.filter(s=>hay.includes(s.toLowerCase()));
+    const titleMatched=resumeSkills.filter(s=>titleLower.includes(s.toLowerCase()));
+    let tier;
+    if(titleMatched.length>=1&&matched.length>=5)tier="Strong";
+    else if(matched.length>=3)tier="Good";
+    else if(matched.length>=1)tier="Medium";
+    else tier="Low";
+    return{tier,matched,titleMatched};
+  };
+
+  const displayJobs = resumeSkills.length
+    ? [...jobs].map(j=>({...j,_match:computeMatch(j)}))
+        .filter(j=>j._match.tier!=="Low")   // drops irrelevant jobs like "Assistant Professor"
+        .sort((a,b)=>{
+          const order={Strong:3,Good:2,Medium:1};
+          return order[b._match.tier]-order[a._match.tier];
+        })
+    : jobs;
+
+  const matchColor=(tier)=> tier==="Strong"?C.green : tier==="Good"?C.teal : tier==="Medium"?C.gold : C.muted;
+
+  return(
+    <div>
+      <div style={{fontWeight:900,fontSize:23,color:C.ink,marginBottom:5,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🔥 Live Job Feed</div>
+      <div style={{color:C.soft,fontSize:14,marginBottom:18,lineHeight:1.7,fontWeight:500}}>Real fresher openings across India · Updated daily · 1-tap interview practice</div>
+
+      {/* ── RESUME MATCH CARD ── */}
+      <div style={{background:`linear-gradient(135deg,${C.violet}10,${C.teal}08)`,border:`1.5px solid ${C.violet}30`,borderRadius:14,padding:18,marginBottom:16,boxShadow:C.shCard}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          <div>
+            <div style={{fontWeight:800,fontSize:14.5,color:C.ink}}>🎯 Match jobs to your resume</div>
+            <div style={{color:C.soft,fontSize:12.5,marginTop:2,fontWeight:500}}>
+              {resumeSkills.length ? `${resumeSkills.length} skills detected — jobs below are sorted by match` : "Upload your resume to see which openings actually fit you"}
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            {resumeFileName&&!matchingResume&&(
+              <button onClick={clearResumeMatch} style={{padding:"8px 14px",borderRadius:8,border:`1.5px solid ${C.border}`,background:C.white,color:C.ink2,fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:700}}>✕ Clear</button>
+            )}
+            <button onClick={()=>resumeFileRef.current.click()} disabled={matchingResume}
+              style={{padding:"9px 18px",borderRadius:10,border:"none",cursor:matchingResume?"wait":"pointer",background:`linear-gradient(135deg,${C.violetD},${C.violet})`,color:"#fff",fontSize:12.5,fontWeight:800,fontFamily:"'Inter',sans-serif",boxShadow:C.shVioletGlow,display:"flex",alignItems:"center",gap:6}}>
+              {matchingResume?<><Spin size={13} color="#fff"/> Analyzing…</>:resumeFileName?"📎 Change resume":"📎 Upload resume"}
+            </button>
+            <input ref={resumeFileRef} type="file" accept=".pdf,.docx,.txt" onChange={handleResumeFile} style={{display:"none"}}/>
+          </div>
+        </div>
+        {resumeFileName&&!matchingResume&&resumeSkills.length>0&&(
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:12}}>
+            {resumeSkills.slice(0,10).map((s,i)=><Tag key={i} color={C.violet} size={11}>{s}</Tag>)}
+          </div>
+        )}
+        {matchErr&&<div style={{color:C.red,fontSize:12,marginTop:10,fontWeight:600}}>{matchErr}</div>}
+      </div>
+
+      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:16,boxShadow:C.shCard}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div>
+            <div style={{fontSize:11.5,fontWeight:800,color:C.soft,marginBottom:6,textTransform:"uppercase",letterSpacing:.6}}>Role / Keyword</div>
+            <input style={inp} placeholder="e.g. fresher, React…" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}/>
+          </div>
+          <div>
+            <div style={{fontSize:11.5,fontWeight:800,color:C.soft,marginBottom:6,textTransform:"uppercase",letterSpacing:.6}}>Location</div>
+            <input style={inp} placeholder="e.g. india, hyderabad…" value={location} onChange={e=>setLocation(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchJobs()}/>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
+          {quickRoles.map(r=>(<button key={r} onClick={()=>{setSearch(r.toLowerCase());fetchJobs(r.toLowerCase(),location);}} style={{padding:"5px 13px",borderRadius:20,border:`1.5px solid ${search===r.toLowerCase()?C.violet:C.border}`,background:search===r.toLowerCase()?C.violetPale:C.white,color:search===r.toLowerCase()?C.violetD:C.ink2,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{r}</button>))}
+        </div>
+        <Btn v="violet" onClick={()=>fetchJobs()} style={{width:"100%"}}>🔍 Search Jobs</Btn>
+      </div>
+
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontWeight:800,fontSize:16,color:C.ink}}>Results</div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {resumeSkills.length>0&&<Tag color={C.violet} size={11}>Sorted by match</Tag>}
+          {!loading&&jobs.length>0&&<div style={{display:"flex",alignItems:"center",gap:6,background:C.greenPale,borderRadius:20,padding:"4px 12px",border:`1px solid ${C.green}28`}}>
+            <div style={{width:5,height:5,borderRadius:"50%",background:C.green,animation:"pulse 1.5s infinite"}}/>
+            <span style={{color:C.green,fontSize:11.5,fontWeight:800}}>{jobs.length} live openings</span>
+          </div>}
+        </div>
+      </div>
+
+      {loading&&<div style={{textAlign:"center",padding:"60px 0"}}><Spin size={34}/></div>}
+
+      {!loading&&displayJobs.map((job)=>{
+        const isExp=expanded===job.id,isSaved=saved.includes(job.id);
+        const freshness=getFreshness(job.postedRaw);
+        const match=job._match;
+        const isTopMatch=match&&match.tier==="Strong";
+        return(
+          <div key={job.id} style={{background:C.bgCard,border:isTopMatch?`1.5px solid ${C.green}60`:`1px solid ${C.border}`,borderRadius:14,padding:16,marginBottom:9,borderLeft:`3px solid ${match?matchColor(match.tier):C.violet+"50"}`,boxShadow:isTopMatch?`0 4px 20px ${C.green}18`:C.shCard,transition:"border-color .2s,box-shadow .2s"}}
+            onMouseLeave={e=>{e.currentTarget.style.boxShadow=isTopMatch?`0 4px 20px ${C.green}18`:C.shCard;}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,gap:8}}>
+              <div style={{flex:1}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3,flexWrap:"wrap"}}>
+                  <div style={{fontWeight:800,fontSize:15,color:C.ink}}>{job.title}</div>
+                  {freshness&&<Tag color={freshness.color} size={10}>{freshness.label}</Tag>}
+                  {isTopMatch&&<Tag color={C.green} size={10}>★ Best match</Tag>}
+                </div>
+                <div style={{color:C.soft,fontSize:12.5,fontWeight:600}}>{job.company} · {job.location}</div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                {match?(
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
+                    <div style={{color:matchColor(match.tier),fontWeight:800,fontSize:14,fontFamily:"'Inter',sans-serif"}}>{match.tier}</div>
+                    <div style={{color:C.muted,fontSize:9.5,fontWeight:700,textTransform:"uppercase",letterSpacing:.4}}>match</div>
+                  </div>
+                ):(
+                  <div style={{color:C.green,fontWeight:800,fontSize:13.5,fontFamily:"JetBrains Mono,monospace"}}>{job.salary}</div>
+                )}
+                <div style={{color:C.muted,fontSize:11,marginTop:1,fontWeight:600}}>{job.posted}</div>
+              </div>
+            </div>
+            {match&&match.matched.length>0&&(
+              <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+                {match.matched.map((s,i)=><Tag key={i} color={matchColor(match.tier)} size={10}>✓ {s}</Tag>)}
+              </div>
+            )}
+            <div style={{color:C.ink2,fontSize:13,lineHeight:1.7,marginBottom:12,background:C.bgSubtle,borderRadius:8,padding:"9px 11px",fontWeight:500}}>
+              {isExp?job.description.replace(/<[^>]+>/g,""):job.desc200.replace(/<[^>]+>/g,"")+(job.description.length>200?"…":"")}
+              {job.description.length>200&&<button onClick={()=>setExpanded(isExp?null:job.id)} style={{background:"none",border:"none",color:C.violet,fontSize:11.5,cursor:"pointer",marginLeft:5,fontFamily:"'Inter',sans-serif",fontWeight:800}}>{isExp?"Less ▲":"More ▼"}</button>}
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                <Tag color={C.teal} size={11}>{job.category}</Tag>
+                {match&&<span style={{color:C.muted,fontSize:11,fontFamily:"JetBrains Mono,monospace"}}>{job.salary}</span>}
+              </div>
+              <div style={{display:"flex",gap:7}}>
+                <button onClick={()=>onPracticeForJob&&onPracticeForJob(job.company,job.title)} style={{padding:"7px 13px",borderRadius:8,border:`1.5px solid ${C.violet}40`,background:C.violetPale,color:C.violetD,fontSize:11.5,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:800,display:"flex",alignItems:"center",gap:4}}>🎙 Practice</button>
+                <button onClick={()=>shareJob(job)} title="Share" style={{padding:"7px 12px",borderRadius:8,border:`1.5px solid ${C.border}`,background:C.white,cursor:"pointer",fontSize:13,color:C.ink2,fontFamily:"'Inter',sans-serif"}}>📤</button>
+                <button onClick={()=>setSaved(s=>s.includes(job.id)?s.filter(x=>x!==job.id):[...s,job.id])} style={{padding:"7px 12px",borderRadius:8,border:`1.5px solid ${isSaved?C.gold+"60":C.border}`,background:isSaved?C.goldPale:C.white,cursor:"pointer",fontSize:13,color:isSaved?C.gold:C.ink2,fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{isSaved?"★":"☆"}</button>
+                <Btn v="primary" onClick={()=>window.open(job.url,"_blank")} small>Apply →</Btn>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      {!loading&&jobs.length===0&&<div style={{textAlign:"center",padding:"60px 0",color:C.muted}}><div style={{fontSize:40,marginBottom:12}}>🔍</div><div style={{fontWeight:800,color:C.ink2,fontSize:15}}>No jobs found.</div><div style={{fontSize:13,marginTop:4,fontWeight:500}}>Try a different role or city.</div></div>}
+    </div>
+  );
+}
+// ── RESUME DOWNLOAD HELPERS ────────────────────────────────────────────────
+function downloadTextAsTxt(text, filename){
+  const blob=new Blob([text],{type:"text/plain;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=filename;a.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadTextAsDoc(text, filename){
+  const esc=text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const html=`<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+  <head><meta charset='utf-8'><title>Resume</title></head>
+  <body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;">${esc.split("\n").map(l=>`<p style="margin:0 0 6pt 0;">${l||"&nbsp;"}</p>`).join("")}</body></html>`;
+  const blob=new Blob(['\ufeff', html],{type:"application/msword"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=filename;a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function downloadTextAsPDF(text, filename){
+  if(!window.jspdf){
+    await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+  }
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:"pt",format:"a4"});
+  const marginX=48,marginY=56,maxWidth=500,lineHeight=14;
+  doc.setFont("Helvetica","normal");doc.setFontSize(10.5);
+  const lines=doc.splitTextToSize(text,maxWidth);
+  let y=marginY;
+  lines.forEach(line=>{
+    if(y>790){doc.addPage();y=marginY;}
+    doc.text(line,marginX,y);y+=lineHeight;
+  });
+  doc.save(filename);
+}
+function buildResumeHTML(d){
+  const esc=s=>(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const sec=(title,inner)=>inner?`
+    <div class="resume-section" style="margin-top:10pt;">
+      <div style="font-size:11pt;font-weight:700;letter-spacing:.5pt;text-transform:uppercase;border-bottom:1pt solid #000;padding-bottom:2pt;margin-bottom:5pt;">${title}</div>
+      ${inner}
+    </div>`:"";
+
+  const skills=(d.skillGroups||[]).map(g=>`<div class="avoid-break" style="margin-bottom:2pt;"><b>${esc(g.label)}:</b> ${esc(g.items)}</div>`).join("");
+  const exp=(d.experience||[]).map(e=>`
+    <div class="avoid-break" style="margin-bottom:7pt;">
+      <table style="width:100%;border-collapse:collapse;"><tr>
+        <td style="font-weight:700;font-size:10.5pt;text-align:left;">${esc(e.title)} — ${esc(e.org)}</td>
+        <td style="font-weight:700;font-size:10.5pt;text-align:right;white-space:nowrap;">${esc(e.dates)}</td>
+      </tr></table>
+      ${e.location?`<div style="font-style:italic;font-size:9.5pt;">${esc(e.location)}</div>`:""}
+      <ul style="margin:3pt 0 0 14pt;padding:0;">${(e.bullets||[]).map(b=>`<li style="margin-bottom:2pt;">${esc(b)}</li>`).join("")}</ul>
+    </div>`).join("");
+
+  const proj=(d.projects||[]).map(p=>`
+    <div class="avoid-break" style="margin-bottom:7pt;">
+      <div style="font-weight:700;font-size:10.5pt;">${esc(p.title)}</div>
+      ${p.stack?`<div style="font-style:italic;font-size:9.5pt;">${esc(p.stack)}${p.link?` · ${esc(p.link)}`:""}</div>`:""}
+      <ul style="margin:3pt 0 0 14pt;padding:0;">${(p.bullets||[]).map(b=>`<li style="margin-bottom:2pt;">${esc(b)}</li>`).join("")}</ul>
+    </div>`).join("");
+  const edu=(d.education||[]).map(e=>`
+    <table class="avoid-break" style="width:100%;border-collapse:collapse;margin-bottom:4pt;"><tr>
+      <td style="text-align:left;"><b>${esc(e.school)}</b> — ${esc(e.degree)}</td>
+      <td style="text-align:right;white-space:nowrap;">${esc(e.dates)}</td>
+    </tr></table>`).join("");
+
+  const ach=(d.achievements||[]).length?`<ul style="margin:0 0 0 14pt;padding:0;">${d.achievements.map(a=>`<li class="avoid-break" style="margin-bottom:2pt;">${esc(a)}</li>`).join("")}</ul>`:"";
+
+  return`
+    <div style="font-family:Calibri,Arial,sans-serif;font-size:10.5pt;line-height:1.35;color:#111;">
+      <div style="text-align:center;font-size:16pt;font-weight:800;letter-spacing:.5pt;">${esc(d.name)}</div>
+      <div style="text-align:center;font-size:9.5pt;margin-top:2pt;">${esc(d.contact)}</div>
+      ${sec("Professional Summary",d.summary?`<div>${esc(d.summary)}</div>`:"")}
+      ${sec("Technical Skills",skills)}
+      ${sec("Professional Experience",exp)}
+      ${sec("Projects",proj)}
+      ${sec("Education",edu)}
+      ${sec("Achievements &amp; Certifications",ach)}
+    </div>`;
+}
+
+function downloadResumeAsDoc(d, filename){
+  const html=`<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+  <head><meta charset='utf-8'><title>Resume</title>
+  <style>
+    @page { size: A4; margin: 0.75in; }
+    body { font-family: Calibri, Arial, sans-serif; }
+  </style>
+  </head>
+  <body>${buildResumeHTML(d)}</body></html>`;
+  const blob=new Blob(['\ufeff', html],{type:"application/msword"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=filename;a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function downloadResumeAsPDF(d, filename){
+  if(!window.html2pdf){
+    await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+  }
+
+  // IMPORTANT: html2canvas renders the ACTUAL computed style of the node,
+  // including opacity/visibility. Hiding via opacity:0 or visibility:hidden
+  // produces a blank capture — that was the bug. So instead we show it
+  // genuinely on-screen (as a full-page "Generating..." overlay) while
+  // capturing, then remove it immediately after.
+  const overlay=document.createElement("div");
+  overlay.style.cssText=`
+    position:fixed; inset:0; z-index:999999;
+    background:#fff; display:flex; align-items:flex-start; justify-content:center;
+    overflow:auto; padding:24px 0;
+  `;
+
+  const pageBreakCSS=document.createElement("style");
+  pageBreakCSS.textContent=`
+    .avoid-break { break-inside: avoid; page-break-inside: avoid; }
+    .resume-section { break-inside: auto; page-break-inside: auto; }
+    ul, ol { break-inside: auto; page-break-inside: auto; }
+    li { break-inside: avoid; page-break-inside: avoid; }
+  `;
+  overlay.appendChild(pageBreakCSS);
+
+  const loadingLabel=document.createElement("div");
+  loadingLabel.textContent="Generating PDF…";
+  loadingLabel.style.cssText=`
+    position:fixed; top:12px; left:50%; transform:translateX(-50%);
+    font-family:Arial,sans-serif; font-size:13px; color:#666;
+    background:#f4f4f4; padding:6px 14px; border-radius:20px; z-index:1000000;
+  `;
+  overlay.appendChild(loadingLabel);
+
+  const contentDiv=document.createElement("div");
+  contentDiv.style.cssText="width:750px; padding:36px 40px; background:#fff;";
+  contentDiv.innerHTML=buildResumeHTML(d);
+  overlay.appendChild(contentDiv);
+
+  document.body.appendChild(overlay);
+
+  try{
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch{} }
+    if(contentDiv.scrollHeight < 50){ throw new Error("Resume content is empty — nothing to export."); }
+    await window.html2pdf().set({
+      margin:[36,40,36,40],
+      filename,
+      html2canvas:{ scale:2, useCORS:true, backgroundColor:"#ffffff", windowWidth:750 },
+      jsPDF:{unit:"pt",format:"a4",orientation:"portrait"},
+      pagebreak:{mode:["css","legacy"]},
+    }).from(contentDiv).save();
+  }finally{
+    document.body.removeChild(overlay);
+  }
+}
+// ── ATS RESUME CHECKER ────────────────────────────────────────────────────────
+function ATSCheckTab(){
+  const[step,setStep]=useState("setup");
+  const[jd,setJd]=useState("");
+  const[resumeText,setResumeText]=useState("");
+  const[fileName,setFileName]=useState("");
+  const[report,setReport]=useState(null);
+  const[err,setErr]=useState("");
+  const fileRef=useRef();
+  const[rewrittenData,setRewrittenData]=useState(null);
+  const[rewriting,setRewriting]=useState(false);
+  const[rewriteErr,setRewriteErr]=useState("");
+
+  const handleFile=async(e)=>{
+    const f=e.target.files[0];if(!f)return;
+    setFileName(f.name);setErr("");
+    try{
+      let text="";
+      if(f.name.endsWith(".pdf"))text=await extractPDF(f);
+      else if(f.name.endsWith(".docx"))text=await extractDOCX(f);
+      else{const r=new FileReader();r.onload=ev=>setResumeText(ev.target.result);r.readAsText(f);return;}
+      setResumeText(text);
+    }catch(e2){setErr("Could not read file: "+e2.message);}
+  };
+
+ const runAnalysis=async(resumeInput)=>{
+  const raw=await callGroq(
+    `You are an expert ATS (Applicant Tracking System) resume screener and senior technical recruiter, exactly like Jobscan. Compare this resume against this job description with the strictness and precision of a real ATS parser plus a human recruiter's judgment.
+
+CRITICAL — CERTIFICATIONS CHECK: Certifications are frequently combined into a single header like 
+"Achievements & Certifications" or listed inline in Education/Summary, not always under a standalone 
+"Certifications" heading. Before marking the certifications section as "missing," scan the ENTIRE 
+resume text for words like "certified," "certificate," "certification," named credentials (AWS, ITIL, 
+Java Full Stack, etc.), or "(in progress)" — wherever they appear. Only use "missing" if there is truly 
+zero mention of any certification or credential anywhere in the resume.
+
+JOB DESCRIPTION:
+---
+${jd.slice(0,4000)}
+---
+
+RESUME:
+---
+${resumeInput.slice(0,4000)}
+---
+
+Do a thorough line-by-line comparison. Extract every hard skill, tool, technology, certification, and qualification keyword from the JD. Check each one against the resume — exact match, close synonym, or missing entirely. Evaluate the resume's projects, skills section, and certifications specifically against what the JD demands. Be honest and strict — do not inflate the score if there are real gaps.
+
+Return ONLY this JSON, no markdown:
+{
+  "overallScore": <0-100 integer, ATS + recruiter combined score>,
+  "verdict": "<Strong Match|Good Match|Moderate Match|Weak Match>",
+  "recruiterImpression": "<3-4 sentence honest first-impression summary>",
+  "matchedKeywords": ["...","..."],
+  "missingKeywords": ["...","..."],
+  "strongPoints": ["...","..."],
+  "weakPoints": ["...","..."],
+  "sectionChecks": {
+    "skills": {"status":"<strong|weak|missing>","note":"..."},
+    "projects": {"status":"<strong|weak|missing>","note":"..."},
+    "certifications": {"status":"<strong|weak|missing>","note":"..."},
+    "experience": {"status":"<strong|weak|missing>","note":"..."},
+    "formatting": {"status":"<strong|weak|missing>","note":"..."}
+  },
+  "lineChecks": [{"jdRequirement":"...","resumeEvidence":"...","status":"<match|partial|missing>"}],
+  "keywordsToAdd": ["...","..."],
+  "projectMatchNotes": "...",
+  "nextSteps": ["...","..."]
+}`,3200);
+  const data=safeJSON(raw,null);
+  if(!data?.overallScore&&data?.overallScore!==0)throw new Error("bad report");
+  return data;
+};
+
+const analyze=async()=>{
+  if(!jd.trim()||!resumeText.trim())return;
+  setStep("analyzing");setErr("");
+  try{
+    const data=await runAnalysis(resumeText);
+    setReport(data);
+    setStep("report");
+  }catch(e){
+    console.error(e);
+    setErr("⚠ Could not analyze. Check /api/ai and try again.");
+    setStep("setup");
+  }
+};
+ 
+const rewriteResume=async()=>{
+  if(!report)return;
+  setRewriting(true);setRewriteErr("");
+  try{
+    const missing=[...new Set([...(report.missingKeywords||[]),...(report.keywordsToAdd||[])])];
+
+    // FIX: split into two smaller calls instead of one giant JSON blob.
+    // The old single-call approach asked for summary+skills+experience+
+    // projects+education+achievements all in ONE JSON object capped at
+    // 4500 tokens. Longer resumes exceeded that budget mid-generation,
+    // the model got cut off, and safeJSON's regex fallback silently
+    // grabbed only the JSON up to the last COMPLETE closing brace it could
+    // find — dropping whatever came after (usually Projects/Achievements).
+    // That's why it looked "cut off in the middle" and hit different
+    // users differently depending on resume length.
+    //
+    // Splitting into two focused calls keeps each well under its token
+    // budget, so nothing gets silently truncated.
+
+    const commonHeader=`JOB DESCRIPTION:
+---
+${jd.slice(0,3500)}
+---
+
+CURRENT RESUME (this is the candidate's real, only source of truth):
+---
+${resumeText.slice(0,3500)}
+---
+
+MISSING KEYWORDS FLAGGED BY ATS: ${missing.join(", ")}
+
+STRICT RULES:
+1. NEVER add a skill/tool/technology the candidate did not already mention or that isn't a direct, honest extension of their real projects. If a missing keyword has zero evidence in the resume, DROP it — do not add it anywhere.
+2. Only reword/strengthen EXISTING bullets — no invented claims, employers, or metrics.
+3. Preserve the same amount of detail as the original — do not drop bullets, projects, or skill categories that exist in the original just to save space.
+4. Aim to fit on one page through tighter wording, not by deleting real accomplishments.
+5. If genuinely nothing can be honestly added, just tighten wording.`;
+
+    const sysMsg="You are an expert resume writer. You never fabricate candidate skills or experience. Output valid JSON only, matching the schema exactly. Never truncate — if you are running low on space, shorten wording rather than cutting off mid-array or mid-string.";
+
+    // CALL 1: identity + summary + skills + experience
+    const raw1=await callGroq(
+      `${commonHeader}
+
+Return ONLY this JSON, no markdown, no commentary:
+{
+  "name": "<full name from resume>",
+  "contact": "<phone | email | linkedin | github, pipe-separated, from resume>",
+  "summary": "<2-3 sentence professional summary, rewritten tight>",
+  "skillGroups": [{"label":"<e.g. Languages>","items":"<comma-separated skills>"}],
+  "experience": [{"title":"<role>","org":"<company>","dates":"<date range>","location":"<city>","bullets":["<bullet>","..."]}]
+}`,
+      2200,
+      sysMsg
+    );
+    const data1=safeJSON(raw1,null);
+    if(!data1?.name)throw new Error("bad rewrite (part 1)");
+
+    // CALL 2: projects + education + achievements
+    const raw2=await callGroq(
+      `${commonHeader}
+
+Return ONLY this JSON, no markdown, no commentary:
+{
+  "projects": [{"title":"<project name>","stack":"<tech stack line>","link":"<repo/link if any>","bullets":["<bullet>","..."]}],
+  "education": [{"school":"<school>","degree":"<degree>","dates":"<dates>","location":"<city>"}],
+  "achievements": ["<bullet>","..."]
+}`,
+      2200,
+      sysMsg
+    );
+    const data2=safeJSON(raw2,null);
+    if(!data2)throw new Error("bad rewrite (part 2)");
+
+    const merged={
+      name:data1.name,
+      contact:data1.contact,
+      summary:data1.summary,
+      skillGroups:data1.skillGroups||[],
+      experience:data1.experience||[],
+      projects:data2.projects||[],
+      education:data2.education||[],
+      achievements:data2.achievements||[],
+    };
+
+    setRewrittenData(merged);
+  }catch(e){
+    console.error(e);
+    setRewriteErr("⚠ Could not rewrite resume. Try again.");
+  }
+  setRewriting(false);
+};
+  const sc=s=>s>=75?C.green:s>=50?C.gold:C.red;
+  const statusColor=st=>st==="strong"||st==="match"?C.green:st==="weak"||st==="partial"?C.gold:C.red;
+  const statusIcon=st=>st==="strong"||st==="match"?"✓":st==="weak"||st==="partial"?"~":"✕";
+
+  if(step==="setup")return(
+    <div className="fade">
+      <div style={{marginBottom:22}}>
+        <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:5,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>📋 ATS Resume Checker</div>
+        <div style={{color:C.soft,fontSize:13.5,lineHeight:1.75,maxWidth:600}}>Paste a job description and your resume. We'll check it exactly like an ATS + recruiter would — matched keywords, missing keywords, project and skills fit, and a shortlist-ready score out of 100.</div>
+      </div>
+      {err&&<div style={{background:C.redPale,border:`1px solid ${C.red}30`,borderRadius:10,padding:"10px 14px",marginBottom:14,color:C.red,fontSize:12.5}}>{err}</div>}
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,boxShadow:C.shCard}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+            <span style={{fontSize:18}}>📝</span>
+            <div style={{fontWeight:800,fontSize:14,color:C.ink}}>Job Description</div>
+          </div>
+          <textarea style={{...inp,minHeight:280,resize:"vertical",fontSize:12.5,lineHeight:1.7}}
+            placeholder="Paste the full job description here…"
+            value={jd} onChange={e=>setJd(e.target.value)}/>
+          <div style={{color:C.muted,fontSize:11,marginTop:6}}>{jd.trim().split(/\s+/).filter(Boolean).length} words</div>
+        </div>
+
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,boxShadow:C.shCard}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:18}}>📄</span>
+              <div style={{fontWeight:800,fontSize:14,color:C.ink}}>Your Resume</div>
+            </div>
+            <button onClick={()=>fileRef.current.click()}
+              style={{padding:"6px 12px",borderRadius:8,border:`1.5px solid ${C.violet}40`,background:C.violetPale,color:C.violetD,fontSize:11.5,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:800}}>
+              📎 Upload
+            </button>
+            <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" onChange={handleFile} style={{display:"none"}}/>
+          </div>
+          {fileName&&(
+            <div style={{background:C.greenPale,border:`1px solid ${C.green}30`,borderRadius:8,padding:"6px 12px",marginBottom:8,fontSize:12,color:C.green,display:"flex",alignItems:"center",gap:8}}>
+              ✅ {fileName}
+              <button onClick={()=>{setFileName("");setResumeText("");}} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:11,marginLeft:"auto",fontWeight:700}}>✕</button>
+            </div>
+          )}
+          <textarea style={{...inp,minHeight:fileName?232:280,resize:"vertical",fontSize:12.5,lineHeight:1.7,fontFamily:"'JetBrains Mono',monospace"}}
+            placeholder="Or paste your resume text here…"
+            value={resumeText} onChange={e=>setResumeText(e.target.value)}/>
+          <div style={{color:C.muted,fontSize:11,marginTop:6}}>{resumeText.trim().split(/\s+/).filter(Boolean).length} words</div>
+        </div>
+      </div>
+
+      <Btn v="violet" onClick={analyze} disabled={!jd.trim()||!resumeText.trim()} style={{width:"100%",padding:"15px",fontSize:15,borderRadius:12}}>
+        🔍 Run ATS Check →
+      </Btn>
+    </div>
+  );
+
+  if(step==="analyzing")return(
+    <div style={{textAlign:"center",padding:"80px 20px"}}>
+      <div style={{fontSize:52,marginBottom:16,animation:"float 2s ease-in-out infinite"}}>🔍</div>
+      <div style={{fontWeight:800,fontSize:20,color:C.ink,marginBottom:8,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Scanning your resume…</div>
+      <div style={{color:C.soft,fontSize:14,maxWidth:340,margin:"0 auto 24px",lineHeight:1.7}}>Checking keywords, projects, skills, and certifications against the job description.</div>
+      <Spin size={36}/>
+    </div>
+  );
+
+  if(step==="report"&&report)return(
+    <div className="fade">
+      {/* SCORE HEADER */}
+      <div style={{background:`linear-gradient(160deg,${C.bgCard},${C.bgSurf})`,border:`1px solid ${C.border}`,borderRadius:20,padding:"28px 22px",marginBottom:16,position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:-60,right:-60,width:240,height:240,borderRadius:"50%",background:`radial-gradient(circle,${C.violet}10,transparent 70%)`,pointerEvents:"none"}}/>
+        <div style={{textAlign:"center",marginBottom:16}}>
+          <div style={{fontSize:10,color:C.muted,marginBottom:6,letterSpacing:1.5,textTransform:"uppercase",fontWeight:700}}>ATS Match Score</div>
+          <div className="mono" style={{fontSize:60,fontWeight:700,lineHeight:1,color:sc(report.overallScore),textShadow:`0 0 30px ${sc(report.overallScore)}50`}}>{report.overallScore}</div>
+          <div style={{fontSize:13,color:C.muted,marginBottom:10}}>/ 100</div>
+          <span style={{background:`${sc(report.overallScore)}15`,color:sc(report.overallScore),padding:"6px 20px",borderRadius:20,fontWeight:800,fontSize:13,border:`1px solid ${sc(report.overallScore)}30`}}>{report.verdict}</span>
+        </div>
+        {report.recruiterImpression&&(
+          <div style={{background:C.violetPale,border:`1px solid ${C.violet}20`,borderRadius:10,padding:"12px 16px",fontSize:13,color:C.violetD,lineHeight:1.7}}>
+            <span style={{fontWeight:800,fontSize:9,letterSpacing:1,textTransform:"uppercase",display:"block",marginBottom:4}}>👀 Recruiter's first look</span>
+            {report.recruiterImpression}
+          </div>
+        )}
+      </div>
+
+      {/* SECTION CHECKS */}
+      {report.sectionChecks&&(
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,marginBottom:16,boxShadow:C.shCard}}>
+          <div style={{fontWeight:800,color:C.ink,fontSize:14.5,marginBottom:14}}>📂 Section-by-section check</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:10}}>
+            {Object.entries(report.sectionChecks).map(([key,val])=>(
+              <div key={key} style={{border:`1.5px solid ${statusColor(val.status)}30`,background:`${statusColor(val.status)}08`,borderRadius:12,padding:12}}>
+                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+                  <span style={{width:18,height:18,borderRadius:"50%",background:statusColor(val.status),color:"#fff",fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{statusIcon(val.status)}</span>
+                  <span style={{fontWeight:800,fontSize:12.5,color:C.ink,textTransform:"capitalize"}}>{key}</span>
+                </div>
+                <div style={{fontSize:11.5,color:C.soft,lineHeight:1.6}}>{val.note}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* MATCHED / MISSING KEYWORDS */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+        {report.matchedKeywords?.length>0&&(
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,boxShadow:C.shCard}}>
+            <div style={{fontWeight:800,color:C.green,fontSize:13.5,marginBottom:10}}>✓ Matched keywords ({report.matchedKeywords.length})</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {report.matchedKeywords.map((k,i)=><Tag key={i} color={C.green} size={11}>{k}</Tag>)}
+            </div>
+          </div>
+        )}
+        {report.missingKeywords?.length>0&&(
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,boxShadow:C.shCard}}>
+            <div style={{fontWeight:800,color:C.red,fontSize:13.5,marginBottom:10}}>✕ Missing keywords ({report.missingKeywords.length})</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {report.missingKeywords.map((k,i)=><Tag key={i} color={C.red} size={11}>{k}</Tag>)}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* STRONG / WEAK */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+        {report.strongPoints?.length>0&&(
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,boxShadow:C.shCard}}>
+            <div style={{fontWeight:800,color:C.ink,fontSize:13.5,marginBottom:10}}>💪 Strong</div>
+            {report.strongPoints.map((s,i)=>(
+              <div key={i} style={{background:C.greenPale,borderRadius:8,padding:"9px 12px",marginBottom:7,fontSize:12.5,color:C.ink2,border:`1px solid ${C.green}20`,display:"flex",gap:8}}><span style={{color:C.green,flexShrink:0}}>✓</span><span>{s}</span></div>
+            ))}
+          </div>
+        )}
+        {report.weakPoints?.length>0&&(
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,boxShadow:C.shCard}}>
+            <div style={{fontWeight:800,color:C.ink,fontSize:13.5,marginBottom:10}}>⚠️ Weak</div>
+            {report.weakPoints.map((s,i)=>(
+              <div key={i} style={{background:C.redPale,borderRadius:8,padding:"9px 12px",marginBottom:7,fontSize:12.5,color:C.ink2,border:`1px solid ${C.red}20`,display:"flex",gap:8}}><span style={{color:C.red,flexShrink:0}}>✕</span><span>{s}</span></div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* LINE BY LINE CHECK */}
+      {report.lineChecks?.length>0&&(
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,marginBottom:16,boxShadow:C.shCard}}>
+          <div style={{fontWeight:800,color:C.ink,fontSize:14.5,marginBottom:14}}>🔍 Line-by-line JD match</div>
+          {report.lineChecks.map((lc,i)=>(
+            <div key={i} style={{border:`1px solid ${statusColor(lc.status)}25`,borderRadius:10,padding:"11px 13px",marginBottom:8,background:`${statusColor(lc.status)}06`}}>
+              <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+                <span style={{width:20,height:20,borderRadius:"50%",background:statusColor(lc.status),color:"#fff",fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}>{statusIcon(lc.status)}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:12.5,fontWeight:700,color:C.ink,marginBottom:3}}>{lc.jdRequirement}</div>
+                  <div style={{fontSize:11.5,color:C.soft}}>{lc.resumeEvidence}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* PROJECT MATCH NOTES */}
+      {report.projectMatchNotes&&(
+        <div style={{background:C.goldPale,border:`1px solid ${C.gold}25`,borderRadius:14,padding:16,marginBottom:16}}>
+          <div style={{fontWeight:800,color:C.gold,fontSize:13,marginBottom:6}}>🧩 Project relevance</div>
+          <div style={{fontSize:12.5,color:C.ink2,lineHeight:1.7}}>{report.projectMatchNotes}</div>
+        </div>
+      )}
+
+      {/* KEYWORDS TO ADD */}
+      {report.keywordsToAdd?.length>0&&(
+        <div style={{background:C.violetPale,border:`1px solid ${C.violet}25`,borderRadius:14,padding:16,marginBottom:16}}>
+          <div style={{fontWeight:800,color:C.violetD,fontSize:13,marginBottom:8}}>➕ Add these keywords to your resume</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {report.keywordsToAdd.map((k,i)=><Tag key={i} color={C.violet} size={11}>{k}</Tag>)}
+          </div>
+        </div>
+      )}
+
+      {/* NEXT STEPS */}
+      {report.nextSteps?.length>0&&(
+        <div style={{background:C.tealPale,border:`1px solid ${C.teal}20`,borderRadius:14,padding:18,marginBottom:16}}>
+          <div style={{fontWeight:700,color:C.teal,fontSize:14,marginBottom:12}}>🚀 Next steps to improve your score</div>
+          {report.nextSteps.map((s,i)=>(
+            <div key={i} style={{display:"flex",gap:9,alignItems:"flex-start",marginBottom:8,fontSize:13,color:C.ink2}}><span style={{color:C.teal,fontWeight:800,flexShrink:0}}>{i+1}.</span>{s}</div>
+          ))}
+        </div>
+      )}
+      {/* REWRITE CTA */}
+<div style={{background:`linear-gradient(135deg,${C.violet}12,${C.teal}08)`,border:`1px solid ${C.violet}25`,borderRadius:14,padding:"16px 20px",marginBottom:16}}>
+  <div style={{fontWeight:800,fontSize:14,color:C.ink,marginBottom:4}}>✍️ Fix this automatically</div>
+  <div style={{color:C.soft,fontSize:12.5,marginBottom:12,lineHeight:1.6}}>
+    AI will rewrite your resume, weaving in the missing keywords above and targeting a 90+ ATS score. Review the additions afterward — only keep skills you genuinely have.
+  </div>
+  <Btn v="violet" onClick={rewriteResume} loading={rewriting} small>
+    {rewriting?"Rewriting…":"✍️ Rewrite resume to close these gaps →"}
+  </Btn>
+  {rewriteErr&&<div style={{color:C.red,fontSize:12,marginTop:8}}>{rewriteErr}</div>}
+</div>
+      {rewrittenData&&(
+  <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:18,marginBottom:16,boxShadow:C.shCard}}>
+    <div style={{fontWeight:800,fontSize:14.5,color:C.ink,marginBottom:10}}>📄 Rewritten resume — matches your original format</div>
+    <div style={{border:`1px solid ${C.border}`,borderRadius:10,padding:20,background:"#fff",maxHeight:700,overflow:"auto"}}
+      dangerouslySetInnerHTML={{__html:buildResumeHTML(rewrittenData)}}/>
+    <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}>
+       <Btn v="violet" small disabled={!rewrittenData?.experience?.length && !rewrittenData?.projects?.length} onClick={()=>downloadResumeAsDoc(rewrittenData,"resume-optimized.doc")}>⬇ Download .doc</Btn>
+      <Btn v="outline" small disabled={!rewrittenData?.experience?.length && !rewrittenData?.projects?.length} onClick={()=>downloadResumeAsPDF(rewrittenData,"resume-optimized.pdf")}>⬇ Download .pdf</Btn>
+    </div>
+  </div>
+)}
+      <div style={{display:"flex",gap:10,marginBottom:16}}>
+        <Btn v="violet" onClick={()=>{setStep("setup");setReport(null);}} style={{flex:1,padding:"13px"}}>🔁 Check another JD</Btn>
+        <Btn v="ghost" onClick={()=>{setStep("setup");setReport(null);setJd("");setResumeText("");setFileName("");}} style={{flex:1,padding:"13px"}}>🗑️ Start over</Btn>
+      </div>
+    </div>
+  );
+
+  return null;
+}
+
+
+      
+
+
+// ── LANDING PAGE ──────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// PASS 2 — LANDING PAGE (white theme, full 1:1 section match to your original)
+// Replace your entire "function LandingPage({onStart}){ ... }" block with this.
+// Sections present, same order as your original: NAV, HERO, COMPANY MARQUEE,
+// HOW IT WORKS, FEATURES, TESTIMONIALS, PRICING, FINAL CTA, FOOTER.
+// Uses the C tokens from Pass 1 (already in scope in your file).
+// ════════════════════════════════════════════════════════════════════════════
+
+function LandingPage({onStart}){
+  const[scrolled,setScrolled]=useState(false);
+  useEffect(()=>{const h=()=>setScrolled(window.scrollY>60);window.addEventListener("scroll",h);return()=>window.removeEventListener("scroll",h);},[]);
+
+  const features=[
+    {icon:"🎯",title:"Resume-personalized questions",desc:"AI reads your actual projects and tech stack — questions about your real internship, your real codebase, your real wins."},
+    {icon:"🎥",title:"Full-screen interview room",desc:"HD camera, self-view PiP, live indicator. Build composure under the exact pressure of the real thing."},
+    {icon:"🗣️",title:"AI interviewer, real voice",desc:"Priya reads every question aloud, naturally. Your mic activates only once she stops — just like a real panel."},
+    {icon:"⚡",title:"Live confidence analysis",desc:"Real-time pace, clarity and filler-word tracking while you're still speaking — not after."},
+    {icon:"🏢",title:"Company-calibrated difficulty",desc:"Google interviews differently than TCS. We mirror each company's real bar and interview culture."},
+    {icon:"🔓",title:"15 mock rounds per role",desc:"Two free per role to start. Unlock the full set from ₹49."},
+  ];
+
+  const testimonials=[
+    {name:"Priya M.",role:"SDE at Wipro",text:"It asked specifically about my own project — exactly what happened in the real interview. I walked in already knowing the rhythm of the room.",score:91,company:"Wipro"},
+    {name:"Arun K.",role:"Data Analyst at TCS",text:"The live filler tracker caught me saying 'basically' constantly. Fixed it before it mattered. Got the offer.",score:83,company:"TCS"},
+    {name:"Sneha R.",role:"Full Stack Dev at Infosys",text:"Targeted at Amazon, it drilled into my app's architecture three separate ways. By round two I'd already answered every version of that question.",score:94,company:"Amazon"},
+  ];
+
+  const landingCSS=`
+    @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+    .marquee-track{display:flex;gap:20px;animation:marquee 26s linear infinite;}
+    .marquee-wrap{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);}
+    @keyframes heroFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+    .hero-card{animation:heroFloat 4.2s ease-in-out infinite;}
+    .cta-glow{box-shadow:${C.shVioletGlow};transition:all .25s;}
+    .cta-glow:hover{box-shadow:0 10px 36px rgba(91,79,232,.42);transform:translateY(-2px);}
+    .feature-card{transition:transform .18s,box-shadow .18s,border-color .18s;}
+    .feature-card:hover{transform:translateY(-4px);box-shadow:${C.shHover};border-color:${C.borderHover};}
+    .nav-link-btn{background:none;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;color:${C.soft};padding:8px 14px;border-radius:8px;transition:color .2s,background .2s;}
+    .nav-link-btn:hover{color:${C.ink};background:${C.bgSubtle};}
+    .search-pill{transition:border-color .2s,box-shadow .2s;}
+    .search-pill:focus-within{border-color:${C.violet};box-shadow:0 0 0 4px ${C.violetPale};}
+    @media(max-width:768px){
+      .hero-grid{grid-template-columns:1fr!important;}
+      .hero-mockup{display:block!important;}
+      .hero-text{text-align:center;}
+      .hero-cta-row{justify-content:center!important;}
+      .hero-stats{justify-content:center!important;}
+      .feature-grid{grid-template-columns:1fr!important;}
+      .step-grid{grid-template-columns:1fr!important;}
+      .testimonial-grid{grid-template-columns:1fr!important;}
+      .pricing-grid{grid-template-columns:1fr!important;}
+    }
+  `;
+
+  return(
+    <div style={{background:C.white,color:C.ink,fontFamily:"'Inter',sans-serif",overflowX:"hidden"}}>
+      <style>{landingCSS}</style>
+
+      {/* ── NAV ── */}
+      <nav style={{
+        position:"fixed",top:0,left:0,right:0,zIndex:1000,
+        background:scrolled?"rgba(255,255,255,.94)":"transparent",
+        backdropFilter:scrolled?"blur(20px)":"none",
+        borderBottom:scrolled?`1px solid ${C.border}`:"none",
+        transition:"all .3s",padding:"0 28px"
+      }}>
+        <div style={{maxWidth:1140,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:68}}>
+          <div style={{cursor:"pointer"}} onClick={()=>window.scrollTo({top:0,behavior:"smooth"})}>
+             <Logo size={34} textSize={22}/>
+          </div>
+ 
+
+        
+
+          <div style={{display:"flex",gap:4,alignItems:"center"}}>
+            <button className="nav-link-btn" onClick={()=>document.getElementById("features")?.scrollIntoView({behavior:"smooth"})}>Features</button>
+            <button className="nav-link-btn" onClick={()=>document.getElementById("pricing")?.scrollIntoView({behavior:"smooth"})}>Pricing</button>
+            <button className="nav-link-btn" onClick={onStart}>Jobs</button>
+          </div>
+
+          <div style={{display:"flex",gap:10,alignItems:"center"}}>
+            <button onClick={onStart} className="nav-link-btn">Sign In</button>
+            <button onClick={onStart} style={{
+              background:`linear-gradient(135deg,${C.violetD},${C.violet})`,
+              border:"none",borderRadius:11,padding:"10px 22px",
+              color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",
+              fontFamily:"'Inter',sans-serif",
+              boxShadow:C.shVioletGlow,transition:"all .2s"
+            }}>Get started free →</button>
+          </div>
+        </div>
+      </nav>
+
+      {/* ── HERO ── */}
+      <section style={{
+        minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",
+        padding:"114px 28px 84px",position:"relative",overflow:"hidden",
+        background:`linear-gradient(160deg,${C.white} 0%,${C.bgSubtle} 45%,#F4F3FE 100%)`
+      }}>
+        <div style={{position:"absolute",top:"8%",right:"3%",width:540,height:540,borderRadius:"50%",background:"radial-gradient(circle,rgba(91,79,232,.12),transparent 65%)",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",bottom:"10%",left:"-4%",width:400,height:400,borderRadius:"50%",background:"radial-gradient(circle,rgba(14,168,137,.07),transparent 65%)",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(rgba(11,14,26,.03) 1px,transparent 1px)",backgroundSize:"38px 38px",pointerEvents:"none"}}/>
+
+        <div className="hero-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:64,maxWidth:1140,width:"100%",alignItems:"center",position:"relative",zIndex:1}}>
+
+          <div className="hero-text">
+            <div style={{display:"inline-flex",alignItems:"center",gap:8,background:C.violetPale,border:`1px solid rgba(91,79,232,.25)`,borderRadius:24,padding:"7px 18px",marginBottom:28,fontSize:12,color:C.violetD,fontWeight:700}}>
+              <span style={{width:6,height:6,borderRadius:"50%",background:C.violet,display:"inline-block",animation:"pulse 1.5s infinite"}}/>
+              India's only AI interview with live camera + resume personalization
+            </div>
+
+            <h1 style={{
+              fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,
+              fontSize:"clamp(38px,4.8vw,64px)",lineHeight:1.04,
+              marginBottom:24,letterSpacing:"-1.8px",color:C.ink
+            }}>
+              Real conversations.<br/>
+              <span style={{background:`linear-gradient(135deg,${C.violetD},${C.teal})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>Right candidates.</span>
+            </h1>
+
+            <p style={{fontSize:17.5,color:C.ink2,lineHeight:1.82,maxWidth:490,marginBottom:38,fontWeight:400}}>
+              Upload your resume, name the company — <strong style={{color:C.ink,fontWeight:700}}>Priya</strong> interviews you like she's actually hiring. Camera on, mic live, real questions about your real experience.
+            </p>
+
+            <div className="hero-cta-row" style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:46}}>
+              <button onClick={onStart} className="cta-glow" style={{
+                padding:"16px 36px",borderRadius:13,border:"none",cursor:"pointer",
+                background:`linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,
+                color:"#fff",fontWeight:800,fontSize:16,fontFamily:"'Inter',sans-serif",letterSpacing:.2
+              }}>
+                ▶️ Start your AI interview →
+              </button>
+              <button onClick={onStart} style={{
+                padding:"16px 28px",borderRadius:13,
+                border:`1.5px solid ${C.border}`,cursor:"pointer",
+                background:C.white,
+                color:C.ink2,fontWeight:700,fontSize:16,
+                fontFamily:"'Inter',sans-serif",transition:"all .2s",
+                boxShadow:C.shCard
+              }}>Explore Live jobs</button>
+            </div>
+
+            <div className="hero-stats" style={{display:"flex",gap:0,alignItems:"center"}}>
+              {[
+                {v:"50K+",l:"Interviews",c:C.violet},
+                {v:"87%",l:"Better scores",c:C.teal},
+                {v:"3.4×",l:"More offers",c:C.gold},
+              ].map((s,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:0}}>
+                  {i>0&&<div style={{width:1,height:38,background:C.border,margin:"0 24px"}}/>}
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontWeight:900,fontSize:25,color:s.c,fontFamily:"'JetBrains Mono',monospace",lineHeight:1}}>{s.v}</div>
+                    <div style={{fontSize:11,color:C.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:.8,marginTop:4}}>{s.l}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="hero-card hero-mockup" style={{position:"relative"}}>
+            <div style={{
+              position:"absolute",top:-20,right:-12,
+              background:"#0B0E1A",border:"1px solid rgba(34,197,94,.4)",
+              borderRadius:16,padding:"12px 18px",
+              boxShadow:"0 16px 40px rgba(11,14,26,.3)",
+              zIndex:10,display:"flex",alignItems:"center",gap:12,
+              minWidth:210
+            }}>
+              <div style={{
+                width:42,height:42,borderRadius:12,
+                background:"rgba(34,197,94,.16)",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontFamily:"'JetBrains Mono',monospace",fontWeight:900,fontSize:18,color:"#22C55E"
+              }}>89</div>
+              <div>
+                <div style={{fontSize:14,fontWeight:800,color:"#fff",lineHeight:1.2}}>Strong Hire ✓</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>Google SDE · Just now</div>
+              </div>
+            </div>
+
+            <div style={{
+              background:"#090B14",borderRadius:22,
+              border:"1px solid rgba(255,255,255,.09)",
+              overflow:"hidden",
+              boxShadow:"0 36px 90px rgba(11,14,26,.32)"
+            }}>
+              <div style={{
+                background:"rgba(255,255,255,.035)",
+                padding:"12px 18px",
+                display:"flex",alignItems:"center",justifyContent:"space-between",
+                borderBottom:"1px solid rgba(255,255,255,.07)"
+              }}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{width:7,height:7,borderRadius:"50%",background:"#EF4444",boxShadow:"0 0 8px #EF4444"}}/>
+                  <span style={{color:"rgba(255,255,255,.68)",fontSize:11,fontWeight:800,letterSpacing:2}}>LIVE INTERVIEW</span>
+                </div>
+                <div style={{background:"rgba(124,114,240,.24)",border:"1px solid rgba(124,114,240,.4)",borderRadius:8,padding:"4px 14px",fontSize:12,color:"#B7AEFA",fontWeight:800}}>Google</div>
+                <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                  {[1,2,3,4,5].map(i=>(
+                    <div key={i} style={{width:i<=2?22:18,height:3,borderRadius:2,background:i<3?"#22C55E":i===3?"#7C72F0":"rgba(255,255,255,.14)"}}/>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{
+                padding:"28px 24px 20px",textAlign:"center",
+                background:"linear-gradient(180deg,#0B0D17 0%,#090B14 100%)"
+              }}>
+                <div style={{
+                  width:96,height:96,margin:"0 auto 14px",
+                  borderRadius:"50%",
+                  border:"2.5px solid #7C72F0",
+                  padding:4,
+                  boxShadow:"0 0 36px rgba(124,114,240,.4)",
+                  animation:"ringPulse 2s infinite"
+                }}>
+                  <AIGlobe speaking={true} size={84}/>
+                </div>
+                <div style={{color:"#fff",fontWeight:800,fontSize:15,marginBottom:3}}>Priya Sharma</div>
+                <div style={{color:"rgba(255,255,255,.4)",fontSize:11,marginBottom:20}}>Senior Hiring Manager · Google</div>
+
+                <div style={{
+                  background:"rgba(255,255,255,.045)",borderRadius:12,
+                  padding:"14px 16px",textAlign:"left",marginBottom:14,
+                  border:"1px solid rgba(255,255,255,.08)"
+                }}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                    <span style={{background:"rgba(14,168,137,.18)",color:"#2DD4AE",fontSize:10,fontWeight:800,padding:"3px 10px",borderRadius:20,border:"1px solid rgba(14,168,137,.3)"}}>Technical</span>
+                    <span style={{color:"rgba(255,255,255,.3)",fontSize:10,fontFamily:"'JetBrains Mono',monospace",fontWeight:700}}>01:24 remaining</span>
+                  </div>
+                  <div style={{color:"rgba(255,255,255,.9)",fontSize:13,lineHeight:1.7,fontWeight:500}}>
+                    How did you handle CORS with the Groq API in HireFlo?
+                  </div>
+                  <div style={{height:2,background:"rgba(255,255,255,.07)",borderRadius:2,marginTop:12,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:"58%",background:"#2DD4AE",borderRadius:2,boxShadow:"0 0 6px rgba(45,212,174,.5)"}}/>
+                  </div>
+                </div>
+
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:4}}>
+                  {[["Pace","78%","#2DD4AE"],["Clarity","82%","#7C72F0"],["Fillers","0","#22C55E"]].map(([l,v,c])=>(
+                    <div key={l} style={{background:"rgba(255,255,255,.035)",borderRadius:10,padding:"10px 6px",border:"1px solid rgba(255,255,255,.07)"}}>
+                      <div style={{fontSize:15,fontWeight:800,color:c,fontFamily:"'JetBrains Mono',monospace"}}>{v}</div>
+                      <div style={{fontSize:9,color:"rgba(255,255,255,.34)",marginTop:3,fontWeight:600,textTransform:"uppercase",letterSpacing:.5}}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{
+                background:"rgba(4,5,10,.98)",padding:"14px 18px",
+                display:"flex",justifyContent:"center",gap:14,alignItems:"center",
+                borderTop:"1px solid rgba(255,255,255,.06)"
+              }}>
+                <div style={{width:40,height:40,borderRadius:"50%",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.14)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🎙️</div>
+                <div style={{
+                  padding:"11px 32px",borderRadius:22,
+                  background:"linear-gradient(135deg,#4338CA,#5B4FE8,#7C72F0)",
+                  color:"#fff",fontWeight:800,fontSize:13,
+                  boxShadow:"0 6px 24px rgba(91,79,232,.5)",cursor:"default"
+                }}>Done ✓</div>
+                <div style={{width:40,height:40,borderRadius:"50%",background:"rgba(239,68,68,.12)",border:"1px solid rgba(239,68,68,.32)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>📵</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── COMPANY MARQUEE ── */}
+      <section style={{padding:"28px 0",background:C.bgSubtle,borderTop:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`}}>
+        <div style={{textAlign:"center",marginBottom:14}}>
+          <div style={{fontSize:10,color:C.muted,fontWeight:800,letterSpacing:2.6,textTransform:"uppercase"}}>Practiced for interviews at</div>
+        </div>
+        <div className="marquee-wrap">
+          <div className="marquee-track">
+            {[...TARGET_COMPANIES,...TARGET_COMPANIES].map((c,i)=>(
+              <div key={i} style={{
+                background:C.white,border:`1px solid ${C.border}`,
+                borderRadius:10,padding:"9px 20px",
+                display:"flex",alignItems:"center",gap:8,flexShrink:0,minWidth:118,
+                boxShadow:C.shCard
+              }}>
+                <span style={{fontWeight:800,fontSize:13,color:c.color}}>{c.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS ── */}
+      <section style={{padding:"96px 28px",maxWidth:1100,margin:"0 auto"}}>
+        <div style={{textAlign:"center",marginBottom:58}}>
+          <div style={{fontSize:10,color:C.teal,fontWeight:800,letterSpacing:3.6,marginBottom:12,textTransform:"uppercase"}}>How it works</div>
+          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(27px,3.6vw,40px)",color:C.ink,letterSpacing:-.6}}>From resume to offer in 3 steps</h2>
+        </div>
+        <div className="step-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:22}}>
+          {[
+            {n:"01",col:C.violet,title:"Upload your resume",desc:"Paste or upload PDF/DOCX. Enter company and role. Sixty seconds to set up."},
+            {n:"02",col:C.teal,title:"Interview on camera",desc:"Priya speaks your personalized questions aloud — you answer on mic, on camera, on a 90-second clock. Your mic opens only once she's done speaking."},
+            {n:"03",col:C.gold,title:"Get your debrief + scorecard",desc:"A score across five dimensions, a per-question breakdown with ideal answers, a shareable scorecard, and specific next steps."},
+          ].map((s,i)=>(
+            <div key={i} className="feature-card" style={{background:C.white,border:`1.5px solid ${C.border}`,borderRadius:20,padding:"28px 26px",boxShadow:C.shCard}}>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:900,fontSize:44,color:s.col,marginBottom:18,lineHeight:1,opacity:.88}}>{s.n}</div>
+              <div style={{fontWeight:800,fontSize:17.5,color:C.ink,marginBottom:10}}>{s.title}</div>
+              <div style={{color:C.ink2,fontSize:13.5,lineHeight:1.82}}>{s.desc}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── FEATURES ── */}
+      <section id="features" style={{padding:"96px 28px",background:C.bgSubtle}}>
+        <div style={{maxWidth:1100,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:58}}>
+            <div style={{fontSize:10,color:C.violet,fontWeight:800,letterSpacing:3.6,marginBottom:12,textTransform:"uppercase"}}>Features</div>
+            <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(27px,3.6vw,40px)",color:C.ink,letterSpacing:-.6}}>Built to replicate the real thing</h2>
+          </div>
+          <div className="feature-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:18}}>
+            {features.map((f,i)=>(
+              <div key={i} className="feature-card" style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:18,padding:"24px 22px",display:"flex",gap:16,boxShadow:C.shCard}}>
+                <div style={{fontSize:26,flexShrink:0,marginTop:2}}>{f.icon}</div>
+                <div>
+                  <div style={{fontWeight:700,fontSize:15.5,color:C.ink,marginBottom:8}}>{f.title}</div>
+                  <div style={{color:C.ink2,fontSize:13,lineHeight:1.8}}>{f.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── TESTIMONIALS ── */}
+      <section style={{padding:"96px 28px",maxWidth:1100,margin:"0 auto"}}>
+        <div style={{textAlign:"center",marginBottom:52}}>
+          <div style={{fontSize:10,color:C.violet,fontWeight:800,letterSpacing:3.6,marginBottom:12,textTransform:"uppercase"}}>Success stories</div>
+          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(27px,3.6vw,40px)",color:C.ink,letterSpacing:-.6}}>They got hired. You're next.</h2>
+        </div>
+        <div className="testimonial-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:18}}>
+          {testimonials.map((r,i)=>(
+            <div key={i} className="feature-card" style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:20,padding:"26px 24px",boxShadow:C.shCard}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+                {[...Array(5)].map((_,j)=><span key={j} style={{color:C.gold,fontSize:14}}>★</span>)}
+                <span style={{background:C.greenPale,color:C.green,fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20,border:`1px solid ${C.green}30`,marginLeft:4}}>{r.score}%</span>
+                <span style={{background:C.violetPale,color:C.violetD,fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20,border:`1px solid ${C.violet}30`}}>{r.company}</span>
+              </div>
+              <div style={{color:C.ink2,fontSize:14,lineHeight:1.87,marginBottom:20}}>"{r.text}"</div>
+              <div style={{display:"flex",alignItems:"center",gap:10,borderTop:`1px solid ${C.border}`,paddingTop:14}}>
+                <div style={{width:38,height:38,borderRadius:"50%",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:"#fff"}}>
+                  {r.name.split(" ").map(n=>n[0]).join("")}
+                </div>
+                <div>
+                  <div style={{fontWeight:700,color:C.ink,fontSize:13.5}}>{r.name}</div>
+                  <div style={{color:C.muted,fontSize:12}}>{r.role}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── PRICING ── */}
+      <section id="pricing" style={{padding:"96px 28px",background:C.bgSubtle}}>
+        <div style={{maxWidth:920,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:52}}>
+            <div style={{fontSize:10,color:C.violet,fontWeight:800,letterSpacing:3.6,marginBottom:12,textTransform:"uppercase"}}>Pricing</div>
+            <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(25px,3.3vw,38px)",color:C.ink,letterSpacing:-.6}}>Two free per role. Unlock everything for less than a coffee.</h2>
+          </div>
+          <div className="pricing-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:22,alignItems:"start"}}>
+            {[
+              {name:"Free",price:"₹0",period:"",color:C.muted,features:["2 mock interviews per role","Basic per-question feedback","Live job feed","Streak tracking"],cta:"Start Free",bg:C.white,border:C.border},
+              {name:"Week",price:"₹49",period:"/week",color:C.gold,popular:false,features:["All 15 mocks, every role","All company style modes","Full detailed reports","Shareable scorecards","Filler word detection"],cta:"Get 1 Week — ₹49",bg:C.goldPale,border:"rgba(194,116,10,.32)"},
+              {name:"Month",price:"₹199",period:"/month",color:C.violet,popular:true,features:["Everything in Week","Best value — 4× the days","Score history + trajectory","AI ideal-answer coach","Priority support"],cta:"Get 1 Month — ₹199",bg:C.violetPale,border:"rgba(91,79,232,.38)"},
+            ].map((p,i)=>(
+              <div key={i} style={{
+                background:p.bg,border:`1.5px solid ${p.border}`,
+                borderRadius:22,padding:"28px 24px",position:"relative",
+                boxShadow:p.popular?"0 18px 44px rgba(91,79,232,.16)":C.shCard
+              }}>
+                {p.popular&&(
+                  <div style={{position:"absolute",top:-15,left:"50%",transform:"translateX(-50%)",background:`linear-gradient(135deg,${C.violetD},${C.violet})`,color:"#fff",fontSize:11,fontWeight:800,padding:"5px 18px",borderRadius:20,whiteSpace:"nowrap",boxShadow:C.shVioletGlow}}>⭐ MOST POPULAR</div>
+                )}
+                <div style={{fontSize:11,fontWeight:800,color:p.color,marginBottom:7,letterSpacing:1}}>{p.name.toUpperCase()}</div>
+                <div style={{fontWeight:900,fontSize:38,color:C.ink,fontFamily:"'JetBrains Mono',monospace",lineHeight:1,marginBottom:4}}>{p.price}<span style={{fontSize:13,fontWeight:400,color:C.muted}}>{p.period}</span></div>
+                <div style={{height:1,background:C.border,margin:"18px 0"}}/>
+                {p.features.map((f,j)=>(
+                  <div key={j} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:11}}>
+                    <span style={{color:p.color,fontWeight:800,fontSize:13,flexShrink:0,marginTop:1}}>✓</span>
+                    <span style={{color:C.ink2,fontSize:13}}>{f}</span>
+                  </div>
+                ))}
+                <button onClick={onStart} style={{
+                  width:"100%",padding:"13px",marginTop:14,borderRadius:11,
+                  border:`1.5px solid ${p.border}`,
+                  background:p.popular?`linear-gradient(135deg,${C.violetD},${C.violet})`:i===1?C.goldPale:C.white,
+                  color:p.popular?"#fff":p.color,fontWeight:800,fontSize:14,cursor:"pointer",
+                  fontFamily:"'Inter',sans-serif",transition:"all .2s",
+                  boxShadow:p.popular?C.shVioletGlow:"none"
+                }}>{p.cta}</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FINAL CTA ── */}
+      <section style={{padding:"96px 28px",textAlign:"center",background:C.white}}>
+        <div style={{maxWidth:580,margin:"0 auto",background:`linear-gradient(160deg,${C.white},#F4F3FE)`,border:"1px solid rgba(91,79,232,.24)",borderRadius:28,padding:"66px 40px",boxShadow:"0 26px 68px rgba(91,79,232,.12)"}}>
+          <div style={{fontSize:52,marginBottom:16,animation:"float 3s ease-in-out infinite"}}>🎤</div>
+          <h2 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"clamp(24px,3.6vw,37px)",color:C.ink,marginBottom:14,letterSpacing:-.6,lineHeight:1.15}}>
+            Your next interview is real.<br/>
+            <span style={{background:`linear-gradient(135deg,${C.violetD},${C.teal})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>This one can be too.</span>
+          </h2>
+          <p style={{color:C.ink2,fontSize:15,marginBottom:38,lineHeight:1.75}}>Camera on. Mic live. Resume read. Free to start.</p>
+          <button onClick={onStart} className="cta-glow" style={{
+            padding:"17px 54px",borderRadius:13,border:"none",cursor:"pointer",
+            background:`linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,
+            color:"#fff",fontWeight:800,fontSize:17,fontFamily:"'Inter',sans-serif",letterSpacing:.2
+          }}>Start free now →</button>
+        </div>
+      </section>
+
+      {/* ── FOOTER ── */}
+      <footer style={{borderTop:`1px solid ${C.border}`,padding:"28px 28px",background:C.bgSubtle}}>
+        <div style={{maxWidth:1100,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14}}>
+          <Logo size={26} textSize={17}/>
+          
+          <div style={{color:C.muted,fontSize:12}}>© 2026 HireFlo · Built by Raghu Dadigela</div>
+          <div style={{display:"flex",gap:18,alignItems:"center"}}>
+            <a href="mailto:HireFlo.in@gmail.com" style={{color:C.ink2,fontWeight:600,fontSize:13,textDecoration:"none"}}>✉ HireFlo.in@gmail.com</a>
+            <a href="https://HireFlo.vercel.app" target="_blank" rel="noreferrer" style={{color:C.muted,fontSize:12,textDecoration:"none"}}>HireFlo.vercel.app</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+// ── ONBOARDING ────────────────────────────────────────────────────────────────
+function OnboardingFlow({user,onComplete}){
+  const[step,setStep]=useState(0);
+  const[picks,setPicks]=useState({company:"",level:"",resume:false});
+  const companies=["Google","Amazon","TCS","Wipro","Infosys","Flipkart","Microsoft","Other"];
+  const levels=["Fresher (0 exp)","1–2 years","3–5 years","5+ years"];
+  const next=()=>{if(step<2)setStep(s=>s+1);else onComplete(picks);};
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+      <style>{CSS}</style>
+      <div className="fade" style={{width:"100%",maxWidth:500,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:24,padding:"36px 32px"}}>
+        <div style={{display:"flex",gap:6,marginBottom:32}}>{[0,1,2].map(i=>(<div key={i} style={{flex:1,height:3,borderRadius:2,background:i<=step?C.violet:"rgba(255,255,255,.08)",transition:"background .3s"}}/>))}</div>
+        {step===0&&(
+          <div>
+            <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:6,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Which company are you targeting?</div>
+            <div style={{color:C.soft,fontSize:13.5,marginBottom:24}}>We'll customize the interview style to match.</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              {companies.map(c=>(<button key={c} onClick={()=>setPicks(p=>({...p,company:c}))} style={{padding:"14px",borderRadius:12,border:`1px solid ${picks.company===c?C.violet:C.border}`,background:picks.company===c?C.violetPale:"transparent",color:picks.company===c?C.violetL:C.ink2,fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s"}}>{c}</button>))}
+            </div>
+          </div>
+        )}
+        {step===1&&(
+          <div>
+            <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:6,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>What's your experience level?</div>
+            <div style={{color:C.soft,fontSize:13.5,marginBottom:24}}>We'll calibrate question difficulty accordingly.</div>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {levels.map(l=>(<button key={l} onClick={()=>setPicks(p=>({...p,level:l}))} style={{padding:"16px 20px",borderRadius:12,border:`1px solid ${picks.level===l?C.violet:C.border}`,background:picks.level===l?C.violetPale:"transparent",color:picks.level===l?C.violetL:C.ink2,fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all .15s",textAlign:"left"}}>{l}</button>))}
+            </div>
+          </div>
+        )}
+        {step===2&&(
+          <div>
+            <div style={{fontWeight:900,fontSize:22,color:C.ink,marginBottom:6,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Add your resume <span style={{color:C.soft,fontWeight:500,fontSize:18}}>(optional)</span></div>
+            <div style={{color:C.soft,fontSize:13.5,marginBottom:24}}>Upload now for personalized questions — or skip.</div>
+            <div style={{background:C.violetPale,border:`2px dashed ${C.violet}40`,borderRadius:14,padding:"32px",textAlign:"center",marginBottom:16,cursor:"pointer"}} onClick={()=>setPicks(p=>({...p,resume:true}))}>
+              <div style={{fontSize:36,marginBottom:10}}>📄</div>
+              <div style={{fontWeight:700,color:C.ink,marginBottom:4}}>Drop your resume here</div>
+              <div style={{color:C.soft,fontSize:12}}>PDF, DOCX, or TXT</div>
+            </div>
+          </div>
+        )}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:28}}>
+          {step>0?<button onClick={()=>setStep(s=>s-1)} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontSize:13}}>← Back</button>:<div/>}
+          <Btn v="violet" onClick={next} disabled={(step===0&&!picks.company)||(step===1&&!picks.level)} style={{padding:"12px 28px"}}>{step<2?"Continue →":"Let's go →"}</Btn>
+        </div>
+        {step===2&&<button onClick={()=>onComplete(picks)} style={{width:"100%",background:"none",border:"none",color:C.muted,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontSize:12,marginTop:12}}>Skip for now →</button>}
+      </div>
+    </div>
+  );
+}
+
+// ── AUTH PAGE ─────────────────────────────────────────────────────────────────
+function AuthPage({onLogin,onBack,pendingJob}){
+  const[mode,setMode]=useState("login");
+  const[form,setForm]=useState({name:"",email:"",password:""});
+  const[err,setErr]=useState("");
+  const[msg,setMsg]=useState("");
+  const[loading,setLoading]=useState(false);
+  const[gLoading,setGLoading]=useState(false);
+  const set=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  const handleGoogle=async()=>{
+    setGLoading(true);setErr("");
+    if(pendingJob)sessionStorage.setItem("tp_pending_job",JSON.stringify(pendingJob));
+    const{error}=await supabase.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.href}});
+    if(error){setErr(error.message);setGLoading(false);}
+  };
+
+  const handle=async()=>{
+    setErr("");setMsg("");setLoading(true);
+    try{
+      if(mode==="register"){
+        if(!form.name||!form.email||!form.password)throw new Error("All fields required");
+        if(form.password.length<6)throw new Error("Password must be 6+ characters");
+        const{error}=await supabase.auth.signUp({email:form.email,password:form.password,options:{data:{full_name:form.name}}});
+        if(error)throw error;
+        setMsg("✅ Check your email to verify, then sign in.");setMode("login");
+      }else{
+        const{data,error}=await supabase.auth.signInWithPassword({email:form.email,password:form.password});
+        if(error)throw error;
+        onLogin(data.user);
+      }
+    }catch(e){setErr(e.message||"Something went wrong");}
+    setLoading(false);
+  };
+
+  return(
+    <div style={{minHeight:"100vh",background:`linear-gradient(160deg,#040610,#080C14 40%,#0D1230)`,display:"flex",alignItems:"center",justifyContent:"center",padding:24,position:"relative",overflow:"hidden"}}>
+      <style>{CSS}</style>
+      <div style={{position:"absolute",top:"10%",right:"10%",width:400,height:400,borderRadius:"50%",background:`radial-gradient(circle,${C.violet}08,transparent 65%)`,pointerEvents:"none"}}/>
+      <div className="fade" style={{width:"100%",maxWidth:420,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:24,padding:36,boxShadow:"0 24px 60px rgba(0,0,0,.5)",position:"relative",zIndex:1}}>
+        <button onClick={onBack} style={{background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",marginBottom:24,fontFamily:"'Inter',sans-serif"}}>← Back</button>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{display:"flex",justifyContent:"center",marginBottom:8}}>
+             <img src={LOGO_URL} alt="HireFlo" style={{width:56,height:56,objectFit:"contain"}}/>
+          </div>
+          <div style={{fontWeight:900,fontSize:24,fontFamily:"'Plus Jakarta Sans',sans-serif",background:"linear-gradient(135deg,#A89BFC,#00D4AA)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>HireFlo</div>
+        
+        </div>
+        {pendingJob&&(pendingJob.role||pendingJob.company)&&(
+          <div style={{background:C.violetPale,border:`1px solid ${C.violet}25`,borderRadius:10,padding:"10px 14px",marginBottom:18,fontSize:12.5,color:C.violetL,textAlign:"center"}}>
+            🔥 Sign in to view <strong>{pendingJob.role||"this role"}</strong>{pendingJob.company?` at ${pendingJob.company}`:""}
+          </div>
+        )}
+        <button onClick={handleGoogle} disabled={gLoading} style={{width:"100%",padding:"13px",borderRadius:12,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.05)",color:C.ink,fontSize:14,cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:20,transition:"all .2s"}}>
+          {gLoading?<Spin size={16}/>:<svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>}
+          Continue with Google
+        </button>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+          <div style={{flex:1,height:1,background:C.border}}/><span style={{color:C.muted,fontSize:12}}>or</span><div style={{flex:1,height:1,background:C.border}}/>
+        </div>
+        <div style={{display:"flex",background:"rgba(255,255,255,.04)",borderRadius:10,padding:4,marginBottom:20}}>
+          {["login","register"].map(m=>(<button key={m} onClick={()=>{setMode(m);setErr("");setMsg("");}} style={{flex:1,padding:"9px",borderRadius:8,border:"none",cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,transition:"all .2s",background:mode===m?"rgba(124,110,250,.2)":"transparent",color:mode===m?C.violetL:C.muted}}>{m==="login"?"Sign In":"Register"}</button>))}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {mode==="register"&&<input style={inp} placeholder="Full name" value={form.name} onChange={e=>set("name",e.target.value)} onFocus={ev=>ev.target.style.borderColor=C.violet} onBlur={ev=>ev.target.style.borderColor=C.border}/>}
+          <input style={inp} placeholder="Email address" type="email" value={form.email} onChange={e=>set("email",e.target.value)} onKeyDown={e=>e.key==="Enter"&&handle()} onFocus={ev=>ev.target.style.borderColor=C.violet} onBlur={ev=>ev.target.style.borderColor=C.border}/>
+          <input style={inp} placeholder="Password" type="password" value={form.password} onChange={e=>set("password",e.target.value)} onKeyDown={e=>e.key==="Enter"&&handle()} onFocus={ev=>ev.target.style.borderColor=C.violet} onBlur={ev=>ev.target.style.borderColor=C.border}/>
+        </div>
+        {err&&<div style={{color:C.red,fontSize:12,marginTop:10,background:C.redPale,padding:"8px 12px",borderRadius:8,border:`1px solid ${C.red}20`}}>⚠ {err}</div>}
+        {msg&&<div style={{color:C.green,fontSize:12,marginTop:10,background:C.greenPale,padding:"8px 12px",borderRadius:8,border:`1px solid ${C.green}20`}}>{msg}</div>}
+        <Btn v="violet" onClick={handle} loading={loading} style={{width:"100%",marginTop:16,padding:"13px",fontSize:15}}>{mode==="login"?"Sign In →":"Create Account →"}</Btn>
+        <div style={{textAlign:"center",marginTop:16,fontSize:12,color:C.muted}}>Questions? <a href="mailto:HireFlo.in@gmail.com" style={{color:C.violetL,fontWeight:700}}>HireFlo.in@gmail.com</a></div>
+      </div>
+    </div>
+  );
+}
+// ── AI CHAT WIDGET (ChatGPT-style floating assistant) ─────────────────────────
+// Paste this anywhere below your other component definitions (e.g. right after
+// the Dashboard function, or right before MainApp). Then render it once inside
+// MainApp's return, as a sibling of everything else — see the note at the
+// bottom of this file for the exact one-line change.
+//
+// Uses your existing C design tokens, Btn, Spin, and callGroq — nothing new to
+// import. Chat history lives in component state only (resets on page reload).
+
+function ChatWidget({ user, context }) {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState([
+    { role: "assistant", content: "Hi! I'm your HireFlo AI assistant. Ask me anything about interviews, resumes, or your job search 👋" }
+  ]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [unread, setUnread] = useState(0);
+  const [isMobile, setIsMobile] = useState(typeof window!=="undefined"?window.innerWidth<640:false);
+  const scrollRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    const onResize=()=>setIsMobile(window.innerWidth<640);
+    window.addEventListener("resize",onResize);
+    return()=>window.removeEventListener("resize",onResize);
+  }, []);
+
+  useEffect(() => {
+    if (open && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, open, sending]);
+
+  useEffect(() => {
+    if (open) {
+      setUnread(0);
+      setTimeout(() => inputRef.current?.focus(), 250);
+      // lock background scroll on mobile full-screen mode
+      if(isMobile){
+        const prevOverflow=document.body.style.overflow;
+        document.body.style.overflow="hidden";
+        return()=>{document.body.style.overflow=prevOverflow;};
+      }
+    }
+  }, [open, isMobile]);
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || sending) return;
+    const nextMessages = [...messages, { role: "user", content: text }];
+    setMessages(nextMessages);
+    setInput("");
+    setSending(true);
+
+    try {
+      const sys = `You are the HireFlo AI Assistant — a friendly, sharp career coach embedded inside the HireFlo app (an AI mock-interview and job-prep platform for Indian freshers). Help with: interview prep, resume advice, job search strategy, career questions, and using HireFlo's own features (mock interviews, ATS checker, job feed, company prep). Keep answers concise, practical, and encouraging. Use short paragraphs or bullet points. If asked something totally unrelated to careers/jobs/interviews, answer briefly and steer back.${user?.user_metadata?.full_name ? ` The user's name is ${user.user_metadata.full_name.split(" ")[0]}.` : ""}`;
+
+      const history = nextMessages.slice(-10)
+        .map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+        .join("\n");
+
+      const raw = await callGroq(`${history}\nAssistant:`, 700, sys);
+      const reply = (raw || "").trim() || "Sorry, I couldn't generate a response — try again.";
+      setMessages(m => [...m, { role: "assistant", content: reply }]);
+      if (!open) setUnread(u => u + 1);
+    } catch (e) {
+      setMessages(m => [...m, { role: "assistant", content: "⚠ I couldn't reach the AI service. Please try again in a moment." }]);
+    }
+    setSending(false);
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  };
+
+  // ── Mobile: full-screen takeover ──
+  // ── Desktop: floating 360x520 panel ──
+  const panelStyle = isMobile
+    ? { position:"fixed", inset:0, zIndex:9999, width:"100%", height:"100%", maxWidth:"100%", maxHeight:"100%", borderRadius:0 }
+    : { position:"fixed", bottom:92, right:24, zIndex:9998, width:360, maxWidth:"calc(100vw - 32px)", height:520, maxHeight:"calc(100vh - 140px)", borderRadius:20 };
+
+  return (
+    <>
+      {/* Floating launcher button — hidden on mobile once chat is open */}
+      {!(isMobile && open) && (
+        <button
+          onClick={() => setOpen(o => !o)}
+          aria-label="Open chat assistant"
+          className="chat-launcher"
+          style={{
+            position: "fixed", bottom: 24, right: 24, zIndex: 9998,
+            width: 58, height: 58, borderRadius: "50%", border: "none", cursor: "pointer",
+            background: `linear-gradient(135deg,${C.violetD},${C.violet},${C.violetL})`,
+            boxShadow: C.shVioletGlow, display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "transform .18s cubic-bezier(.22,1,.36,1)",
+          }}
+          onMouseEnter={e => e.currentTarget.style.transform = "scale(1.06)"}
+          onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+        >
+          <span style={{ fontSize: 24, lineHeight: 1, transform: open ? "rotate(90deg)" : "none", transition: "transform .2s" }}>
+            {open ? "✕" : "💬"}
+          </span>
+          {!open && unread > 0 && (
+            <span style={{
+              position: "absolute", top: -2, right: -2, background: C.red, color: "#fff",
+              fontSize: 10, fontWeight: 800, width: 18, height: 18, borderRadius: "50%",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              border: `2px solid ${C.white}`, fontFamily: "'Inter',sans-serif",
+            }}>{unread}</span>
+          )}
+        </button>
+      )}
+
+      {/* Chat panel */}
+      {open && (
+        <div className="chat-panel fadein" style={{
+          ...panelStyle,
+          background: C.bgCard, border: isMobile?"none":`1px solid ${C.border}`,
+          boxShadow: isMobile?"none":C.shHover, display: "flex", flexDirection: "column", overflow: "hidden",
+        }}>
+          {/* Header */}
+          <div style={{
+            background: `linear-gradient(135deg,${C.violetD},${C.violet})`,
+            padding: isMobile?"14px 16px":"14px 18px",
+            paddingTop: isMobile?"calc(14px + env(safe-area-inset-top,0px))":"14px",
+            display: "flex", alignItems: "center", gap: 10, flexShrink: 0,
+          }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,.2)",
+              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0,
+            }}>🤖</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ color: "#fff", fontWeight: 800, fontSize: isMobile?15:13.5, fontFamily: "'Inter',sans-serif" }}>HireFlo Assistant</div>
+              <div style={{ color: "rgba(255,255,255,.75)", fontSize: 11, fontWeight: 600 }}>
+                {sending ? "Typing…" : "Online · Ask me anything"}
+              </div>
+            </div>
+            <button
+              onClick={() => setOpen(false)}
+              style={{ background: "rgba(255,255,255,.15)", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", padding: 8, borderRadius: "50%", width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}
+            >✕</button>
+          </div>
+
+          {/* Messages */}
+          <div ref={scrollRef} style={{
+            flex: 1, overflowY: "auto",
+            padding: isMobile?"16px 14px 8px":"16px 14px",
+            display: "flex", flexDirection: "column", gap: 10, background: C.bgSubtle,
+            WebkitOverflowScrolling:"touch",
+          }}>
+            {messages.map((m, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+                <div style={{
+                  maxWidth: isMobile?"88%":"82%",
+                  padding: isMobile?"11px 14px":"10px 13px",
+                  borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                  background: m.role === "user" ? `linear-gradient(135deg,${C.violetD},${C.violet})` : C.white,
+                  color: m.role === "user" ? "#fff" : C.ink,
+                  border: m.role === "user" ? "none" : `1px solid ${C.border}`,
+                  fontSize: isMobile?15:13.5, lineHeight: 1.6, fontWeight: 500, whiteSpace: "pre-wrap", wordBreak: "break-word",
+                  boxShadow: m.role === "user" ? "none" : C.shCard,
+                }}>
+                  {m.content}
+                </div>
+              </div>
+            ))}
+            {sending && (
+              <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                <div style={{
+                  padding: "10px 14px", borderRadius: "16px 16px 16px 4px", background: C.white,
+                  border: `1px solid ${C.border}`, display: "flex", gap: 4, alignItems: "center",
+                }}>
+                  {[0, 1, 2].map(i => (
+                    <span key={i} style={{
+                      width: 6, height: 6, borderRadius: "50%", background: C.violet,
+                      animation: `pulse .9s ease-in-out ${i * 0.15}s infinite`,
+                    }} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Input */}
+          <div style={{
+            padding: isMobile?"10px 12px":12,
+            paddingBottom: isMobile?"calc(10px + env(safe-area-inset-bottom,0px))":12,
+            borderTop: `1px solid ${C.border}`, background: C.white, flexShrink: 0,
+            display: "flex", gap: 8, alignItems: "flex-end",
+          }}>
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Ask about interviews, resumes, jobs…"
+              rows={1}
+              style={{
+                flex: 1, resize: "none", border: `1.5px solid ${C.border}`, borderRadius: 14,
+                padding: isMobile?"12px 14px":"10px 12px",
+                fontSize: isMobile?16:13.5,   // 16px prevents iOS auto-zoom on focus
+                fontFamily: "'Inter',sans-serif", color: C.ink,
+                outline: "none", maxHeight: 100, background: C.white, fontWeight: 500,
+              }}
+            />
+            <button
+              onClick={send}
+              disabled={!input.trim() || sending}
+              style={{
+                width: isMobile?44:40, height: isMobile?44:40, borderRadius: 14, border: "none", flexShrink: 0,
+                cursor: (!input.trim() || sending) ? "not-allowed" : "pointer",
+                opacity: (!input.trim() || sending) ? 0.5 : 1,
+                background: `linear-gradient(135deg,${C.violetD},${C.violet})`,
+                color: "#fff", fontSize: 17, display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >{sending ? <Spin size={16} color="#fff" /> : "➤"}</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── HOW TO RENDER IT ───────────────────────────────────────────────────────
+// Inside function MainApp(...), find the closing </div> of the outermost
+// wrapper (the one with paddingBottom:76) and add <ChatWidget user={user}/>
+// as the last child, e.g.:
+//
+//   return(
+//     <div style={{minHeight:"100vh",background:C.bg,...}}>
+//       ...everything you already have...
+//       <ChatWidget user={user}/>
+//     </div>
+//   );
+
+// ── MAIN APP ──────────────────────────────────────────────────────────────────
+function MainApp({user,onLogout,pendingJob,onPendingJobHandled}){
+  const[tab,setTab]=useState(()=>parseInt(sessionStorage.getItem("tp_tab")||"0"));
+  const[menuOpen,setMenuOpen]=useState(false);
+  const[stats,setStats]=useState(null);
+  const[prefillCompany,setPrefillCompany]=useState("");
+  const[prefillRole,setPrefillRole]=useState("");
+
+  // Add useSubscription
+  const{isPro}=useSubscription(user?.id);
+
+  const name=user?.user_metadata?.full_name||user?.email?.split("@")[0]||"there";
+  const firstName=name.split(" ")[0];
+  const initials=name.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
+  const streak=stats?.streak?.streak||0;
+
+  const setTabP=(t)=>{setTab(t);sessionStorage.setItem("tp_tab",t);};
+
+const TABS=[{icon:"🏠",label:"Home",id:0},{icon:"💼",label:"Jobs",id:1},{icon:"🎙️",label:"Mock",id:2},{icon:"🏢",label:"Prep",id:3},{icon:"📄",label:"ATS",id:4}];
+  useEffect(()=>{fetchUserStats(user?.id).then(s=>setStats(s));},[user]);
+  useEffect(()=>{loadRazorpayScript();},[]);
+
+  useEffect(()=>{
+    if(pendingJob&&(pendingJob.role||pendingJob.company||pendingJob.jurl)){
+      setTabP(1);
+      if(pendingJob.role)sessionStorage.setItem("tp_s",pendingJob.role);
+      if(pendingJob.jurl){try{window.open(pendingJob.jurl,"_blank");}catch{}}
+      onPendingJobHandled&&onPendingJobHandled();
+    }
+  // eslint-disable-next-line
+  },[]);
+
+  const refreshStats=()=>{fetchUserStats(user?.id).then(s=>setStats(s));};
+
+  const handlePracticeForJob=(company,role)=>{setPrefillCompany(company||"");setPrefillRole(role||"");setTabP(2);};
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Inter',sans-serif",paddingBottom:76}}>
+    <style>{CSS}{`@media(min-width:640px){.bn{display:none!important;}.ttb{display:flex!important;}}@media(max-width:639px){.ttb{display:none!important;}.bn{display:flex!important;}.chat-launcher{bottom:88px!important;}.chat-panel{bottom:156px!important;}}`}</style>
+
+     
+     <div style={{background:"rgba(8,12,20,.95)",backdropFilter:"blur(20px)",borderBottom:`1px solid ${C.border}`,padding:"0 20px",position:"sticky",top:0,zIndex:100}}>
+        <div style={{maxWidth:900,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:58}}>
+          <Logo size={30} textSize={20}/>
+        
+          {streak>0&&(
+            <div style={{display:"flex",alignItems:"center",gap:6,background:C.goldPale,borderRadius:20,padding:"4px 12px",border:`1px solid ${C.gold}25`}}>
+              <span style={{animation:"streakPop 3s ease infinite"}}>🔥</span>
+              <span style={{color:C.gold,fontWeight:700,fontSize:13,fontFamily:"JetBrains Mono,monospace"}}>{streak}</span>
+              <span style={{color:"rgba(245,158,11,.6)",fontSize:11,fontWeight:600}}>day streak</span>
+            </div>
+          )}
+          <div className="ttb" style={{display:"none",gap:0}}>
+            {TABS.map(t=>(<button key={t.id} onClick={()=>setTabP(t.id)} style={{padding:"8px 16px",border:"none",background:"transparent",cursor:"pointer",color:tab===t.id?C.violetL:C.soft,fontFamily:"'Inter',sans-serif",fontWeight:tab===t.id?700:500,fontSize:13,borderBottom:`2px solid ${tab===t.id?C.violet:"transparent"}`,transition:"all .2s",display:"flex",alignItems:"center",gap:5}}>{t.icon} {t.label}</button>))}
+          </div>
+        <button onClick={()=>setMenuOpen(true)} style={{width:34,height:34,borderRadius:"50%",overflow:"hidden",background:`linear-gradient(135deg,${C.violet},${C.teal})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:"#fff",border:"none",cursor:"pointer",boxShadow:`0 2px 12px ${C.violet}40`,padding:0}}>
+            {user?.user_metadata?.avatar_url
+              ?<img src={user.user_metadata.avatar_url} alt={name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+              :initials}
+          </button>
+        </div>
+      </div>
+      <ProfilePanel user={user} open={menuOpen} onClose={()=>setMenuOpen(false)} onLogout={onLogout}/>
+
+      <div style={{maxWidth:900,margin:"0 auto",padding:"22px 16px"}}>
+        {tab===0&&<FeedTab user={user}/>}
+        {tab===1&&<JobsTab onPracticeForJob={handlePracticeForJob}/>}
+        {tab===2&&<ResumeInterviewTab user={user} onInterviewComplete={refreshStats} prefillCompany={prefillCompany} prefillRole={prefillRole}/>}
+        {tab===3&&<CompanyPrepTab user={user} onPracticeForCompany={handlePracticeForJob}/>}
+       {tab===4&&<ATSCheckTab/>}
+      </div>
+
+    <div className="bn" style={{position:"fixed",bottom:0,left:0,right:0,background:"rgba(8,12,20,.96)",backdropFilter:"blur(24px)",borderTop:`1px solid ${C.border}`,display:"flex",zIndex:200,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
+        {TABS.map(t=>{
+          const active=tab===t.id;
+          return(
+          <button key={t.id} onClick={()=>setTabP(t.id)} style={{flex:1,padding:"10px 4px 8px",border:"none",borderRadius:0,background:active?"rgba(124,110,250,.12)":"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,color:active?C.violetL:C.muted,fontFamily:"'Inter',sans-serif",transition:"all .2s",borderTop:active?`2px solid ${C.violet}`:"2px solid transparent"}}>
+              <span style={{fontSize:active?21:19,lineHeight:1,transition:"font-size .18s"}}>{t.icon}</span>
+              <span style={{fontSize:9.5,fontWeight:active?800:600,letterSpacing:.2,whiteSpace:"nowrap",maxWidth:58,overflow:"hidden",textOverflow:"ellipsis",color:active?C.violetL:"rgba(255,255,255,.45)"}}>{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      <ChatWidget user={user}/>
+    </div>
+  );
+}
+// ── ERROR BOUNDARY ────────────────────────────────────────────────────────────
+class ErrorBoundary extends React.Component{
+  constructor(props){super(props);this.state={hasError:false};}
+  static getDerivedStateFromError(){return{hasError:true};}
+  componentDidCatch(err,info){console.error("App crashed:",err,info);}
+  render(){
+    if(this.state.hasError){
+      return(
+        <div style={{minHeight:"100vh",background:"#080C14",color:"#fff",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14,padding:24,textAlign:"center",fontFamily:"'Inter',sans-serif"}}>
+          <div style={{fontSize:40}}>⚠️</div>
+          <div style={{fontWeight:700,fontSize:18}}>Something went wrong</div>
+          <div style={{color:"rgba(255,255,255,.5)",fontSize:13,maxWidth:320}}>Please reload. If this persists, check the browser console and contact HireFlo.in@gmail.com.</div>
+          <button onClick={()=>window.location.reload()} style={{padding:"10px 24px",borderRadius:10,border:"none",background:"#7C6EFA",color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>Reload</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ── ROOT ──────────────────────────────────────────────────────────────────────
+function parseJobParams(){
+  if(typeof window==="undefined")return null;
+  const p=new URLSearchParams(window.location.search);
+  const company=p.get("cmp")||"",role=p.get("role")||"",jurl=p.get("jurl")||"",jid=p.get("jid")||"";
+  if(company||role||jurl||jid)return{company,role,jurl,jid};
+  try{const stashed=sessionStorage.getItem("tp_pending_job");if(stashed){sessionStorage.removeItem("tp_pending_job");return JSON.parse(stashed);}}catch{}
+  return null;
+}
+
+function AppInner(){
+  const[user,setUser]=useState(null);
+  const[loading,setLoading]=useState(true);
+  const[page,setPage]=useState("landing");
+  const[showOnboarding,setShowOnboarding]=useState(false);
+  const[pendingJob,setPendingJob]=useState(()=>parseJobParams());
+
+  const clearJobParams=()=>{
+    setPendingJob(null);
+    if(typeof window!=="undefined"){const url=new URL(window.location.href);url.search="";window.history.replaceState({},"",url.toString());}
+  };
+
+  const routeAfterAuth=(u)=>{setUser(u);setPage("app");setShowOnboarding(!u?.user_metadata?.onboarded);};
+
+  useEffect(()=>{
+    const s=document.createElement("style");s.textContent=CSS;document.head.appendChild(s);
+    // Pre-warm voices list
+    if(window.speechSynthesis){
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged=()=>{window.speechSynthesis.getVoices();};
+    }
+    supabase.auth.getSession().then(({data:{session}})=>{
+      if(session?.user){routeAfterAuth(session.user);}
+      else if(pendingJob){setPage("auth");}
+      setLoading(false);
+    });
+    const{data:{subscription}}=supabase.auth.onAuthStateChange((_,session)=>{
+      if(session?.user){routeAfterAuth(session.user);}
+      else{setUser(null);setPage(pendingJob?"auth":"landing");setShowOnboarding(false);}
+    });
+    return()=>subscription.unsubscribe();
+  // eslint-disable-next-line
+  },[]);
+
+  const handleOnboardingComplete=async(picks)=>{
+    setShowOnboarding(false);
+    try{const{data}=await supabase.auth.updateUser({data:{onboarded:true,target_company:picks.company,experience_level:picks.level}});if(data?.user)setUser(data.user);}
+    catch(e){console.log("onboarding flag save failed:",e.message);}
+  };
+
+  if(loading)return(
+    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
+      <style>{CSS}</style>
+      <div style={{fontSize:36,animation:"float 2s ease-in-out infinite"}}>🎤</div>
+      <Spin size={32}/>
+      <div style={{color:C.muted,fontSize:13,fontFamily:"'Inter',sans-serif"}}>Loading HireFlo…</div>
+    </div>
+  );
+
+  if(page==="landing")return<LandingPage onStart={()=>setPage("auth")}/>;
+  if(page==="auth")return<AuthPage onLogin={routeAfterAuth} onBack={()=>setPage("landing")} pendingJob={pendingJob}/>;
+  if(page==="app"&&showOnboarding)return<OnboardingFlow user={user} onComplete={handleOnboardingComplete}/>;
+  return<MainApp user={user} onLogout={()=>supabase.auth.signOut()} pendingJob={pendingJob} onPendingJobHandled={clearJobParams}/>;
+}
+
+export default function App(){
+  return<ErrorBoundary><AppInner/></ErrorBoundary>;
 }
