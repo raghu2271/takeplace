@@ -298,12 +298,34 @@ async function fetchUserStats(userId){
 }
 
 // ── SUBSCRIPTION HELPERS ──────────────────────────────────────────────────────
+// ── SUBSCRIPTION HELPERS ──────────────────────────────────────────────────────
 async function fetchActiveSubscription(userId){
   if(!userId)return null;
   try{
     const{data}=await supabase.from("user_subscriptions").select("*").eq("user_id",userId).eq("status","active").gte("expires_at",new Date().toISOString()).order("expires_at",{ascending:false}).limit(1).single();
     return data||null;
   }catch{return null;}
+}
+
+// ── COUPON REDEMPTION ─────────────────────────────────────────────────────────
+const COUPONS = {
+  hire360: { plan: "month", days: 30 },
+  hire240: { plan: "week",  days: 7  },
+};
+async function redeemCoupon(code, userId){
+  const c = COUPONS[code.trim().toLowerCase()];
+  if(!c) return { ok:false, error:"Invalid coupon code" };
+  try{
+    const expires_at = new Date(Date.now() + c.days*24*60*60*1000).toISOString();
+    const prepPlan = c.plan==="month" ? "prep_month" : "prep_week";
+    // Insert both rows in one go — coupon unlocks mock interviews AND interview prep together
+    const { error } = await supabase.from("user_subscriptions").insert([
+      { user_id: userId, plan: c.plan, status: "active", expires_at },
+      { user_id: userId, plan: prepPlan, status: "active", expires_at },
+    ]);
+    if(error) throw error;
+    return { ok:true, plan:c.plan };
+  }catch(e){ return { ok:false, error: e.message }; }
 }
 
 function useSubscription(userId){
@@ -565,12 +587,32 @@ function SlotGrid({isPro,onSelectSlot,onUpgrade,completedSlots=[],loadingSlot=nu
   );
 }
 
-function UpgradeModal({onClose,onChoosePlan,checkingOut}){
+function UpgradeModal({onClose,onChoosePlan,checkingOut,user,onRedeemed}){
+  const[coupon,setCoupon]=useState("");
+  const[redeeming,setRedeeming]=useState(false);
+  const[couponErr,setCouponErr]=useState("");
+  const[couponOk,setCouponOk]=useState("");
+
+  const applyCoupon=async()=>{
+    if(!coupon.trim())return;
+    setRedeeming(true);setCouponErr("");setCouponOk("");
+    const res=await redeemCoupon(coupon,user?.id);   // ← CALLED HERE
+    setRedeeming(false);
+    if(res.ok){
+      setCouponOk(`✅ Unlocked ${res.plan==="month"?"1 Month":"1 Week"} Pro!`);
+      onRedeemed?.();               // refreshes isPro state
+      setTimeout(onClose,900);      // close modal shortly after
+    }else{
+      setCouponErr(res.error);
+    }
+  };
+
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:20,padding:28,maxWidth:380,width:"100%"}}>
         <div style={{fontWeight:900,fontSize:20,color:C.ink,marginBottom:6,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🔒 Unlock all 15 mock interviews</div>
         <div style={{color:C.soft,fontSize:13,marginBottom:20,lineHeight:1.7}}>You've used your 2 free mocks. Unlock all 15 with different questions every time.</div>
+
         {[
           {plan:"week",label:"1 Week",price:"₹49",desc:"All 15 slots, every role, 7 days"},
           {plan:"month",label:"1 Month",price:"₹199",desc:"All 15 slots, every role, 30 days",popular:true},
@@ -584,7 +626,20 @@ function UpgradeModal({onClose,onChoosePlan,checkingOut}){
             <div style={{fontWeight:900,fontSize:18,color:C.violetL,fontFamily:"'JetBrains Mono',monospace"}}>{p.price}</div>
           </button>
         ))}
-        <button onClick={onClose} style={{width:"100%",background:"none",border:"none",color:C.muted,fontSize:12,marginTop:6,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>Maybe later</button>
+
+        <div style={{display:"flex",alignItems:"center",gap:10,margin:"14px 0"}}>
+          <div style={{flex:1,height:1,background:C.border}}/><span style={{color:C.muted,fontSize:11}}>or have a coupon?</span><div style={{flex:1,height:1,background:C.border}}/>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <input style={{...inp,padding:"9px 12px",fontSize:13}} placeholder="Enter coupon code"
+            value={coupon} onChange={e=>{setCoupon(e.target.value);setCouponErr("");setCouponOk("");}}
+            onKeyDown={e=>e.key==="Enter"&&applyCoupon()}/>
+          <Btn v="teal" small loading={redeeming} onClick={applyCoupon}>Apply</Btn>
+        </div>
+        {couponErr&&<div style={{color:C.red,fontSize:11.5,marginTop:6}}>{couponErr}</div>}
+        {couponOk&&<div style={{color:C.green,fontSize:11.5,marginTop:6,fontWeight:700}}>{couponOk}</div>}
+
+        <button onClick={onClose} style={{width:"100%",background:"none",border:"none",color:C.muted,fontSize:12,marginTop:14,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>Maybe later</button>
       </div>
     </div>
   );
@@ -611,7 +666,26 @@ function usePrepSubscription(userId){
   return{isPrepPro:!!sub,plan:sub?.plan||null,expiresAt:sub?.expires_at||null,loading,refresh};
 }
 
-function PrepUpgradeModal({onClose,onChoosePlan,checkingOut}){
+function PrepUpgradeModal({onClose,onChoosePlan,checkingOut,user,onRedeemed}){
+  const[coupon,setCoupon]=useState("");
+  const[redeeming,setRedeeming]=useState(false);
+  const[couponErr,setCouponErr]=useState("");
+  const[couponOk,setCouponOk]=useState("");
+
+  const applyCoupon=async()=>{
+    if(!coupon.trim())return;
+    setRedeeming(true);setCouponErr("");setCouponOk("");
+    const res=await redeemCoupon(coupon,user?.id);
+    setRedeeming(false);
+    if(res.ok){
+      setCouponOk(`✅ Unlocked ${res.plan==="month"?"1 Month":"1 Week"} Pro!`);
+      onRedeemed?.();
+      setTimeout(onClose,900);
+    }else{
+      setCouponErr(res.error);
+    }
+  };
+
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:20,padding:28,maxWidth:380,width:"100%"}}>
@@ -630,12 +704,24 @@ function PrepUpgradeModal({onClose,onChoosePlan,checkingOut}){
             <div style={{fontWeight:900,fontSize:18,color:C.violetL,fontFamily:"'JetBrains Mono',monospace"}}>{p.price}</div>
           </button>
         ))}
-        <button onClick={onClose} style={{width:"100%",background:"none",border:"none",color:C.muted,fontSize:12,marginTop:6,cursor:"pointer"}}>Maybe later</button>
+
+        <div style={{display:"flex",alignItems:"center",gap:10,margin:"14px 0"}}>
+          <div style={{flex:1,height:1,background:C.border}}/><span style={{color:C.muted,fontSize:11}}>or have a coupon?</span><div style={{flex:1,height:1,background:C.border}}/>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <input style={{...inp,padding:"9px 12px",fontSize:13}} placeholder="Enter coupon code"
+            value={coupon} onChange={e=>{setCoupon(e.target.value);setCouponErr("");setCouponOk("");}}
+            onKeyDown={e=>e.key==="Enter"&&applyCoupon()}/>
+          <Btn v="teal" small loading={redeeming} onClick={applyCoupon}>Apply</Btn>
+        </div>
+        {couponErr&&<div style={{color:C.red,fontSize:11.5,marginTop:6}}>{couponErr}</div>}
+        {couponOk&&<div style={{color:C.green,fontSize:11.5,marginTop:6,fontWeight:700}}>{couponOk}</div>}
+
+        <button onClick={onClose} style={{width:"100%",background:"none",border:"none",color:C.muted,fontSize:12,marginTop:14,cursor:"pointer"}}>Maybe later</button>
       </div>
     </div>
   );
 }
-
 // ── COMPANY PREP (Free Roadmap + Paid Q&A) ───────────────────────────────────
 async function fetchCached(table,company,role){
   try{const{data}=await supabase.from(table).select("*").eq("company",company.toLowerCase()).eq("role",role.toLowerCase()).single();return data?.data||null;}
@@ -900,7 +986,7 @@ Return ONLY this JSON (no markdown):
         </div>
       )}
  
-      {showUpgrade&&<PrepUpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut}/>}
+     {showUpgrade&&<PrepUpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut} user={user} onRedeemed={refreshPrepSub}/>}
     </div>
   );
  
@@ -958,7 +1044,7 @@ Return ONLY this JSON (no markdown):
           🎙️ Practice live mock interview for {company} →
         </Btn>
  
-        {showUpgrade&&<PrepUpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut}/>}
+       {showUpgrade&&<PrepUpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut} user={user} onRedeemed={refreshPrepSub}/>}
       </div>
     );
   }
@@ -1394,8 +1480,10 @@ function ProfilePanel({user,open,onClose,onLogout}){
   const[education,setEducation]=useState(meta.education||"");
   const[interests,setInterests]=useState(meta.interests||"");
   const[saving,setSaving]=useState(false);
+  const[copied,setCopied]=useState(false);
   const name=meta.full_name||"You";
   const initials=name.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
+  const referLink=`${typeof window!=="undefined"?window.location.origin:""}?ref=${user?.id||""}`;
 
   useEffect(()=>{
     if(open){setHeadline(meta.headline||"");setEducation(meta.education||"");setInterests(meta.interests||"");setEditing(false);}
@@ -1408,15 +1496,22 @@ function ProfilePanel({user,open,onClose,onLogout}){
     setSaving(false);setEditing(false);
   };
 
+  const copyReferLink=async()=>{
+    try{await navigator.clipboard.writeText(referLink);setCopied(true);setTimeout(()=>setCopied(false),2500);}catch{}
+  };
+
   if(!open)return null;
 
   return(
-    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:9999,display:"flex"}}>
-      <div onClick={e=>e.stopPropagation()} className="fade" style={{width:320,maxWidth:"85vw",height:"100%",background:C.bgCard,boxShadow:"4px 0 30px rgba(0,0,0,.2)",overflowY:"auto",padding:0}}>
-        <div style={{background:`linear-gradient(135deg,${C.violetD},${C.violet})`,height:70,position:"relative"}}>
+    // justifyContent:"flex-start" pins the drawer to the LEFT edge of the screen
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:9999,display:"flex",justifyContent:"flex-start"}}>
+      <div onClick={e=>e.stopPropagation()} className="fade" style={{width:320,maxWidth:"85vw",height:"100%",background:C.bgCard,boxShadow:"4px 0 30px rgba(0,0,0,.2)",overflowY:"auto",padding:0,display:"flex",flexDirection:"column"}}>
+
+        <div style={{background:`linear-gradient(135deg,${C.violetD},${C.violet})`,height:70,position:"relative",flexShrink:0}}>
           <button onClick={onClose} style={{position:"absolute",top:12,right:12,background:"rgba(255,255,255,.2)",border:"none",borderRadius:"50%",width:28,height:28,color:"#fff",cursor:"pointer",fontSize:14}}>✕</button>
         </div>
-        <div style={{padding:"0 20px 20px",marginTop:-36}}>
+
+        <div style={{padding:"0 20px 20px",marginTop:-36,flex:1,display:"flex",flexDirection:"column"}}>
           {meta.avatar_url?(
             <img src={meta.avatar_url} alt={name} style={{width:72,height:72,borderRadius:"50%",objectFit:"cover",border:`3px solid ${C.bgCard}`,display:"block"}}/>
           ):(
@@ -1429,11 +1524,30 @@ function ProfilePanel({user,open,onClose,onLogout}){
               <div style={{color:C.soft,fontSize:13,marginTop:2,fontWeight:500}}>{meta.headline||"Add a headline"}</div>
               {meta.education&&<div style={{marginTop:14,fontSize:13,color:C.ink2,display:"flex",alignItems:"center",gap:6}}>🎓 {meta.education}</div>}
               {meta.interests&&<div style={{marginTop:6,fontSize:13,color:C.ink2,display:"flex",alignItems:"center",gap:6}}>✨ {meta.interests}</div>}
-              <button onClick={()=>setEditing(true)} style={{width:"100%",marginTop:16,padding:"9px",borderRadius:20,border:`1.5px solid ${C.violet}50`,background:C.violetPale,color:C.violetD,fontSize:13,fontWeight:800,cursor:"pointer"}}>Edit profile</button>
+
+              <button onClick={()=>setEditing(true)} style={{width:"100%",marginTop:16,padding:"9px",borderRadius:20,border:`1.5px solid ${C.violet}50`,background:C.violetPale,color:C.violetD,fontSize:13,fontWeight:800,cursor:"pointer"}}>
+                ✏️ Edit profile
+              </button>
 
               <div style={{height:1,background:C.border,margin:"18px 0"}}/>
 
-              <button onClick={onLogout} style={{width:"100%",textAlign:"left",padding:"11px 4px",background:"none",border:"none",color:C.red,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>🚪 Sign Out</button>
+              {/* Menu order: Refer & Earn → Support → Logout */}
+              <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                <button onClick={copyReferLink} style={{width:"100%",textAlign:"left",padding:"12px 6px",background:copied?C.greenPale:"none",borderRadius:10,border:"none",color:C.ink,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10,transition:"background .2s"}}>
+                  🎁 Refer &amp; Earn
+                  <span style={{marginLeft:"auto",color:copied?C.green:C.muted,fontSize:11,fontWeight:800}}>
+                    {copied?"Link copied!":"→"}
+                  </span>
+                </button>
+
+                <a href="mailto:HireFlo.in@gmail.com" style={{width:"100%",textAlign:"left",padding:"12px 6px",color:C.ink,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10,textDecoration:"none"}}>
+                  🛟 Support
+                </a>
+
+                <button onClick={onLogout} style={{width:"100%",textAlign:"left",padding:"12px 6px",background:"none",border:"none",color:C.red,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+                  🚪 Sign Out
+                </button>
+              </div>
             </>
           ):(
             <div style={{marginTop:16,display:"grid",gap:10}}>
@@ -1852,7 +1966,9 @@ function Dashboard({user,onStartInterview,onGoToJobs,onGoToTab,stats}){
           <Tag color={C.gold} size={11}>Upgrade →</Tag>
         </div>
       )}
-      {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut}/>}
+      {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut} user={user} onRedeemed={()=>window.location.reload()}/>}
+
+      {/* ── STAT ROW ── */}
 
       {/* ── STAT ROW ── */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12,marginBottom:16}}>
@@ -2388,7 +2504,7 @@ Return ONLY:
         <div style={{color:C.soft,fontSize:12,marginBottom:16}}>Each slot has different questions themed around a different focus area, personalized to your resume.</div>
         <SlotGrid isPro={isPro} completedSlots={completedSlots} loadingSlot={slotLoading} onSelectSlot={selectSlot} onUpgrade={()=>setShowUpgrade(true)}/>
       </div>
-      {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut}/>}
+      {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onChoosePlan={handleChoosePlan} checkingOut={checkingOut} user={user} onRedeemed={refreshSub}/>}
     </div>
   );
 
