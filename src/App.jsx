@@ -1550,14 +1550,14 @@ function ProfilePanel({user,open,onClose,onLogout}){
 
               <div style={{height:1,background:C.border,margin:"18px 0"}}/>
 
-              <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                <button onClick={copyReferLink} style={{width:"100%",textAlign:"left",padding:"12px 6px",background:copied?C.greenPale:"none",borderRadius:10,border:"none",color:C.ink,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10,transition:"background .2s"}}>
-                  {installable&&(
-                  <button onClick={promptInstall} style={{width:"100%",textAlign:"left",padding:"12px 6px",background:"none",borderRadius:10,border:"none",color:C.ink,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+              <div style={{display:"flex",flexDirection:"column",width:"100%",gap:2}}>
+                {installable&&(
+                  <button onClick={promptInstall} style={{width:"100%",boxSizing:"border-box",textAlign:"left",padding:"12px 6px",background:"none",borderRadius:10,border:"none",color:C.ink,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
                     📲 Install App
                     <span style={{marginLeft:"auto",color:C.violet,fontSize:11,fontWeight:800}}>→</span>
                   </button>
                 )}
+                <button onClick={copyReferLink} style={{width:"100%",boxSizing:"border-box",textAlign:"left",padding:"12px 6px",background:copied?C.greenPale:"none",borderRadius:10,border:"none",color:C.ink,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10,transition:"background .2s"}}>
                   🎁 Refer &amp; Earn
                   <span style={{marginLeft:"auto",color:copied?C.green:C.muted,fontSize:11,fontWeight:800}}>
                     {copied?"Link copied!":"→"}
